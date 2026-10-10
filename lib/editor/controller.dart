@@ -92,6 +92,10 @@ class EditorController extends ChangeNotifier {
   bool toolLocked = false;
   CutoutMode cutoutMode = CutoutMode.lasso;
   bool cutoutLeavesHole = false;
+
+  /// What to put where a cut-out piece came from (when it leaves a hole).
+  HoleFill cutoutFill = HoleFill.empty;
+  int cutoutFillColor = 0xFFFFFFFF;
   double wandTolerance = 0.14;
   bool wandContiguous = true;
   String? editingTextId;
@@ -859,8 +863,8 @@ class EditorController extends ChangeNotifier {
       transact('page colour', () => doc.background = argb);
 
   void setGridSize(double g) {
-    doc.gridSize = g.clamp(4, 400).toDouble();
-    notifyListeners();
+    final size = g.clamp(4, 400).toDouble();
+    transact('grid size', () => doc.gridSize = size);
   }
 
   /// True when part of the page is outside the window, so panning is useful.
@@ -1110,7 +1114,11 @@ class EditorController extends ChangeNotifier {
       img.dispose();
       final png = data!.buffer.asUint8List();
       _lastCopySig = _sig(png);
-      await SystemClipboard.writeImage(png);
+      if (!await SystemClipboard.writeImage(png)) {
+        showToast(
+          'Copied inside Thinkspace. To paste into other apps, install xclip (X11) or wl-clipboard (Wayland)',
+        );
+      }
     } catch (_) {}
   }
 
@@ -1199,6 +1207,12 @@ class EditorController extends ChangeNotifier {
       assetId: asset.id,
       center: b.center,
       size: b.size,
+      merged: MergeRecord(
+        assetId: asset.id,
+        center: b.center,
+        size: b.size,
+        parts: [for (final o in ordered) o.toJson()],
+      ),
     );
     transact('merge into one image', () {
       for (final l in doc.layers) {
@@ -1209,6 +1223,73 @@ class EditorController extends ChangeNotifier {
       currentLayerId = topLayer.id;
     });
     return merged;
+  }
+
+  /// The selected picture, if it is a merge that can be taken apart again.
+  bool get canUnmerge {
+    final o = single;
+    return o is ImageObject && o.canUnmerge;
+  }
+
+  /// Put a merged picture back into the pieces it was made from, wherever the
+  /// merged picture has been moved, resized, turned or faded since.
+  List<SceneObject> unmerge() {
+    final o = single;
+    if (o is! ImageObject || !o.canUnmerge) return const [];
+    final rec = o.merged!;
+    final sx = o.size.width / rec.size.width;
+    final sy = o.size.height / rec.size.height;
+    final k = math.sqrt(sx * sy);
+    // Where a point on the page at merge time is now.
+    Offset map(Offset p) {
+      var q = p - rec.center;
+      q = Offset(q.dx * sx, q.dy * sy);
+      if (o.flipX) q = Offset(-q.dx, q.dy);
+      return o.center + rotateOffset(q, o.rotation);
+    }
+
+    final layer = doc.layerOf(o.id) ?? currentLayer;
+    return transact('unmerge', () {
+      final made = <SceneObject>[];
+      for (final j in rec.parts) {
+        final json = Map<String, dynamic>.from(j)..['id'] = doc.newId('o');
+        final p = SceneObject.fromJson(json);
+        p.opacity *= o.opacity;
+        switch (p) {
+          case BoxObject():
+            final turned = p.rotation.abs() > 1e-9;
+            p.center = map(p.center);
+            p.rotation = (o.flipX ? -p.rotation : p.rotation) + o.rotation;
+            if (o.flipX) p.flipX = !p.flipX;
+            p.size = turned || p is BadgeObject
+                ? Size(p.size.width * k, p.size.height * k)
+                : Size(p.size.width * sx, p.size.height * sy);
+            if (p is TextObject) {
+              p.fontSize *= k;
+              p.size = Size(p.size.width, measureTextHeight(p));
+            } else if (p is ShapeObject) {
+              p.strokeWidth *= k;
+            }
+          case LineObject():
+            p.p1 = map(p.p1);
+            p.p2 = map(p.p2);
+            p.width *= k;
+          case StrokeObject():
+            p.points = [for (final q in p.points) map(q)];
+            p.width *= k;
+        }
+        made.add(p);
+      }
+      final idx = layer.objects.indexWhere((x) => x.id == o.id);
+      if (idx < 0) {
+        layer.objects.addAll(made);
+      } else {
+        layer.objects.replaceRange(idx, idx + 1, made);
+      }
+      selection = [for (final p in made) p.id];
+      currentLayerId = layer.id;
+      return made;
+    });
   }
 
   // ===== cutouts and background removal ======================================
@@ -1239,7 +1320,13 @@ class EditorController extends ChangeNotifier {
     if (a == null) return null;
     final poly = [for (final p in scenePolygon) _toPx(src, a, p)];
     final hole = leaveHole ?? cutoutLeavesHole;
-    final res = await cutoutPolygon(a, poly, leaveHole: hole);
+    final res = await cutoutPolygon(
+      a,
+      poly,
+      leaveHole: hole,
+      fill: cutoutFill,
+      fillColor: cutoutFillColor,
+    );
     if (res == null) {
       showToast('Nothing to cut out there');
       return null;
@@ -1440,9 +1527,18 @@ class EditorController extends ChangeNotifier {
   /// Files the app was started with (double-click in a file manager, or
   /// `thinkspace picture.png`): a project opens, pictures go on the page.
   Future<void> openLaunchFiles(List<String> args) async {
+    String? toPath(String a) {
+      if (!a.startsWith('file://')) return a;
+      try {
+        return Uri.parse(a).toFilePath();
+      } catch (_) {
+        return null; // a damaged file:// address is simply skipped
+      }
+    }
+
     final paths = [
       for (final a in args)
-        if (a.startsWith('file://')) Uri.parse(a).toFilePath() else a,
+        if (toPath(a) case final p?) p,
     ];
     final project = paths
         .where((p) => p.toLowerCase().endsWith('.thinkspace'))
@@ -1487,7 +1583,7 @@ class EditorController extends ChangeNotifier {
     _redo.clear();
     editingTextId = null;
     filePath = null;
-    dirty = false;
+    markSaved();
     fitToView(notify: false);
     notifyListeners();
   }

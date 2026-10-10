@@ -15,6 +15,7 @@ enum _Act {
   removeBg,
   keep,
   merge,
+  unmerge,
   paste,
   selectAll,
   fit,
@@ -65,6 +66,11 @@ Future<void> showObjectMenu(
           sel.length > 1 ? 'Merge into one image' : 'Turn into an image',
         ),
       ),
+      if (c.canUnmerge)
+        const PopupMenuItem(
+          value: _Act.unmerge,
+          child: Text('Unmerge (back to the original pieces)'),
+        ),
       PopupMenuItem(
         value: _Act.lock,
         child: Text(sel.every((o) => o.locked) ? 'Unlock' : 'Lock in place'),
@@ -112,6 +118,8 @@ Future<void> showObjectMenu(
       c.sendSelectionToCollection();
     case _Act.merge:
       await c.flattenSelection();
+    case _Act.unmerge:
+      c.unmerge();
     case _Act.paste:
       await c.paste();
     case _Act.selectAll:

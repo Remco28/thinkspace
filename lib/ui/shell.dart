@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../dev/inspector.dart';
 import '../editor/canvas_view.dart';
 import '../editor/controller.dart';
+import '../editor/image_ops.dart' show HoleFill;
 import '../editor/interactor.dart';
 import '../io/files.dart';
 import '../io/samples.dart';
@@ -496,64 +497,76 @@ class _EditorShellState extends State<EditorShell> {
         onKeyEvent: _onKey,
         child: Scaffold(
           backgroundColor: kPanel,
-          body: Column(
+          // The top bar is drawn last so the keycap under the active tool can
+          // hang over its lower edge.
+          body: Stack(
+            clipBehavior: Clip.none,
             children: [
-              TopBar(c: c, onMenu: _menu),
-              Expanded(
-                child: Row(
-                  children: [
-                    if (collectionOpen) ...[
-                      SizedBox(
-                        width: collectionWidth,
-                        child: FileDropZone(
-                          onFiles: (paths, _) =>
-                              _dropped(paths, toCollection: true),
+              Column(
+                children: [
+                  const SizedBox(height: kTopBarHeight),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        if (collectionOpen) ...[
+                          SizedBox(
+                            width: collectionWidth,
+                            child: FileDropZone(
+                              onFiles: (paths, _) =>
+                                  _dropped(paths, toCollection: true),
+                              child: Material(
+                                color: kPanel,
+                                child: CollectionPanel(controller: c),
+                              ),
+                            ),
+                          ),
+                          _Divider(
+                            onDrag: (dx) => setState(
+                              () => collectionWidth = (collectionWidth + dx)
+                                  .clamp(170, 560),
+                            ),
+                          ),
+                        ],
+                        Expanded(
+                          child: FileDropZone(
+                            onFiles: (paths, local) =>
+                                _dropped(paths, at: c.toScene(local)),
+                            child: _canvasArea(),
+                          ),
+                        ),
+                        Container(
+                          width: 292,
+                          decoration: const BoxDecoration(
+                            border: Border(left: BorderSide(color: kBorder)),
+                          ),
                           child: Material(
                             color: kPanel,
-                            child: CollectionPanel(controller: c),
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  flex: 5,
+                                  child: LayersPanel(controller: c),
+                                ),
+                                const Divider(height: 1, color: kBorder),
+                                Expanded(
+                                  flex: 6,
+                                  child: PropertiesPanel(controller: c),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      _Divider(
-                        onDrag: (dx) => setState(
-                          () => collectionWidth = (collectionWidth + dx).clamp(
-                            170,
-                            560,
-                          ),
-                        ),
-                      ),
-                    ],
-                    Expanded(
-                      child: FileDropZone(
-                        onFiles: (paths, local) =>
-                            _dropped(paths, at: c.toScene(local)),
-                        child: _canvasArea(),
-                      ),
+                      ],
                     ),
-                    Container(
-                      width: 292,
-                      decoration: const BoxDecoration(
-                        border: Border(left: BorderSide(color: kBorder)),
-                      ),
-                      child: Material(
-                        color: kPanel,
-                        child: Column(
-                          children: [
-                            Expanded(
-                              flex: 5,
-                              child: LayersPanel(controller: c),
-                            ),
-                            const Divider(height: 1, color: kBorder),
-                            Expanded(
-                              flex: 6,
-                              child: PropertiesPanel(controller: c),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: kTopBarHeight,
+                child: TopBar(c: c, onMenu: _menu),
               ),
             ],
           ),
@@ -698,7 +711,7 @@ class _ZoomBar extends StatelessWidget {
     elevation: 1,
     borderRadius: BorderRadius.circular(8),
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -734,14 +747,14 @@ class _ZoomBar extends StatelessWidget {
             '${c.doc.canvasSize.width.round()} × ${c.doc.canvasSize.height.round()}',
             style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7385)),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           // Only when there is something off-screen to pan to: the moment
           // someone needs to know it.
           if (c.canPan && c.viewport.width > 520) ...[
-            const Padding(
-              padding: EdgeInsets.only(right: 6),
-              child: _PanHint(),
-            ),
+            Container(width: 1, height: 18, color: kBorder),
+            const SizedBox(width: 14),
+            const _PanHint(),
+            const SizedBox(width: 8),
           ],
         ],
       ),
@@ -961,6 +974,40 @@ class _CutoutBar extends StatelessWidget {
                   c.notify();
                 },
               ),
+              if (c.cutoutLeavesHole) ...[
+                const Text('Fill the gap', style: TextStyle(fontSize: 12)),
+                SegmentedButton<HoleFill>(
+                  key: const ValueKey('hole-fill'),
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  segments: const [
+                    ButtonSegment(value: HoleFill.empty, label: Text('Empty')),
+                    ButtonSegment(
+                      value: HoleFill.blend,
+                      label: Text('Blend in'),
+                    ),
+                    ButtonSegment(value: HoleFill.color, label: Text('Colour')),
+                  ],
+                  selected: {c.cutoutFill},
+                  onSelectionChanged: (s) {
+                    c.cutoutFill = s.first;
+                    c.notify();
+                  },
+                ),
+                if (c.cutoutFill == HoleFill.color)
+                  SizedBox(
+                    width: 190,
+                    child: ColorRow(
+                      value: c.cutoutFillColor,
+                      onChanged: (v) {
+                        c.cutoutFillColor = v;
+                        c.notify();
+                      },
+                    ),
+                  ),
+              ],
             ],
             SmallIconButton(
               icon: Icons.close,

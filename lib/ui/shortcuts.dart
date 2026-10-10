@@ -183,7 +183,7 @@ class KeyCombo extends StatelessWidget {
         if (i > 0 && !_chord) const SizedBox(width: 4),
         if (i > 0 && _chord)
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4),
+            padding: EdgeInsets.symmetric(horizontal: 6),
             child: Text(
               '+',
               style: TextStyle(fontSize: 11, color: Color(0xFF8A90A0)),

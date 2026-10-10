@@ -99,7 +99,7 @@ class AssetStore {
   void retain(Set<String> keep, Duration minAge) {
     final cutoff = DateTime.now().subtract(minAge);
     _assets.removeWhere(
-      (id, _) => !keep.contains(id) && (_made[id]?.isBefore(cutoff) ?? true),
+      (id, _) => !keep.contains(id) && (_made[id]?.isBefore(cutoff) ?? false),
     );
     _made.removeWhere((id, _) => !_assets.containsKey(id));
   }

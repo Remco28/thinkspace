@@ -436,6 +436,7 @@ Frank handed over ownership: build the best app that supports the concept, with 
 - Rotation and opacity are in, as is a pen with smoothing, text edited on the page, rectangles, ellipses, numbered markers, alignment, and right-click menus. These came from the job (arranging and annotating), not from copying a drawing suite.
 - Shortcuts are taught in place rather than by a manual: the active tool shows its key as a small keycap under its icon, `?` opens a sheet where every key is drawn as a key, and a "Space + drag to pan" hint appears beside the zoom controls only when the page is bigger than the window. Frank asked for the keycap look after the first hint was too subtle; the in-app logo was tried and dropped because it looked muddy at 22 px.
 - A tool is used once and then you are back on Select; double-click a tool to keep it. Frank confirmed this feels right.
+- Merge is reversible after the fact: a merged picture remembers its originals (stored in the project file, so it makes the file larger) and can be unmerged while its pixels are untouched. Frank asked for this; the rule "only while the picture is unchanged" is what keeps it clean. Cutting a gap can be filled (empty / blend in / colour). Blend-in is a smooth continuation of the surroundings, not a texture copy, so it suits flat screenshots; a texture-aware fill (patch-based) would be the next step if testers want it. No keyboard shortcut for fill, by request.
 
 **Deliberately left out**
 

@@ -131,6 +131,70 @@ abstract class BoxObject extends SceneObject {
   }
 }
 
+/// What a merged picture was made from, so it can be taken apart again.
+class MergeRecord {
+  MergeRecord({
+    required this.assetId,
+    required this.center,
+    required this.size,
+    required this.parts,
+  });
+
+  /// The merged picture's pixels when it was made. The record is only good
+  /// while the object still shows exactly these pixels.
+  final String assetId;
+
+  /// Where the merged picture sat on the page at that moment.
+  final Offset center;
+  final Size size;
+
+  /// The originals, bottom to top, exactly as they were saved.
+  final List<Map<String, dynamic>> parts;
+
+  Map<String, dynamic> toJson() => {
+    'asset': assetId,
+    'center': [center.dx, center.dy],
+    'size': [size.width, size.height],
+    'parts': parts,
+  };
+
+  factory MergeRecord.fromJson(Map<String, dynamic> j) => MergeRecord(
+    assetId: j['asset'],
+    center: Offset(
+      (j['center'][0] as num).toDouble(),
+      (j['center'][1] as num).toDouble(),
+    ),
+    size: Size(
+      (j['size'][0] as num).toDouble(),
+      (j['size'][1] as num).toDouble(),
+    ),
+    parts: [
+      for (final p in j['parts'] as List) Map<String, dynamic>.from(p as Map),
+    ],
+  );
+
+  /// Every picture the originals used.
+  Set<String> get assets {
+    final out = <String>{};
+    void walk(Object? v) {
+      if (v is Map) {
+        for (final e in v.entries) {
+          if (e.key == 'asset' && e.value is String) {
+            out.add(e.value as String);
+          } else {
+            walk(e.value);
+          }
+        }
+      } else if (v is List) {
+        v.forEach(walk);
+      }
+    }
+
+    walk(parts);
+    return out;
+  }
+}
+
 class ImageObject extends BoxObject {
   ImageObject({
     required super.id,
@@ -143,9 +207,18 @@ class ImageObject extends BoxObject {
     super.opacity,
     super.visible,
     super.locked,
+    this.merged,
   });
 
   String assetId;
+
+  /// Set on a picture made by merging; see [canUnmerge].
+  MergeRecord? merged;
+
+  /// True while this picture is still exactly what the merge produced (moving,
+  /// scaling, rotating and fading do not change that; cutting or recolouring
+  /// does).
+  bool get canUnmerge => merged != null && merged!.assetId == assetId;
 
   @override
   ObjectKind get kind => ObjectKind.image;
@@ -186,10 +259,15 @@ class ImageObject extends BoxObject {
     opacity: opacity,
     visible: visible,
     locked: locked,
+    merged: merged,
   );
 
   @override
-  Map<String, dynamic> toJson() => {...boxJson('image'), 'asset': assetId};
+  Map<String, dynamic> toJson() => {
+    ...boxJson('image'),
+    'asset': assetId,
+    if (canUnmerge) 'merged': merged!.toJson(),
+  };
 
   factory ImageObject.fromJson(Map<String, dynamic> j) {
     final o = ImageObject(
@@ -203,6 +281,15 @@ class ImageObject extends BoxObject {
       locked: j['locked'] ?? false,
     );
     o.readBox(j);
+    // The merge record is a convenience: a damaged one must not stop the
+    // picture itself from opening.
+    try {
+      if (j['merged'] != null) {
+        o.merged = MergeRecord.fromJson(
+          Map<String, dynamic>.from(j['merged'] as Map),
+        );
+      }
+    } catch (_) {}
     return o;
   }
 }
@@ -285,7 +372,7 @@ class TextObject extends BoxObject {
       italic: j['italic'] ?? false,
       background: j['background'] ?? 0,
       align:
-          TextAlign.values[((j['align'] ?? 0) as int).clamp(
+          TextAlign.values[((j['align'] as num?)?.toInt() ?? 0).clamp(
             0,
             TextAlign.values.length - 1,
           )],
@@ -724,7 +811,10 @@ class Document {
 
   Set<String> get usedAssets => {
     for (final o in allObjects)
-      if (o is ImageObject) o.assetId,
+      if (o is ImageObject) ...[
+        o.assetId,
+        if (o.canUnmerge) ...o.merged!.assets,
+      ],
     for (final c in collection) c.assetId,
   };
 

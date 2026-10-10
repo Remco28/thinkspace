@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thinkspace/editor/controller.dart';
+import 'package:thinkspace/editor/image_ops.dart';
 import 'package:thinkspace/editor/interactor.dart';
 import 'package:thinkspace/editor/render.dart';
 import 'package:thinkspace/model/scene.dart';
@@ -762,6 +764,83 @@ void main() {
       expect(a.alphaAt(190, 190), 0);
     });
 
+    // Cut the blue middle out of a red picture and see what is left there.
+    Future<List<int>> centreAfterCut(
+      HoleFill fill, {
+      int color = 0xFF00FF00,
+    }) async {
+      final img = await addImage(
+        at: const Offset(300, 300),
+        w: 200,
+        h: 100,
+        color: 0xFFFF0000,
+        centerColor: 0xFF0000FF,
+      );
+      c.cutoutFill = fill;
+      c.cutoutFillColor = color;
+      await c.cutout(img, [
+        const Offset(250, 275),
+        const Offset(350, 275),
+        const Offset(350, 325),
+        const Offset(250, 325),
+      ], leaveHole: true);
+      final a = c.assets[(c.doc.objectById(img.id) as ImageObject).assetId]!;
+      final px = await a.rgbaBytes();
+      int at(int x, int y) => (y * a.width + x) * 4;
+      final i = at(100, 50), edge = at(5, 5);
+      expect(px.sublist(edge, edge + 4), [
+        255,
+        0,
+        0,
+        255,
+      ], reason: 'outside the hole is untouched');
+      return px.sublist(i, i + 4);
+    }
+
+    test('a gap can be filled with a flat colour', () async {
+      expect(await centreAfterCut(HoleFill.color), [0, 255, 0, 255]);
+    });
+
+    test('a gap can be blended in from what surrounds it', () async {
+      final px = await centreAfterCut(HoleFill.blend);
+      expect(px[0], greaterThan(245));
+      expect(px[1], lessThan(10));
+      expect(px[2], lessThan(10));
+      expect(px[3], 255);
+    });
+
+    test('an empty gap stays see-through', () async {
+      expect((await centreAfterCut(HoleFill.empty))[3], 0);
+    });
+
+    test('blending carries a gradient across the gap', () async {
+      // Black on the left fading to white on the right, with a hole between.
+      const w = 64, h = 16;
+      final px = Uint8List(w * h * 4);
+      final hole = Uint8List(w * h);
+      for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+          final i = (y * w + x) * 4;
+          final v = (x * 255 / (w - 1)).round();
+          px[i] = px[i + 1] = px[i + 2] = v;
+          px[i + 3] = 255;
+          if (x >= 24 && x < 40) hole[y * w + x] = 1;
+        }
+      }
+      blendFill(px, w, h, hole);
+      int g(int x) => px[(8 * w + x) * 4];
+      expect(g(26), lessThan(g(32)));
+      expect(g(32), lessThan(g(38)));
+      expect(g(32), closeTo(127, 30));
+    });
+
+    test('blend fill leaves a hole alone when nothing surrounds it', () {
+      final px = Uint8List(8 * 8 * 4); // fully transparent
+      final hole = Uint8List(64)..fillRange(0, 64, 1);
+      blendFill(px, 8, 8, hole);
+      expect(px.every((v) => v == 0), isTrue);
+    });
+
     test('a hole can be left in the original', () async {
       final img = await addImage(
         at: const Offset(300, 300),
@@ -1217,6 +1296,50 @@ void main() {
       expect(c.dirty, isTrue);
     });
 
+    test('changing the grid size counts as an edit that can be undone', () {
+      c.dirty = false;
+      c.markSaved();
+      final before = c.doc.gridSize;
+      c.setGridSize(before + 20);
+      expect(c.dirty, isTrue);
+      expect(c.undoDepth, 1);
+      c.undo();
+      expect(c.doc.gridSize, before);
+      expect(c.dirty, isFalse);
+    });
+
+    test(
+      'a replaced document starts clean, and undo can return to clean',
+      () async {
+        await c.replaceDocument(Document.blank());
+        expect(c.dirty, isFalse);
+        c.setBackground(0xFF445566);
+        expect(c.dirty, isTrue);
+        c.undo();
+        expect(c.dirty, isFalse);
+      },
+    );
+
+    test('a damaged file:// launch argument is skipped, not fatal', () async {
+      await c.openLaunchFiles(['file://%zz%zz', 'not-a-file.txt']);
+      expect(c.doc.allObjects, isEmpty);
+    });
+
+    test('a text alignment stored as a decimal still loads', () {
+      final t = TextObject(
+        id: 't',
+        name: 't',
+        text: 'x',
+        center: Offset.zero,
+        size: const Size(10, 10),
+      );
+      final j = t.toJson()..['align'] = 1.0;
+      expect(
+        (SceneObject.fromJson(j) as TextObject).align,
+        TextAlign.values[1],
+      );
+    });
+
     test('a failed edit is rolled back instead of half-applied', () {
       final before = c.doc.signature();
       expect(
@@ -1347,5 +1470,145 @@ void main() {
         expect(c.doc.allObjects.length, 1);
       },
     );
+  });
+
+  group('unmerge', () {
+    ShapeObject box(String id, Offset at, {Size size = const Size(80, 40)}) =>
+        ShapeObject(
+          id: id,
+          name: id,
+          ellipse: false,
+          center: at,
+          size: size,
+          fill: 0xFF3366FF,
+        );
+
+    Future<ImageObject> mergeTwo() async {
+      c.doc.canvasSize = const Size(1600, 1000);
+      c.doc.layers.first.objects
+        ..add(box('a', const Offset(200, 200)))
+        ..add(box('b', const Offset(320, 260), size: const Size(60, 60)));
+      c.select(['a', 'b']);
+      final m = await c.flattenSelection();
+      return m!;
+    }
+
+    Offset centreOf(String name) =>
+        (c.doc.allObjects.firstWhere((o) => o.name == name) as BoxObject)
+            .center;
+
+    test(
+      'merging then unmerging puts the pieces back where they were',
+      () async {
+        await mergeTwo();
+        expect(c.doc.allObjects.length, 1);
+        expect(c.canUnmerge, isTrue);
+        c.unmerge();
+        expect(c.doc.allObjects.length, 2);
+        expect(centreOf('a').dx, closeTo(200, 1e-6));
+        expect(centreOf('b').dy, closeTo(260, 1e-6));
+        expect(c.selection.length, 2);
+      },
+    );
+
+    test('pieces follow the merged picture when it is moved', () async {
+      final m = await mergeTwo();
+      m.center += const Offset(50, 30);
+      c.unmerge();
+      expect(centreOf('a'), const Offset(250, 230));
+      expect(centreOf('b').dx, closeTo(370, 1e-6));
+    });
+
+    test('pieces follow when the merged picture is scaled', () async {
+      final m = await mergeTwo();
+      final before = m.center;
+      m.size = Size(m.size.width * 2, m.size.height * 2);
+      c.unmerge();
+      final a =
+          c.doc.allObjects.firstWhere((o) => o.name == 'a') as ShapeObject;
+      expect(a.size.width, closeTo(160, 1e-6));
+      expect(a.center.dx, closeTo(before.dx + (200 - before.dx) * 2, 1e-6));
+    });
+
+    test('pieces follow when the merged picture is turned', () async {
+      final m = await mergeTwo();
+      final pivot = m.center;
+      m.rotation = math.pi / 2;
+      c.unmerge();
+      // A point to the left of the middle ends up below it after a quarter turn.
+      final a =
+          c.doc.allObjects.firstWhere((o) => o.name == 'a') as ShapeObject;
+      final d = a.center - pivot;
+      final was = const Offset(200, 200) - pivot;
+      expect(d.dx, closeTo(-was.dy, 1e-6));
+      expect(d.dy, closeTo(was.dx, 1e-6));
+      expect(a.rotation, closeTo(math.pi / 2, 1e-9));
+    });
+
+    test('fading the merged picture fades the pieces', () async {
+      final m = await mergeTwo();
+      m.opacity = 0.5;
+      c.unmerge();
+      expect(c.doc.allObjects.every((o) => o.opacity == 0.5), isTrue);
+    });
+
+    test('unmerge is one undo step, and merge can be redone after', () async {
+      await mergeTwo();
+      final depth = c.undoDepth;
+      c.unmerge();
+      expect(c.undoDepth, depth + 1);
+      c.undo();
+      expect(c.doc.allObjects.length, 1);
+      expect(c.canUnmerge, isTrue);
+    });
+
+    test(
+      'once the picture itself is cut, it can no longer be unmerged',
+      () async {
+        final m = await mergeTwo();
+        await c.cutout(m, [
+          Offset(m.center.dx - 20, m.center.dy - 20),
+          Offset(m.center.dx + 20, m.center.dy - 20),
+          Offset(m.center.dx + 20, m.center.dy + 20),
+          Offset(m.center.dx - 20, m.center.dy + 20),
+        ], leaveHole: true);
+        c.select([m.id]);
+        expect(c.canUnmerge, isFalse);
+      },
+    );
+
+    test(
+      'a merge survives saving and opening, with its original pictures',
+      () async {
+        c.doc.layers.first.objects.add(box('a', const Offset(200, 200)));
+        final pic = await addImage(at: const Offset(300, 300));
+        c.select(['a', pic.id]);
+        await c.flattenSelection();
+        final json = c.projectJson();
+        final c2 = newEditor();
+        await c2.loadProjectJson(json);
+        final m = c2.doc.allObjects.single as ImageObject;
+        expect(m.canUnmerge, isTrue);
+        c2.select([m.id]);
+        c2.unmerge();
+        expect(c2.doc.allObjects.length, 2);
+        final back = c2.doc.allObjects.whereType<ImageObject>().single;
+        expect(c2.assets[back.assetId], isNotNull);
+      },
+    );
+
+    test('merging merges: unmerging peels one level at a time', () async {
+      await mergeTwo();
+      c.doc.layers.first.objects.add(box('c', const Offset(500, 500)));
+      c.select([c.doc.allObjects.first.id, 'c']);
+      await c.flattenSelection();
+      c.unmerge();
+      expect(c.doc.allObjects.length, 2);
+      final inner = c.doc.allObjects.whereType<ImageObject>().single;
+      c.select([inner.id]);
+      expect(c.canUnmerge, isTrue);
+      c.unmerge();
+      expect(c.doc.allObjects.length, 3);
+    });
   });
 }

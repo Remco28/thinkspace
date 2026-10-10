@@ -224,6 +224,35 @@ void main() {
     expect(c.doc.layers.length, 2);
   });
 
+  appTest('a merged picture offers Unmerge, which brings the pieces back', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    for (final (n, x) in [('left', 200.0), ('right', 400.0)]) {
+      c.addObject(
+        ShapeObject(
+          id: c.doc.newId('o'),
+          name: n,
+          ellipse: false,
+          center: Offset(x, 200),
+          size: const Size(100, 60),
+          fill: 0xFF3366FF,
+        ),
+      );
+    }
+    c.selectAll();
+    await tester.runAsync(c.flattenSelection);
+    await tester.pump();
+    expect(c.doc.allObjects.length, 1);
+    expect(find.byKey(const ValueKey('unmerge-button')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('unmerge-button')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('unmerge-button')));
+    await tester.pump();
+    expect(c.doc.allObjects.length, 2);
+    expect(find.byKey(const ValueKey('unmerge-button')), findsNothing);
+  });
+
   appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {

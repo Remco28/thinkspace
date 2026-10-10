@@ -430,6 +430,16 @@ class PropertiesPanel extends StatelessWidget {
               label: const Text('Merge into one image'),
             ),
           ),
+        if (c.canUnmerge)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: OutlinedButton.icon(
+              key: const ValueKey('unmerge-button'),
+              onPressed: c.unmerge,
+              icon: const Icon(Icons.call_split, size: 16),
+              label: const Text('Unmerge into the original pieces'),
+            ),
+          ),
         const Divider(height: 22),
         const _Caption('Align'),
         Wrap(

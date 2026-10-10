@@ -1,7 +1,7 @@
 name: thinkspace
 description: A lightweight visual idea workspace for combining images, lines and layers to explain an idea.
 publish_to: none
-version: 0.3.0+1
+version: 0.4.0+1
 
 environment:
   sdk: '>=3.12.0 <4.0.0'

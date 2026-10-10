@@ -25,6 +25,9 @@ enum MenuAction {
 DateTime _lastToolTap = DateTime.fromMillisecondsSinceEpoch(0);
 Tool? _lastToolTapped;
 
+/// Height of the top bar; the page below starts here.
+const double kTopBarHeight = 46;
+
 class TopBar extends StatelessWidget {
   const TopBar({super.key, required this.c, required this.onMenu});
   final EditorController c;
@@ -90,7 +93,7 @@ class TopBar extends StatelessWidget {
     return ListenableBuilder(
       listenable: c,
       builder: (context, _) => Container(
-        height: 46,
+        height: kTopBarHeight,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -171,8 +174,8 @@ class TopBar extends StatelessWidget {
             ),
             const SizedBox(width: 16),
             for (final t in _tools)
-              Column(
-                mainAxisSize: MainAxisSize.min,
+              Stack(
+                clipBehavior: Clip.none,
                 children: [
                   SmallIconButton(
                     key: ValueKey('tool-${t.$1.name}'),
@@ -182,22 +185,24 @@ class TopBar extends StatelessWidget {
                     active: c.tool == t.$1,
                     onPressed: () => _toolTap(t.$1),
                   ),
-                  // The active tool shows its key as a little keycap, so the
-                  // shortcuts get learned without anyone reading a list. The
-                  // slot is always reserved so the bar never jumps.
-                  SizedBox(
-                    height: 17,
-                    child: c.tool == t.$1
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 1),
-                            child: KeyCap(
-                              t.$4,
-                              key: ValueKey('tool-key-${t.$1.name}'),
-                              compact: true,
-                            ),
-                          )
-                        : null,
-                  ),
+                  // The active tool shows its key as a little keycap hanging
+                  // over the bar's lower edge, so the shortcuts get learned
+                  // without anyone reading a list and the row stays level.
+                  if (c.tool == t.$1)
+                    Positioned(
+                      left: -8,
+                      right: -8,
+                      top: 30,
+                      child: IgnorePointer(
+                        child: Center(
+                          child: KeyCap(
+                            t.$4,
+                            key: ValueKey('tool-key-${t.$1.name}'),
+                            compact: true,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             if (c.toolLocked)
