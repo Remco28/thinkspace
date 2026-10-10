@@ -89,9 +89,8 @@ class _LayerTile extends StatelessWidget {
       DragTarget<ObjectDrag>(
         onWillAcceptWithDetails: (_) => true,
         onAcceptWithDetails: (d) => c.moveObjectsToLayer(d.data.ids, layer.id),
-        builder: (context, cand, _) => GestureDetector(
+        builder: (context, cand, _) => QuickTap(
           key: ValueKey('layer-${layer.id}'),
-          behavior: HitTestBehavior.opaque,
           onTap: () => c.selectLayerContents(layer.id),
           onDoubleTap: () async {
             final v = await promptText(context, 'Rename layer', layer.name);
@@ -217,8 +216,7 @@ class _ObjectRow extends StatelessWidget {
           child: Text(selected && c.selection.length > 1 ? '${c.selection.length} objects' : object.name, style: const TextStyle(color: Colors.white, fontSize: 12)),
         ),
       ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: QuickTap(
         onTap: () {
           final kb = currentModifiers();
           if (!layer.visible || !object.visible) {

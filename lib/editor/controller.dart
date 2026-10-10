@@ -38,8 +38,9 @@ class PendingPaste {
 }
 
 class _Snap {
-  _Snap(this.json, this.selection, this.layerId, this.label);
+  _Snap(this.json, this.signature, this.selection, this.layerId, this.label);
   final String json;
+  final String signature;
   final List<String> selection;
   final String layerId;
   final String label;
@@ -156,14 +157,14 @@ class EditorController extends ChangeNotifier {
 
   // ===== history ===========================================================
 
-  _Snap _capture(String label) => _Snap(doc.encode(), List.of(selection), currentLayerId, label);
+  _Snap _capture(String label) => _Snap(doc.encode(), doc.signature(), List.of(selection), currentLayerId, label);
 
   EditToken beginEdit(String label) => EditToken._(_capture(label));
 
   /// Record [token]'s state for undo if the document changed since.
   void endEdit(EditToken token) {
     if (autoGrow) _growToFit();
-    if (token._snap.json == doc.encode()) {
+    if (token._snap.signature == doc.signature()) {
       notifyListeners();
       return;
     }

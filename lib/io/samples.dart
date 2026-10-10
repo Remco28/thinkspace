@@ -83,7 +83,7 @@ Future<Asset> _awning(AssetStore assets, Color a, Color b) => _make(assets, 640,
       const n = 10;
       const w = 640 / n;
       for (int i = n - 1; i >= 0; i--) {
-        path.arcToPoint(Offset(i * w, 150), radius: Radius.circular(w / 2), clockwise: true);
+        path.arcToPoint(Offset(i * w, 150), radius: const Radius.circular(w / 2), clockwise: true);
       }
       path.lineTo(60, 0);
       path.close();

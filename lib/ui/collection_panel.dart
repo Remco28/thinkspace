@@ -88,9 +88,9 @@ class _Thumb extends StatelessWidget {
     );
   }
 
-  Widget _body(BuildContext context, Widget image) => GestureDetector(
+  Widget _body(BuildContext context, Widget image) => QuickTap(
         key: ValueKey('collection-${item.id}'),
-        behavior: HitTestBehavior.opaque,
+        onTap: () {},
         onDoubleTap: () => c.placeCollectionItem(item.id),
         onSecondaryTapDown: (d) async {
           final v = await showMenu<String>(

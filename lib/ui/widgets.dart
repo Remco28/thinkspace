@@ -268,3 +268,38 @@ class _NumberFieldState extends State<NumberField> {
         ),
       );
 }
+
+
+/// Taps respond instantly; a second tap within a moment counts as a double
+/// tap. (GestureDetector.onDoubleTap would delay every single tap.)
+class QuickTap extends StatefulWidget {
+  const QuickTap({super.key, required this.onTap, this.onDoubleTap, required this.child, this.onSecondaryTapDown});
+  final VoidCallback onTap;
+  final VoidCallback? onDoubleTap;
+  final void Function(TapDownDetails)? onSecondaryTapDown;
+  final Widget child;
+
+  @override
+  State<QuickTap> createState() => _QuickTapState();
+}
+
+class _QuickTapState extends State<QuickTap> {
+  DateTime _last = DateTime.fromMillisecondsSinceEpoch(0);
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onSecondaryTapDown: widget.onSecondaryTapDown,
+        onTap: () {
+          final now = DateTime.now();
+          final again = now.difference(_last).inMilliseconds < 380;
+          _last = again ? DateTime.fromMillisecondsSinceEpoch(0) : now;
+          if (again && widget.onDoubleTap != null) {
+            widget.onDoubleTap!();
+          } else {
+            widget.onTap();
+          }
+        },
+        child: widget.child,
+      );
+}

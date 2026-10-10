@@ -647,6 +647,13 @@ class Document {
 
   String encode() => jsonEncode(toJson());
 
+  /// Everything the user can see or change, but not the id counter, so an
+  /// abandoned gesture that burned an id doesn't count as an edit.
+  String signature() {
+    final j = toJson()..remove('nextId');
+    return jsonEncode(j);
+  }
+
   factory Document.fromJson(Map<String, dynamic> j) => Document(
         canvasSize: Size((j['canvas'][0] as num).toDouble(), (j['canvas'][1] as num).toDouble()),
         background: j['background'] ?? kDefaultBackground,

@@ -21,6 +21,9 @@ enum MenuAction {
   shortcuts,
 }
 
+DateTime _lastToolTap = DateTime.fromMillisecondsSinceEpoch(0);
+Tool? _lastToolTapped;
+
 class TopBar extends StatelessWidget {
   const TopBar({super.key, required this.c, required this.onMenu, required this.fileLabel});
   final EditorController c;
@@ -37,6 +40,15 @@ class TopBar extends StatelessWidget {
     (Tool.pen, Icons.draw_outlined, 'Pen', 'P'),
     (Tool.cutout, Icons.content_cut, 'Cut out', 'C'),
   ];
+
+  /// A second click on the same tool within a moment keeps it active.
+  void _toolTap(Tool t) {
+    final now = DateTime.now();
+    final again = _lastToolTapped == t && now.difference(_lastToolTap).inMilliseconds < 400;
+    _lastToolTap = now;
+    _lastToolTapped = t;
+    c.setTool(t, lock: again);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,15 +94,12 @@ class TopBar extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           for (final t in _tools)
-            GestureDetector(
-              onDoubleTap: () => c.setTool(t.$1, lock: true),
-              child: SmallIconButton(
-                key: ValueKey('tool-${t.$1.name}'),
-                icon: t.$2,
-                tooltip: '${t.$3}  (${t.$4})${t.$1 == Tool.select ? '' : ' — double-click to keep it active'}',
-                active: c.tool == t.$1,
-                onPressed: () => c.setTool(t.$1),
-              ),
+            SmallIconButton(
+              key: ValueKey('tool-${t.$1.name}'),
+              icon: t.$2,
+              tooltip: '${t.$3}  (${t.$4})${t.$1 == Tool.select ? '' : ' — double-click to keep it active'}',
+              active: c.tool == t.$1,
+              onPressed: () => _toolTap(t.$1),
             ),
           if (c.toolLocked)
             const Padding(

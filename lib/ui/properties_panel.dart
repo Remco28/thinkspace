@@ -86,34 +86,37 @@ class PropertiesPanel extends StatelessWidget {
       Wrap(spacing: 6, runSpacing: 6, children: [
         OutlinedButton(onPressed: c.fitCanvasToContent, child: const Text('Fit page to content')),
       ]),
-      CheckboxListTile(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        controlAffinity: ListTileControlAffinity.leading,
-        value: c.autoGrow,
-        onChanged: (v) {
-          c.autoGrow = v ?? false;
+      InkWell(
+        onTap: () {
+          c.autoGrow = !c.autoGrow;
           c.notify();
         },
-        title: const Text('Grow the page as I add things', style: TextStyle(fontSize: 12.5)),
+        child: Row(children: [
+          Checkbox(
+            value: c.autoGrow,
+            visualDensity: VisualDensity.compact,
+            onChanged: (v) {
+              c.autoGrow = v ?? false;
+              c.notify();
+            },
+          ),
+          const Expanded(child: Text('Grow the page as I add things', style: TextStyle(fontSize: 12.5))),
+        ]),
       ),
       const Divider(height: 20),
       const _Caption('Page colour'),
       ColorRow(allowNone: true, value: d.background, onChanged: c.setBackground),
       const SizedBox(height: 10),
       const _Caption('Grid'),
-      Row(children: [
+      Wrap(spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
         const Text('Spacing', style: TextStyle(fontSize: 12)),
-        const SizedBox(width: 8),
-        NumberField(key: const ValueKey('grid-size'), value: d.gridSize, width: 64, onSubmitted: (v) => c.setGridSize(v)),
-        const SizedBox(width: 12),
+        NumberField(key: const ValueKey('grid-size'), value: d.gridSize, width: 60, onSubmitted: (v) => c.setGridSize(v)),
         FilterChip(
           label: const Text('Show'),
           selected: c.showGrid,
           onSelected: (_) => c.toggleGrid(),
           visualDensity: VisualDensity.compact,
         ),
-        const SizedBox(width: 4),
         FilterChip(
           label: const Text('Snap'),
           selected: c.snapOn,

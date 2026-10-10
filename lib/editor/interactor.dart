@@ -33,6 +33,7 @@ class CanvasInteractor {
   List<SceneObject> _candidates = const [];
   bool _clickOnSelectedTop = false;
   bool _stickyCycle = false;
+  bool _selectTopOnRelease = false;
   bool _additive = false;
   Offset _cyclePoint = const Offset(double.infinity, 0);
   int _cycleIndex = 0;
@@ -197,6 +198,7 @@ class CanvasInteractor {
     _candidates = hits;
     _clickOnSelectedTop = false;
     _stickyCycle = false;
+    _selectTopOnRelease = false;
     _additive = m.shift;
 
     if (hits.isEmpty) {
@@ -231,6 +233,10 @@ class CanvasInteractor {
       target = hits[_cycleIndex];
     } else if (c.selection.length == 1 && c.selection.first == target.id && hits.length > 1) {
       _clickOnSelectedTop = true;
+    } else if (c.selection.isNotEmpty && !c.selection.contains(target.id) && hits.any((o) => c.selection.contains(o.id))) {
+      // Pressing where a selected object sits beneath something else keeps
+      // the selection, so it can be dragged; a plain click still picks the top.
+      _selectTopOnRelease = true;
     } else if (!c.selection.contains(target.id)) {
       c.select([target.id]);
     }
@@ -299,9 +305,13 @@ class CanvasInteractor {
   }
 
   void _downCutout(Offset p) {
-    ImageObject? target = c.imageAt(p);
+    // The selected image wins unless the drag starts on a different image.
     final sel = c.single;
-    if (target == null && sel is ImageObject) target = sel;
+    final under = c.imageAt(p);
+    ImageObject? target = under;
+    if (sel is ImageObject && (under == null || under.id == sel.id || sel.containsLocal(sel.toLocal(p), 0))) {
+      target = sel;
+    }
     if (target == null) {
       c.showToast('Click on an image to cut from it');
       _mode = _Mode.none;
@@ -372,7 +382,7 @@ class CanvasInteractor {
 
   void _doMove(Offset p, Modifiers m) {
     var total = p - _startScene;
-    if (m.shift && !_additive) {
+    if (m.shift) {
       // Hold shift to keep to one axis.
       if (total.dx.abs() > total.dy.abs()) {
         total = Offset(total.dx, 0);
@@ -563,6 +573,10 @@ class CanvasInteractor {
 
   void _finishClick(Offset p) {
     final hits = _candidates;
+    if (_selectTopOnRelease && hits.isNotEmpty) {
+      c.select([hits.first.id]);
+      return;
+    }
     if (hits.length < 2) return;
     if (_clickOnSelectedTop || _stickyCycle) {
       final cur = _stickyCycle ? _cycleIndex : 0;

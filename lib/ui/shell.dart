@@ -347,18 +347,21 @@ class _EditorShellState extends State<EditorShell> {
             Expanded(
               child: Row(children: [
                 if (collectionOpen) ...[
-                  SizedBox(width: collectionWidth, child: ColoredBox(color: kPanel, child: CollectionPanel(controller: c))),
+                  SizedBox(width: collectionWidth, child: Material(color: kPanel, child: CollectionPanel(controller: c))),
                   _Divider(onDrag: (dx) => setState(() => collectionWidth = (collectionWidth + dx).clamp(170, 560))),
                 ],
                 Expanded(child: _canvasArea()),
                 Container(
                   width: 292,
-                  decoration: const BoxDecoration(color: kPanel, border: Border(left: BorderSide(color: kBorder))),
-                  child: Column(children: [
-                    Expanded(flex: 5, child: LayersPanel(controller: c)),
-                    const Divider(height: 1, color: kBorder),
-                    Expanded(flex: 6, child: PropertiesPanel(controller: c)),
-                  ]),
+                  decoration: const BoxDecoration(border: Border(left: BorderSide(color: kBorder))),
+                  child: Material(
+                    color: kPanel,
+                    child: Column(children: [
+                      Expanded(flex: 5, child: LayersPanel(controller: c)),
+                      const Divider(height: 1, color: kBorder),
+                      Expanded(flex: 6, child: PropertiesPanel(controller: c)),
+                    ]),
+                  ),
                 ),
               ]),
             ),
@@ -374,7 +377,7 @@ class _EditorShellState extends State<EditorShell> {
     return ListenableBuilder(
       listenable: c,
       builder: (context, _) => Stack(children: [
-        Positioned.fill(child: CanvasView(controller: c, interactor: ix, spaceDown: spaceDown)),
+        Positioned.fill(child: CanvasView(controller: c, interactor: ix, spaceDown: spaceDown, focusNode: _focus)),
         Positioned(
           left: 8,
           top: 8,
@@ -477,44 +480,53 @@ class _PasteChooserState extends State<_PasteChooser> {
       borderRadius: BorderRadius.circular(12),
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (a != null)
-            Container(
-              width: 64,
-              height: 48,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(border: Border.all(color: kBorder), borderRadius: BorderRadius.circular(6)),
-              padding: const EdgeInsets.all(2),
-              child: RawImage(image: a.image, fit: BoxFit.contain),
-            ),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            Text('Pasted an image${a == null ? '' : ' (${a.width} × ${a.height})'}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-            const SizedBox(height: 2),
-            const Text('Where should it go?', style: TextStyle(fontSize: 12, color: Color(0xFF6B7385))),
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              if (a != null)
+                Container(
+                  width: 56,
+                  height: 42,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(border: Border.all(color: kBorder), borderRadius: BorderRadius.circular(6)),
+                  padding: const EdgeInsets.all(2),
+                  child: RawImage(image: a.image, fit: BoxFit.contain),
+                ),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Pasted an image${a == null ? '' : ' (${a.width} × ${a.height})'}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  const Text('Where should it go?', style: TextStyle(fontSize: 12, color: Color(0xFF6B7385))),
+                ]),
+              ),
+              SmallIconButton(icon: Icons.close, tooltip: 'Discard  Esc', onPressed: c.cancelPendingPaste),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: FilledButton(
+                  key: const ValueKey('paste-to-layer'),
+                  onPressed: () => c.resolvePaste(toCollection: false, remember: remember),
+                  child: Text('Add to “${c.currentLayer.name}”  ⏎', overflow: TextOverflow.ellipsis),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                key: const ValueKey('paste-to-collection'),
+                onPressed: () => c.resolvePaste(toCollection: true, remember: remember),
+                child: const Text('Collection  C'),
+              ),
+            ]),
             SizedBox(
-              height: 26,
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
+              height: 28,
+              child: Row(children: [
                 Checkbox(value: remember, visualDensity: VisualDensity.compact, onChanged: (v) => setState(() => remember = v ?? false)),
-                const Text('Always do this', style: TextStyle(fontSize: 12)),
+                const Flexible(child: Text('Always do this (change it later in the menu)', style: TextStyle(fontSize: 12))),
               ]),
             ),
           ]),
-          const SizedBox(width: 16),
-          FilledButton(
-            key: const ValueKey('paste-to-layer'),
-            onPressed: () => c.resolvePaste(toCollection: false, remember: remember),
-            child: Text('Add to “${c.currentLayer.name}”   ⏎'),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            key: const ValueKey('paste-to-collection'),
-            onPressed: () => c.resolvePaste(toCollection: true, remember: remember),
-            child: const Text('Collection   C'),
-          ),
-          const SizedBox(width: 4),
-          SmallIconButton(icon: Icons.close, tooltip: 'Discard  Esc', onPressed: c.cancelPendingPaste),
-        ]),
+        ),
       ),
     );
   }

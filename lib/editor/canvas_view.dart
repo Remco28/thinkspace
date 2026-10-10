@@ -25,7 +25,8 @@ Modifiers currentModifiers() => Modifiers(
     );
 
 class CanvasView extends StatefulWidget {
-  const CanvasView({super.key, required this.controller, required this.interactor, required this.spaceDown});
+  const CanvasView({super.key, required this.controller, required this.interactor, required this.spaceDown, this.focusNode});
+  final FocusNode? focusNode;
   final EditorController controller;
   final CanvasInteractor interactor;
   final ValueNotifier<bool> spaceDown;
@@ -68,7 +69,7 @@ class _CanvasViewState extends State<CanvasView> {
                   child: Listener(
                     behavior: HitTestBehavior.opaque,
                     onPointerDown: (e) {
-                      FocusManager.instance.primaryFocus?.unfocus();
+                      widget.focusNode?.requestFocus();
                       final pan = e.buttons == kMiddleMouseButton || widget.spaceDown.value || e.buttons == kSecondaryMouseButton;
                       ix.pointerDown(e.localPosition, currentModifiers(), forcePan: pan);
                     },
@@ -166,6 +167,7 @@ class _TextEditorOverlayState extends State<_TextEditorOverlay> {
             child: TextField(
               controller: _text,
               focusNode: _focus,
+              key: const ValueKey('text-editor'),
               maxLines: null,
               style: textStyleFor(t),
               textAlign: t.align,
