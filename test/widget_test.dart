@@ -159,6 +159,25 @@ void main() {
     expect(find.byKey(const ValueKey('tool-key-arrow')), findsOneWidget);
     expect(find.text('A'), findsOneWidget);
     expect(find.byKey(const ValueKey('tool-key-select')), findsNothing);
+    // A slim key: it hugs its letter rather than filling the space around it.
+    final cap = tester.getSize(find.byKey(const ValueKey('tool-key-arrow')));
+    expect(cap.width, lessThan(20));
+    expect(cap.height, lessThan(15));
+  });
+
+  appTest('picking a font changes the selected text', (tester) async {
+    final c = await pumpApp(tester);
+    final t = c.createText(const Offset(100, 100));
+    c.currentLayer.objects.add(t);
+    c.select([t.id]);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('font-mono')));
+    await tester.pump();
+    expect(t.font, TextFont.mono);
+    expect(c.textFont, TextFont.mono, reason: 'new text follows the last pick');
+    c.undo();
+    await tester.pump();
+    expect((c.doc.allObjects.single as TextObject).font, TextFont.sans);
   });
 
   appTest('? opens the shortcut sheet, with keys drawn as keys', (

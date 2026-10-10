@@ -115,6 +115,7 @@ class EditorController extends ChangeNotifier {
   int fillColor = 0;
   int textColor = 0xFF222222;
   double textSize = 28;
+  TextFont textFont = TextFont.sans;
   PasteMode pasteMode = PasteMode.ask;
   PendingPaste? pendingPaste;
 
@@ -180,7 +181,10 @@ class EditorController extends ChangeNotifier {
     final pp = pendingPaste;
     if (pp != null) keep.add(pp.assetId);
     for (final o in _clip) {
-      if (o is ImageObject) keep.add(o.assetId);
+      if (o is ImageObject) {
+        keep.add(o.assetId);
+        if (o.canUnmerge) keep.addAll(o.merged!.assets);
+      }
     }
     final ref = RegExp(r'"asset":"([^"]+)"');
     for (final snap in [..._undo, ..._redo]) {
@@ -344,10 +348,78 @@ class EditorController extends ChangeNotifier {
       finishTextEdit();
     }
     selection = ids;
+    listFocus = false;
     if (ids.length == 1) {
       final l = doc.layerOf(ids.first);
       if (l != null) currentLayerId = l.id;
     }
+    notifyListeners();
+  }
+
+  // ---- selecting from the Layers list -------------------------------------
+
+  /// Layers whose rows are folded away in the Layers panel.
+  final Set<String> collapsedLayers = {};
+
+  /// True after a row in the Layers list was clicked, until the selection
+  /// changes some other way: the arrow keys then walk the list, as in any
+  /// file list, instead of nudging the selection on the page.
+  bool listFocus = false;
+  String? _listAnchor, _listCursor;
+
+  /// Object ids in the order the Layers panel shows them (top layer first,
+  /// topmost object first), skipping folded layers.
+  List<String> get listOrder => [
+    for (final l in doc.layers.reversed)
+      if (!collapsedLayers.contains(l.id))
+        for (final o in l.objects.reversed) o.id,
+  ];
+
+  /// A click on a row: plain selects it, Ctrl toggles it, Shift selects
+  /// everything between the last clicked row and this one.
+  void clickListRow(String id, {bool shift = false, bool ctrl = false}) {
+    final order = listOrder;
+    final anchor = _listAnchor;
+    if (shift && anchor != null && order.contains(anchor)) {
+      select(_between(order, anchor, id));
+      _listCursor = id;
+    } else if (ctrl) {
+      toggleSelect(id);
+      _listAnchor = _listCursor = id;
+    } else {
+      select([id]);
+      _listAnchor = _listCursor = id;
+    }
+    listFocus = selection.isNotEmpty;
+  }
+
+  static List<String> _between(List<String> order, String a, String b) {
+    var i = order.indexOf(a), j = order.indexOf(b);
+    if (i < 0 || j < 0) return [b];
+    if (i > j) (i, j) = (j, i);
+    return order.sublist(i, j + 1);
+  }
+
+  /// Arrow up/down in the Layers list; [extend] (Shift) grows the selection
+  /// from where the walk began.
+  void listStep(int dir, {bool extend = false}) {
+    final order = listOrder;
+    if (order.isEmpty) return;
+    var cursor = _listCursor;
+    if (cursor == null || !order.contains(cursor)) {
+      cursor = selection.isEmpty ? null : selection.last;
+    }
+    var i = cursor == null
+        ? (dir > 0 ? -1 : order.length)
+        : order.indexOf(cursor);
+    if (i < 0 && cursor != null) i = dir > 0 ? -1 : order.length;
+    final n = (i + dir).clamp(0, order.length - 1);
+    final id = order[n];
+    final anchor = extend ? (_listAnchor ?? cursor ?? id) : id;
+    select(extend ? _between(order, anchor, id) : [id]);
+    _listAnchor = anchor;
+    _listCursor = id;
+    listFocus = true;
     notifyListeners();
   }
 
@@ -795,6 +867,7 @@ class EditorController extends ChangeNotifier {
       size: Size(width, 10),
       fontSize: textSize,
       color: textColor,
+      font: textFont,
     );
     t.size = Size(width, measureTextHeight(t));
     t.center = Offset(at.dx + width / 2, at.dy + t.size.height / 2);
@@ -1119,7 +1192,9 @@ class EditorController extends ChangeNotifier {
           'Copied inside Thinkspace. To paste into other apps, install xclip (X11) or wl-clipboard (Wayland)',
         );
       }
-    } catch (_) {}
+    } catch (_) {
+      showToast("Couldn't copy the selection as a picture");
+    }
   }
 
   void cutSelection() {
@@ -1157,14 +1232,18 @@ class EditorController extends ChangeNotifier {
   }
 
   Future<void> copyPageToClipboard() async {
-    final png = await exportPng();
-    _lastCopySig = _sig(png);
-    final ok = await SystemClipboard.writeImage(png);
-    showToast(
-      ok
-          ? 'Copied the page as an image'
-          : 'Install xclip (X11) or wl-clipboard (Wayland) to copy images',
-    );
+    try {
+      final png = await exportPng();
+      _lastCopySig = _sig(png);
+      final ok = await SystemClipboard.writeImage(png);
+      showToast(
+        ok
+            ? 'Copied the page as an image'
+            : 'Install xclip (X11) or wl-clipboard (Wayland) to copy images',
+      );
+    } catch (_) {
+      showToast("Couldn't copy the page as an image");
+    }
   }
 
   /// Merge the selected objects into one picture. The originals are replaced
@@ -1249,6 +1328,24 @@ class EditorController extends ChangeNotifier {
     }
 
     final layer = doc.layerOf(o.id) ?? currentLayer;
+    try {
+      return _unmergeInto(o, rec, layer, map, sx, sy, k);
+    } catch (_) {
+      // A damaged record: the edit was rolled back, so nothing changed.
+      showToast("Couldn't unmerge this picture");
+      return const [];
+    }
+  }
+
+  List<SceneObject> _unmergeInto(
+    ImageObject o,
+    MergeRecord rec,
+    Layer layer,
+    Offset Function(Offset) map,
+    double sx,
+    double sy,
+    double k,
+  ) {
     return transact('unmerge', () {
       final made = <SceneObject>[];
       for (final j in rec.parts) {
@@ -1260,7 +1357,7 @@ class EditorController extends ChangeNotifier {
             final turned = p.rotation.abs() > 1e-9;
             p.center = map(p.center);
             p.rotation = (o.flipX ? -p.rotation : p.rotation) + o.rotation;
-            if (o.flipX) p.flipX = !p.flipX;
+            if (o.flipX && p is ImageObject) p.flipX = !p.flipX;
             p.size = turned || p is BadgeObject
                 ? Size(p.size.width * k, p.size.height * k)
                 : Size(p.size.width * sx, p.size.height * sy);
@@ -1506,9 +1603,14 @@ class EditorController extends ChangeNotifier {
 
   /// Render the page and write it as a PNG; false (with a message) on failure.
   Future<bool> exportPngTo(String path, {double scale = 1}) async {
+    final tmp = File('$path.tmp');
     try {
-      await File(path).writeAsBytes(await exportPng(scale: scale));
+      await tmp.writeAsBytes(await exportPng(scale: scale), flush: true);
+      await tmp.rename(path);
     } catch (_) {
+      try {
+        if (tmp.existsSync()) tmp.deleteSync();
+      } catch (_) {}
       showToast('Could not export ${path.split('/').last}');
       return false;
     }

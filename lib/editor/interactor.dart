@@ -62,6 +62,7 @@ class CanvasInteractor {
   // creation
   String? _createId;
   List<Offset> _penPoints = [];
+  bool _penStraight = false;
   ImageObject? _cutTarget;
 
   // double click
@@ -367,6 +368,7 @@ class CanvasInteractor {
   void _downPen(Offset p) {
     _token = c.beginEdit('draw');
     _penPoints = [p];
+    _penStraight = false;
     final s = StrokeObject(
       id: c.doc.newId('o'),
       name: c.uniqueName('pen'),
@@ -444,7 +446,7 @@ class CanvasInteractor {
       case _Mode.create:
         _doCreate(p, m);
       case _Mode.pen:
-        _doPen(p);
+        _doPen(p, m);
       case _Mode.lasso:
         final pts = c.lasso!;
         if ((pts.last - p).distance * c.zoom > 2) pts.add(p);
@@ -586,9 +588,18 @@ class CanvasInteractor {
     c.notify();
   }
 
-  void _doPen(Offset p) {
+  void _doPen(Offset p, Modifiers m) {
     final o = c.doc.objectById(_createId!) as StrokeObject?;
     if (o == null) return;
+    // Holding Shift turns the stroke into one straight line from where it
+    // began, at the nearest 15 degrees; letting go carries on freehand.
+    _penStraight = m.shift;
+    if (m.shift) {
+      _penPoints = [_penPoints.first, _constrain(_penPoints.first, p, m)];
+      o.points = List.of(_penPoints);
+      c.notify();
+      return;
+    }
     if ((_penPoints.last - p).distance * c.zoom < 1.5) return;
     _penPoints.add(p);
     o.points = List.of(_penPoints);
@@ -727,7 +738,7 @@ class CanvasInteractor {
 
   void _finishPen(EditToken? token) {
     final o = c.doc.objectById(_createId!) as StrokeObject?;
-    if (o != null && o.points.length > 2) {
+    if (o != null && o.points.length > 2 && !_penStraight) {
       o.points = simplifyPolyline(o.points, 1.2 / c.zoom);
     }
     if (token != null) c.endEdit(token);

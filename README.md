@@ -11,7 +11,7 @@ Thinkspace is **not** a photo editor, a vector studio or a drafting tool. The sc
 ## What it does
 
 - **Pictures stay separate things.** Paste, drop or import images. Each is its own object you can move, resize, rotate, fade and rename. Nothing is painted into the page until you export.
-- **Fast lines and arrows.** Straight lines and arrows that you resize by dragging their ends. `Shift` snaps them to clean angles. Also rectangles, ellipses, text and a smoothed pen.
+- **Fast lines and arrows.** Straight lines and arrows that you resize by dragging their ends. `Shift` snaps them to clean angles. Also rectangles, ellipses, text in four typefaces (sans, serif, mono, handwriting) and a smoothed pen; hold `Shift` with the pen for a straight line.
 - **Layers that do the simple things.** Show/hide, reorder, lock, and *move everything on a layer together* — click a layer to select its contents, then drag. Drag any object onto another layer without it changing.
 - **A collection of source images.** Keep pictures you have gathered but not placed. Drag one onto the page to use it; the original stays in the collection to use again. The collection is resizable and can be hidden.
 - **Cut things out.** Draw around the part of a picture you want (freehand or box) and it becomes a new object, leaving the original intact. Or click a colour to remove it, or clear a flat background in one click. Cutting can leave a gap in the original, which you can leave empty, blend in from the surroundings (good for flat screenshots), or fill with a colour. Pieces can be merged into a single image, and a merged image can be unmerged back into its original pieces for as long as the picture itself has not been cut or recoloured (moving, scaling, turning and fading do not matter).
@@ -66,6 +66,7 @@ The menu (☰) has **Open the storefront sample**, a small scene with two overla
 | `Ctrl+Z` / `Ctrl+Shift+Z` | undo / redo |
 | `[` `]` | send backward / bring forward (`Ctrl` for all the way) |
 | arrows | nudge (`Shift` = 10 px, or one grid step when snapping) |
+| click a row in Layers, then `↑` `↓` | walk the list (`Shift` extends it; `Shift`+click selects a run) |
 | `G` / `Shift+G` | show grid / snap to grid |
 | `Ctrl+S` `O` `E` `I` | save · open · export PNG · add image |
 | `Ctrl+Shift+C` | copy the page as an image |
@@ -118,4 +119,4 @@ tool/xinput.py drag 420 320 700 420        # real mouse input into the real wind
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The bundled typefaces (Lora, JetBrains Mono, Caveat) are under the SIL Open Font License; their licences are in `assets/fonts/`.

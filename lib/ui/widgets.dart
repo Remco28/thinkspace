@@ -468,33 +468,35 @@ class KeyCap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = compact ? 14.0 : 20.0;
+    final h = compact ? 12.0 : 19.0;
+    // No alignment on the Container: it would stretch to fill whatever room
+    // the parent offers, which is what made the toolbar key look so roomy.
     return Container(
-      constraints: BoxConstraints(
-        minWidth: h + (compact ? 2 : 4),
-        minHeight: h,
-      ),
-      padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 7),
-      alignment: Alignment.center,
+      constraints: BoxConstraints(minWidth: h, minHeight: h),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 6),
       decoration: BoxDecoration(
         color: const Color(0xFFFBFBFD),
-        borderRadius: BorderRadius.circular(compact ? 3.5 : 5),
-        border: Border.all(color: const Color(0xFFB9BECB)),
+        borderRadius: BorderRadius.circular(compact ? 3 : 4.5),
+        border: Border.all(color: const Color(0xFFC3C8D4), width: 0.8),
         // The flat shadow under the key is what makes it read as a key.
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF9BA2B4),
-            offset: Offset(0, compact ? 1.5 : 2.5),
+            color: const Color(0xFFA6ADBE),
+            offset: Offset(0, compact ? 1 : 2),
           ),
         ],
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: compact ? 9.5 : 12,
-          height: 1.1,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF2B3140),
+      child: Center(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: compact ? 8.5 : 11.5,
+            height: 1.1,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF2B3140),
+          ),
         ),
       ),
     );

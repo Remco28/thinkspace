@@ -20,7 +20,12 @@ TextPainter textPainterFor(TextObject t, {double? width}) {
 }
 
 TextStyle textStyleFor(TextObject t) => TextStyle(
-  fontSize: t.fontSize,
+  fontFamily: t.font.family,
+  // The bundled fonts are variable fonts: the weight is an axis.
+  fontVariations: t.font.family == null
+      ? null
+      : [FontVariation('wght', t.bold ? 700 : 400)],
+  fontSize: t.fontSize * t.font.scale,
   color: Color(t.color),
   fontWeight: t.bold ? FontWeight.w700 : FontWeight.w400,
   fontStyle: t.italic ? FontStyle.italic : FontStyle.normal,

@@ -48,6 +48,12 @@ const _sections = <(String, List<_Row>)>[
       ),
       (
         [
+          ['Click'],
+        ],
+        'A Layers row, then ↑ ↓ walk the list; Shift extends it',
+      ),
+      (
+        [
           ['['],
           [']'],
         ],

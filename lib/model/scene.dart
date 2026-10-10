@@ -218,7 +218,11 @@ class ImageObject extends BoxObject {
   /// True while this picture is still exactly what the merge produced (moving,
   /// scaling, rotating and fading do not change that; cutting or recolouring
   /// does).
-  bool get canUnmerge => merged != null && merged!.assetId == assetId;
+  bool get canUnmerge =>
+      merged != null &&
+      merged!.assetId == assetId &&
+      merged!.size.width > 0 &&
+      merged!.size.height > 0;
 
   @override
   ObjectKind get kind => ObjectKind.image;
@@ -294,6 +298,26 @@ class ImageObject extends BoxObject {
   }
 }
 
+/// The few typefaces text can use. Sans is the system's own font; the others
+/// are bundled with the app so a project looks the same on any machine.
+enum TextFont {
+  sans('Sans', null),
+  serif('Serif', 'Lora'),
+  mono('Mono', 'JetBrains Mono'),
+  hand('Hand', 'Caveat', 1.3);
+
+  const TextFont(this.label, this.family, [this.scale = 1]);
+  final String label;
+  final String? family;
+
+  /// Handwriting is small for its point size; this evens out the sizes so
+  /// "28" looks about as big in every font.
+  final double scale;
+
+  static TextFont byName(Object? n) =>
+      values.firstWhere((f) => f.name == n, orElse: () => sans);
+}
+
 class TextObject extends BoxObject {
   TextObject({
     required super.id,
@@ -305,6 +329,7 @@ class TextObject extends BoxObject {
     this.color = 0xFF222222,
     this.bold = false,
     this.italic = false,
+    this.font = TextFont.sans,
     this.background = 0,
     this.align = TextAlign.left,
     super.rotation,
@@ -318,6 +343,7 @@ class TextObject extends BoxObject {
   int color;
   bool bold;
   bool italic;
+  TextFont font;
 
   /// 0 means no background.
   int background;
@@ -339,6 +365,7 @@ class TextObject extends BoxObject {
     color: color,
     bold: bold,
     italic: italic,
+    font: font,
     background: background,
     align: align,
     rotation: rotation,
@@ -355,6 +382,7 @@ class TextObject extends BoxObject {
     'color': color,
     'bold': bold,
     'italic': italic,
+    if (font != TextFont.sans) 'font': font.name,
     'background': background,
     'align': align.index,
   };
@@ -370,9 +398,10 @@ class TextObject extends BoxObject {
       color: j['color'],
       bold: j['bold'] ?? false,
       italic: j['italic'] ?? false,
+      font: TextFont.byName(j['font']),
       background: j['background'] ?? 0,
       align:
-          TextAlign.values[((j['align'] as num?)?.toInt() ?? 0).clamp(
+          TextAlign.values[(_asInt(j['align']) ?? 0).clamp(
             0,
             TextAlign.values.length - 1,
           )],
@@ -863,3 +892,6 @@ class Document {
     return d;
   }
 }
+
+/// A whole number from a JSON value that may be an int, a decimal or text.
+int? _asInt(Object? v) => v is num ? v.toInt() : int.tryParse('$v');

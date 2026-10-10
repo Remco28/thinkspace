@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/controller.dart';
 import '../model/scene.dart';
 import 'widgets.dart';
@@ -117,6 +118,16 @@ class PropertiesPanel extends StatelessWidget {
                 value: c.textColor,
                 onChanged: (v) {
                   c.textColor = v;
+                  c.notify();
+                },
+              ),
+            ),
+            LabeledRow(
+              'Font',
+              _FontPicker(
+                value: c.textFont,
+                onChanged: (f) {
+                  c.textFont = f;
                   c.notify();
                 },
               ),
@@ -770,6 +781,16 @@ class PropertiesPanel extends StatelessWidget {
             ),
           ),
           LabeledRow(
+            'Font',
+            _FontPicker(
+              value: o.font,
+              onChanged: (f) {
+                c.editSelected('font', (x) => (x as TextObject).font = f);
+                c.textFont = f;
+              },
+            ),
+          ),
+          LabeledRow(
             'Style',
             Wrap(
               spacing: 4,
@@ -927,5 +948,51 @@ class _Caption extends StatelessWidget {
         color: Color(0xFF5B6272),
       ),
     ),
+  );
+}
+
+/// Four little "Aa" buttons, each drawn in its own typeface.
+class _FontPicker extends StatelessWidget {
+  const _FontPicker({required this.value, required this.onChanged});
+  final TextFont value;
+  final ValueChanged<TextFont> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      for (final f in TextFont.values)
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Tooltip(
+            message: f.label,
+            child: InkWell(
+              key: ValueKey('font-${f.name}'),
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => onChanged(f),
+              child: Container(
+                width: 38,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: f == value ? kAccent.withValues(alpha: 0.14) : null,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: f == value ? kAccent : const Color(0xFFD8DBE3),
+                  ),
+                ),
+                child: Text(
+                  'Aa',
+                  style: TextStyle(
+                    fontFamily: f.family,
+                    fontSize: f == TextFont.hand ? 17 : 14,
+                    height: 1.1,
+                    color: const Color(0xFF222733),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+    ],
   );
 }

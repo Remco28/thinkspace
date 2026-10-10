@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart' show compute;
+
 import '../model/assets.dart';
 import '../model/geometry.dart';
 
@@ -204,7 +206,33 @@ Future<Image> _fillHole(Asset src, Path path, HoleFill fill, int color) async {
   ))!.buffer.asUint8List();
   cover.dispose();
 
-  final px = Uint8List.fromList(await src.rgbaBytes());
+  final job = (
+    px: Uint8List.fromList(await src.rgbaBytes()),
+    cover: coverBytes,
+    w: w,
+    h: h,
+    colour: fill == HoleFill.color,
+    rgb: color,
+  );
+  // Screenshots are quick; a big photo would freeze the window, so the pixel
+  // work moves to another isolate once the picture is large.
+  final px = w * h > 1500000
+      ? await compute(_fillPixels, job)
+      : _fillPixels(job);
+  return imageFromRgba(px, w, h);
+}
+
+typedef _FillJob = ({
+  Uint8List px,
+  Uint8List cover,
+  int w,
+  int h,
+  bool colour,
+  int rgb,
+});
+
+Uint8List _fillPixels(_FillJob j) {
+  final px = j.px, coverBytes = j.cover, w = j.w, h = j.h;
   // The hole is every touched pixel plus a one-pixel rim, so no halo of the
   // removed thing survives at its edge.
   var hole = Uint8List(w * h);
@@ -225,8 +253,8 @@ Future<Image> _fillHole(Asset src, Path path, HoleFill fill, int color) async {
   }
   hole = rim;
 
-  if (fill == HoleFill.color) {
-    final r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
+  if (j.colour) {
+    final r = (j.rgb >> 16) & 0xFF, g = (j.rgb >> 8) & 0xFF, b = j.rgb & 0xFF;
     for (int p = 0; p < w * h; p++) {
       if (hole[p] == 1 && px[p * 4 + 3] > 0) {
         px[p * 4] = r;
@@ -237,7 +265,7 @@ Future<Image> _fillHole(Asset src, Path path, HoleFill fill, int color) async {
   } else {
     blendFill(px, w, h, hole);
   }
-  return imageFromRgba(px, w, h);
+  return px;
 }
 
 /// Replace the colour of every [hole] pixel (that has any opacity) with a

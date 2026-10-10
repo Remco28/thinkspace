@@ -301,9 +301,10 @@ class _EditorShellState extends State<EditorShell> {
       case LogicalKeyboardKey.arrowRight:
         c.nudge(Offset(step, 0));
       case LogicalKeyboardKey.arrowUp:
-        c.nudge(Offset(0, -step));
+        // After clicking a row in the Layers list the arrows walk the list.
+        c.listFocus ? c.listStep(-1, extend: shift) : c.nudge(Offset(0, -step));
       case LogicalKeyboardKey.arrowDown:
-        c.nudge(Offset(0, step));
+        c.listFocus ? c.listStep(1, extend: shift) : c.nudge(Offset(0, step));
       case LogicalKeyboardKey.enter:
       case LogicalKeyboardKey.f2:
         final one = c.single;

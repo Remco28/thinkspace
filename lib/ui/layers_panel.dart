@@ -53,7 +53,6 @@ class LayersPanel extends StatefulWidget {
 }
 
 class _LayersPanelState extends State<LayersPanel> {
-  final Set<String> _collapsed = {};
   EditorController get c => widget.controller;
 
   @override
@@ -89,13 +88,12 @@ class _LayersPanelState extends State<LayersPanel> {
                     c: c,
                     layer: layer,
                     index: i,
-                    collapsed: _collapsed.contains(layer.id),
+                    collapsed: c.collapsedLayers.contains(layer.id),
                     onToggle: () {
-                      setState(
-                        () => _collapsed.contains(layer.id)
-                            ? _collapsed.remove(layer.id)
-                            : _collapsed.add(layer.id),
-                      );
+                      c.collapsedLayers.contains(layer.id)
+                          ? c.collapsedLayers.remove(layer.id)
+                          : c.collapsedLayers.add(layer.id);
+                      c.notify();
                     },
                   );
                 },
@@ -358,11 +356,9 @@ class _ObjectRow extends StatelessWidget {
         onTap: () {
           final kb = currentModifiers();
           if (!layer.visible || !object.visible) {
-            c.select([object.id]);
-          } else if (kb.shift || kb.ctrl) {
-            c.toggleSelect(object.id);
+            c.clickListRow(object.id);
           } else {
-            c.select([object.id]);
+            c.clickListRow(object.id, shift: kb.shift, ctrl: kb.ctrl);
           }
         },
         onDoubleTap: () async {

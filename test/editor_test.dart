@@ -1610,5 +1610,169 @@ void main() {
       c.unmerge();
       expect(c.doc.allObjects.length, 3);
     });
+
+    test(
+      'a copied merged picture keeps its originals through a prune',
+      () async {
+        final a = await addImage(at: const Offset(300, 300));
+        final b = await addImage(at: const Offset(420, 300), color: 0xFF00FF00);
+        c.select([a.id, b.id]);
+        final m = (await c.flattenSelection())!;
+        final parts = m.merged!.assets.toList();
+        expect(parts, isNotEmpty);
+        c.select([m.id]);
+        c.copySelection();
+        c.deleteSelection();
+        await c.replaceDocument(Document.blank());
+        for (final id in [m.assetId, ...parts]) {
+          c.assets.backdate(id, const Duration(minutes: 10));
+        }
+        c.pruneAssets();
+        c.pasteObjects();
+        c.select([c.doc.allObjects.single.id]);
+        expect(c.canUnmerge, isTrue);
+        for (final id in parts) {
+          expect(c.assets[id], isNotNull);
+        }
+      },
+    );
+
+    test('a merge record with no size cannot be unmerged', () async {
+      final m = await mergeTwo();
+      m.merged = MergeRecord(
+        assetId: m.assetId,
+        center: m.merged!.center,
+        size: Size.zero,
+        parts: m.merged!.parts,
+      );
+      expect(m.canUnmerge, isFalse);
+    });
+  });
+
+  group('round four', () {
+    test('Shift with the pen draws one straight line', () {
+      c.setTool(Tool.pen);
+      const shift = Modifiers(shift: true);
+      ix.pointerDown(const Offset(100, 100), noMods);
+      for (int i = 1; i <= 20; i++) {
+        ix.pointerMove(Offset(100 + i * 10.0, 100 + i * 2.0 + (i % 3)), shift);
+      }
+      ix.pointerUp(const Offset(300, 140), shift);
+      final s = c.doc.allObjects.single as StrokeObject;
+      expect(s.points.length, 2);
+      expect(s.points.first, const Offset(100, 100));
+      // 15-degree steps: the end is on one of them, not at the wobbly mouse.
+      final d = s.points.last - s.points.first;
+      final a = math.atan2(d.dy, d.dx) / (math.pi / 12);
+      expect(a, closeTo(a.roundToDouble(), 1e-6));
+    });
+
+    test('without Shift the pen is still freehand', () {
+      c.setTool(Tool.pen);
+      ix.pointerDown(const Offset(100, 100), noMods);
+      for (int i = 1; i <= 10; i++) {
+        ix.pointerMove(Offset(100 + i * 10.0, 100 + (i * i) * 2.0), noMods);
+      }
+      ix.pointerUp(const Offset(200, 300), noMods);
+      expect(
+        (c.doc.allObjects.single as StrokeObject).points.length,
+        greaterThan(3),
+      );
+    });
+
+    group('the Layers list', () {
+      late List<String> ids;
+      setUp(() {
+        ids = [];
+        for (int i = 0; i < 5; i++) {
+          final o = ShapeObject(
+            id: 's$i',
+            name: 'shape $i',
+            ellipse: false,
+            center: Offset(100.0 + i * 60, 100),
+            size: const Size(40, 40),
+            fill: 0xFF3366FF,
+          );
+          c.doc.layers.first.objects.add(o);
+          ids.add(o.id);
+        }
+      });
+
+      // The list shows the topmost object first: s4, s3, s2, s1, s0.
+      test('Down moves to the next row; Shift+Down extends the selection', () {
+        c.clickListRow('s4');
+        expect(c.selection, ['s4']);
+        c.listStep(1);
+        expect(c.selection, ['s3']);
+        c.listStep(1, extend: true);
+        c.listStep(1, extend: true);
+        expect(c.selection.toSet(), {'s3', 's2', 's1'});
+        c.listStep(-1, extend: true);
+        expect(c.selection.toSet(), {'s3', 's2'});
+        expect(c.listFocus, isTrue);
+      });
+
+      test('Shift+click selects the run between two rows', () {
+        c.clickListRow('s4');
+        c.clickListRow('s1', shift: true);
+        expect(c.selection.toSet(), {'s4', 's3', 's2', 's1'});
+        c.clickListRow('s0', ctrl: true);
+        expect(c.selection.length, 5);
+      });
+
+      test(
+        'picking something on the page hands the arrows back to nudging',
+        () {
+          c.clickListRow('s2');
+          expect(c.listFocus, isTrue);
+          c.select(['s0']);
+          expect(c.listFocus, isFalse);
+        },
+      );
+
+      test('folded layers are skipped', () {
+        c.addLayer();
+        final top = c.doc.layers.last;
+        top.objects.add(
+          ShapeObject(
+            id: 'x',
+            name: 'x',
+            ellipse: false,
+            center: const Offset(10, 10),
+            size: const Size(20, 20),
+          ),
+        );
+        c.collapsedLayers.add(top.id);
+        expect(c.listOrder.first, 's4');
+        expect(c.listOrder, isNot(contains('x')));
+      });
+    });
+
+    test('text fonts survive saving, and sans stays out of the file', () async {
+      final t = c.createText(const Offset(50, 50));
+      c.doc.layers.first.objects.add(t);
+      expect(t.toJson().containsKey('font'), isFalse);
+      t.font = TextFont.hand;
+      final c2 = newEditor();
+      await c2.loadProjectJson(c.projectJson());
+      expect((c2.doc.allObjects.single as TextObject).font, TextFont.hand);
+      expect(TextFont.byName('nonsense'), TextFont.sans);
+      expect(textStyleFor(t).fontFamily, 'Caveat');
+    });
+
+    test('a text alignment stored as text still loads', () {
+      final t = TextObject(
+        id: 't',
+        name: 't',
+        text: 'x',
+        center: Offset.zero,
+        size: const Size(10, 10),
+      );
+      final j = t.toJson()..['align'] = '1';
+      expect(
+        (SceneObject.fromJson(j) as TextObject).align,
+        TextAlign.values[1],
+      );
+    });
   });
 }
