@@ -53,10 +53,14 @@ class Inspector {
           await _json(req, c.stateJson());
         case '/screenshot':
           await WidgetsBinding.instance.endOfFrame;
-          final b =
-              (appShotKey.currentContext ?? shotKey.currentContext)!
-                      .findRenderObject()
-                  as RenderRepaintBoundary; // ignore: use_build_context_synchronously
+          final ctx = appShotKey.currentContext ?? shotKey.currentContext;
+          if (ctx == null) {
+            req.response.statusCode = 503; // nothing on screen yet
+            await req.response.close();
+            return;
+          }
+          // ignore: use_build_context_synchronously
+          final b = ctx.findRenderObject() as RenderRepaintBoundary;
           final img = await b.toImage(pixelRatio: 1);
           final data = await img.toByteData(format: ui.ImageByteFormat.png);
           await _bytes(req, data!.buffer.asUint8List());
@@ -65,12 +69,17 @@ class Inspector {
               double.tryParse(req.uri.queryParameters['scale'] ?? '') ?? 1;
           await _bytes(req, await c.exportPng(scale: scale));
         case '/do':
-          final body = req.method == 'POST'
-              ? jsonDecode(await utf8.decoder.bind(req).join())
-                    as Map<String, dynamic>
-              : Map<String, dynamic>.from(
-                  jsonDecode(req.uri.queryParameters['json'] ?? '{}') as Map,
-                );
+          // Commands change things (and can read and write files), so a web
+          // page must not be able to fire one with a mere link or image tag.
+          if (req.method != 'POST') {
+            req.response.statusCode = 405;
+            req.response.headers.set('Allow', 'POST');
+            await req.response.close();
+            return;
+          }
+          final body =
+              jsonDecode(await utf8.decoder.bind(req).join())
+                  as Map<String, dynamic>;
           final result = await _run(body);
           await WidgetsBinding.instance.endOfFrame;
           await _json(req, {
@@ -87,13 +96,8 @@ class Inspector {
     } catch (e, st) {
       req.response.statusCode = 500;
       req.response.headers.contentType = ContentType.json;
-      req.response.write(
-        jsonEncode({
-          'ok': false,
-          'error': '$e',
-          'stack': '$st'.split('\n').take(6).toList(),
-        }),
-      );
+      stderr.writeln('inspector: $e\n$st');
+      req.response.write(jsonEncode({'ok': false, 'error': '$e'}));
       await req.response.close();
     }
   }

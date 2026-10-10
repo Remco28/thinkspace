@@ -10,8 +10,7 @@ convert "$tmp/clean.png" -trim +repage "$tmp/trim.png"
 read -r w h <<<"$(identify -format '%w %h' "$tmp/trim.png")"
 side=$(( (w > h ? w : h) * 106 / 100 ))
 convert "$tmp/trim.png" -background none -gravity center -extent "${side}x${side}" "$tmp/square.png"
-mkdir -p packaging/icons assets
+mkdir -p packaging/icons
 for s in 16 32 48 64 128 256 512; do
   convert "$tmp/square.png" -filter Lanczos -resize ${s}x${s} -strip "packaging/icons/thinkspace-$s.png"
 done
-cp packaging/icons/thinkspace-128.png assets/logo.png

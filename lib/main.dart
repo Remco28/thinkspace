@@ -4,10 +4,11 @@ import 'dev/inspector.dart';
 import 'editor/canvas_painter.dart';
 import 'ui/shell.dart';
 
-void main() => runApp(const ThinkspaceApp());
+void main(List<String> args) => runApp(ThinkspaceApp(launchFiles: args));
 
 class ThinkspaceApp extends StatelessWidget {
-  const ThinkspaceApp({super.key});
+  const ThinkspaceApp({super.key, this.launchFiles = const []});
+  final List<String> launchFiles;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +34,7 @@ class ThinkspaceApp extends StatelessWidget {
             textStyle: const TextStyle(color: Colors.white, fontSize: 12),
           ),
         ),
-        home: const EditorShell(enableRecovery: true),
+        home: EditorShell(enableRecovery: true, launchFiles: launchFiles),
       ),
     );
   }

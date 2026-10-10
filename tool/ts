@@ -2,9 +2,9 @@
 # Tiny client for the inspector.  tool/ts state | shot out.png | export out.png [scale] | clip pic.png | do '{"cmd":"sample"}'
 P="${THINKSPACE_DEBUG_PORT:-47651}"
 case "$1" in
-  state) curl -s "localhost:$P/state" ;;
-  shot) curl -s "localhost:$P/screenshot" -o "${2:-shot.png}" ;;
-  export) curl -s "localhost:$P/export?scale=${3:-1}" -o "${2:-page.png}" ;;
+  state) curl -s "127.0.0.1:$P/state" ;;
+  shot) curl -s "127.0.0.1:$P/screenshot" -o "${2:-shot.png}" ;;
+  export) curl -s "127.0.0.1:$P/export?scale=${3:-1}" -o "${2:-page.png}" ;;
   clip) DISPLAY=:99 xclip -selection clipboard -t image/png -i "$2" ;;
-  do) curl -s -X POST "localhost:$P/do" -d "$2" ;;
+  do) curl -s -X POST "127.0.0.1:$P/do" -d "$2" ;;
 esac

@@ -53,6 +53,7 @@ class Asset {
 /// history snapshots stay tiny and an undone image can always come back.
 class AssetStore {
   final Map<String, Asset> _assets = {};
+  final Map<String, DateTime> _made = {};
   int _next = 1;
 
   Asset? operator [](String id) => _assets[id];
@@ -84,6 +85,7 @@ class AssetStore {
     );
     final asset = Asset(assetId, bytes, image, mask, mw, mh);
     _assets[assetId] = asset;
+    _made[assetId] = DateTime.now();
     return asset;
   }
 
@@ -92,10 +94,25 @@ class AssetStore {
       if (_assets[id] != null) id: base64Encode(_assets[id]!.bytes),
   };
 
+  /// Drop every picture not in [keep] that is older than [minAge]. The images
+  /// are left to the garbage collector (see [clear]).
+  void retain(Set<String> keep, Duration minAge) {
+    final cutoff = DateTime.now().subtract(minAge);
+    _assets.removeWhere(
+      (id, _) => !keep.contains(id) && (_made[id]?.isBefore(cutoff) ?? true),
+    );
+    _made.removeWhere((id, _) => !_assets.containsKey(id));
+  }
+
+  /// For tests: pretend a picture was made [by] ago.
+  void backdate(String id, Duration by) =>
+      _made[id] = DateTime.now().subtract(by);
+
   /// Forget everything. Images are left for the garbage collector rather than
   /// disposed, because a widget built a moment ago may still paint one.
   void clear() {
     _assets.clear();
+    _made.clear();
     _next = 1;
   }
 
@@ -104,6 +121,9 @@ class AssetStore {
     _assets
       ..clear()
       ..addAll(other._assets);
+    _made
+      ..clear()
+      ..addAll(other._made);
     _next = other._next;
   }
 }

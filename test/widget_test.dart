@@ -8,6 +8,7 @@ import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/io/samples.dart';
 import 'package:thinkspace/model/scene.dart';
 import 'package:thinkspace/ui/shell.dart';
+import 'package:thinkspace/ui/widgets.dart';
 
 import 'helpers.dart';
 
@@ -158,6 +159,69 @@ void main() {
     expect(find.byKey(const ValueKey('tool-key-arrow')), findsOneWidget);
     expect(find.text('A'), findsOneWidget);
     expect(find.byKey(const ValueKey('tool-key-select')), findsNothing);
+  });
+
+  appTest('? opens the shortcut sheet, with keys drawn as keys', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.slash, character: '?');
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.slash);
+    await tester.pumpAndSettle();
+    expect(find.text('Keyboard shortcuts'), findsOneWidget);
+    expect(find.byType(KeyCap), findsWidgets);
+    expect(find.text('Numbered marker'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Keyboard shortcuts'), findsNothing);
+  });
+
+  appTest('the pan hint shows only when there is somewhere to pan to', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    c.fitToView();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('pan-hint')), findsNothing);
+    c.zoomTo(c.zoom * 4);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('pan-hint')), findsOneWidget);
+    expect(find.text('Space'), findsOneWidget);
+  });
+
+  appTest('shortcuts work again right after typing in a panel field', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    await tester.tap(find.byKey(const ValueKey('canvas-w')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const ValueKey('canvas-w')), '1700');
+    await tester.pump();
+    // Clicking a toolbar button is the natural next move.
+    await tester.tap(find.byKey(const ValueKey('tool-select')));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+    await tester.pump();
+    expect(c.tool, Tool.line);
+  });
+
+  appTest('the layer menu offers Duplicate layer', (tester) async {
+    final c = await pumpApp(tester);
+    c.addObject(
+      ShapeObject(
+        id: c.doc.newId('o'),
+        name: 'box',
+        ellipse: false,
+        center: const Offset(100, 100),
+        size: const Size(50, 50),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Layer 1').first, buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Duplicate layer'));
+    await tester.pumpAndSettle();
+    expect(c.doc.layers.length, 2);
   });
 
   appTest(
@@ -407,7 +471,12 @@ void main() {
 
 // Smaller windows (a laptop with the panels open) must still lay out cleanly.
 void smallWindowTests() {
-  for (final size in const [Size(1024, 640), Size(900, 600), Size(1280, 720)]) {
+  for (final size in const [
+    Size(1024, 640),
+    Size(900, 600),
+    Size(1280, 720),
+    Size(900, 560),
+  ]) {
     appTest(
       'lays out without overflow at ${size.width.toInt()}x${size.height.toInt()}',
       (tester) async {

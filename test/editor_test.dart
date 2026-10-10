@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/editor/interactor.dart';
+import 'package:thinkspace/editor/render.dart';
 import 'package:thinkspace/model/scene.dart';
 
 import 'helpers.dart';
@@ -1130,5 +1131,221 @@ void main() {
       expect(c.doc.layers.length, 1);
       expect(c.assets.length, 0);
     });
+  });
+
+  group('review fixes', () {
+    ShapeObject shape({
+      bool ellipse = false,
+      double sw = 4,
+      bool filled = false,
+    }) => ShapeObject(
+      id: 's',
+      name: 's',
+      ellipse: ellipse,
+      center: const Offset(200, 200),
+      size: const Size(200, 100),
+      strokeWidth: sw,
+      fill: filled ? 0xFF00FF00 : 0,
+    );
+
+    test(
+      'an unfilled ellipse cannot be grabbed in the empty corners of its box',
+      () {
+        final e = shape(ellipse: true);
+        expect(e.hitTest(const Offset(298, 248), 3, c.assets), isFalse);
+        expect(e.hitTest(const Offset(300, 200), 3, c.assets), isTrue);
+        expect(e.hitTest(const Offset(200, 250), 3, c.assets), isTrue);
+        expect(e.hitTest(const Offset(200, 200), 3, c.assets), isFalse);
+      },
+    );
+
+    test('a thick outline counts toward a shape\'s bounds', () {
+      final r = shape(sw: 10);
+      expect(r.bounds, const Rect.fromLTRB(95, 145, 305, 255));
+    });
+
+    test('hidden layers do not count as content', () {
+      c.doc.layers.first.objects.add(shape());
+      final l = Layer(id: 'lh', name: 'hidden', visible: false);
+      l.objects.add(
+        ShapeObject(
+          id: 'far',
+          name: 'far',
+          ellipse: false,
+          center: const Offset(1500, 900),
+          size: const Size(100, 100),
+        ),
+      );
+      c.doc.layers.add(l);
+      expect(contentBounds(c.doc).right, lessThan(400));
+    });
+
+    test(
+      'dragging a text box by a top corner keeps its bottom edge in place',
+      () {
+        final t = TextObject(
+          id: 't1',
+          name: 'text',
+          text: 'hello there',
+          center: const Offset(400, 400),
+          size: const Size(200, 40),
+          fontSize: 28,
+        );
+        c.doc.layers.first.objects.add(t);
+        c.select([t.id]);
+        final bottomBefore = t.bounds.bottom;
+        final h = c
+            .handlesFor(t)
+            .firstWhere(
+              (h) => h.kind == HandleKind.resize && h.hx == 1 && h.hy == -1,
+            );
+        drag(ix, h.pos, h.pos + const Offset(40, -20));
+        final now = c.doc.objectById(t.id) as TextObject;
+        expect(now.bounds.bottom, closeTo(bottomBefore, 0.5));
+      },
+    );
+
+    test('undoing back to the saved state leaves the project clean', () async {
+      await addImage();
+      c.dirty = false;
+      c.markSaved();
+      c.setBackground(0xFF112233);
+      expect(c.dirty, isTrue);
+      c.undo();
+      expect(c.dirty, isFalse);
+      c.redo();
+      expect(c.dirty, isTrue);
+    });
+
+    test('a failed edit is rolled back instead of half-applied', () {
+      final before = c.doc.signature();
+      expect(
+        () => c.transact('boom', () {
+          c.doc.layers.first.objects.add(shape());
+          throw StateError('nope');
+        }),
+        throwsStateError,
+      );
+      expect(c.doc.signature(), before);
+      expect(c.undoDepth, 0);
+    });
+
+    test(
+      'saving to somewhere impossible reports it and stays unsaved',
+      () async {
+        await addImage();
+        c.dirty = true;
+        final ok = await c.saveTo('/nonexistent-dir-xyz/p.thinkspace');
+        expect(ok, isFalse);
+        expect(c.dirty, isTrue);
+        expect(c.toastMessage, contains('Could not save'));
+      },
+    );
+
+    test('saving leaves a whole file and no temp file behind', () async {
+      await addImage();
+      final dir = Directory.systemTemp.createTempSync('thinkspace_save');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final f = File('${dir.path}/p.thinkspace');
+      await f.writeAsString('old contents');
+      expect(await c.saveTo(f.path), isTrue);
+      expect(jsonDecode(await f.readAsString())['format'], 'thinkspace');
+      expect(dir.listSync().length, 1);
+    });
+
+    test(
+      'a project from a newer version is refused with a clear message',
+      () async {
+        final j = jsonDecode(c.projectJson()) as Map<String, dynamic>;
+        j['version'] = 99;
+        expect(
+          () => c.loadProjectJson(jsonEncode(j)),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
+
+    test('a project missing optional fields still opens', () async {
+      await addImage();
+      c.doc.layers.first.objects.add(shape());
+      final j = jsonDecode(c.projectJson()) as Map<String, dynamic>;
+      for (final l in j['document']['layers']) {
+        for (final o in l['objects']) {
+          o.remove('opacity');
+        }
+      }
+      await c.loadProjectJson(jsonEncode(j));
+      expect(c.doc.allObjects.length, 2);
+      expect(c.doc.allObjects.every((o) => o.opacity == 1), isTrue);
+    });
+
+    test(
+      'one unreadable picture does not stop the project from opening',
+      () async {
+        await addImage();
+        final j = jsonDecode(c.projectJson()) as Map<String, dynamic>;
+        (j['assets'] as Map)[(j['assets'] as Map).keys.first] = base64Encode([
+          1,
+          2,
+          3,
+          4,
+        ]);
+        await c.loadProjectJson(jsonEncode(j));
+        expect(c.doc.allObjects.length, 1);
+        expect(c.toastMessage, contains("couldn't be read"));
+      },
+    );
+
+    test('launching with a project file path opens it', () async {
+      await addImage();
+      final dir = Directory.systemTemp.createTempSync('thinkspace_launch');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final f = File('${dir.path}/p.thinkspace')
+        ..writeAsStringSync(c.projectJson());
+      final c2 = newEditor();
+      await c2.openLaunchFiles([f.path]);
+      expect(c2.doc.allObjects.length, 1);
+      expect(c2.filePath, f.path);
+    });
+
+    test('launching with a picture places it on the page', () async {
+      final a = await makeAsset(c, w: 60, h: 40);
+      final dir = Directory.systemTemp.createTempSync('thinkspace_launch');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final f = File('${dir.path}/pic.png')..writeAsBytesSync(a.bytes);
+      final c2 = newEditor();
+      await c2.openLaunchFiles([f.path]);
+      expect(c2.doc.allObjects.single, isA<ImageObject>());
+    });
+
+    test(
+      'pictures nothing refers to any more are forgotten, recent ones kept',
+      () async {
+        final used = await addImage();
+        final orphan = await makeAsset(c, w: 20, h: 20);
+        final fresh = await makeAsset(c, w: 20, h: 20);
+        c.assets.backdate(orphan.id, const Duration(minutes: 10));
+        c.assets.backdate(used.assetId, const Duration(minutes: 10));
+        c.pruneAssets();
+        expect(c.assets[orphan.id], isNull);
+        expect(c.assets[used.assetId], isNotNull);
+        expect(c.assets[fresh.id], isNotNull, reason: 'might be mid-edit');
+      },
+    );
+
+    test(
+      'a picture only kept alive by undo history is not forgotten',
+      () async {
+        final img = await addImage();
+        final id = img.assetId;
+        c.assets.backdate(id, const Duration(minutes: 10));
+        c.select([img.id]);
+        c.deleteSelection();
+        c.pruneAssets();
+        expect(c.assets[id], isNotNull);
+        c.undo();
+        expect(c.doc.allObjects.length, 1);
+      },
+    );
   });
 }

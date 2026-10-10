@@ -98,15 +98,6 @@ class TopBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4, right: 2),
-              child: Image.asset(
-                'assets/logo.png',
-                width: 22,
-                height: 22,
-                filterQuality: FilterQuality.medium,
-              ),
-            ),
             PopupMenuButton<MenuAction>(
               key: const ValueKey('main-menu'),
               tooltip: 'Menu',
@@ -158,7 +149,7 @@ class TopBar extends StatelessWidget {
                   'Grow the page as I add things',
                   c.autoGrow,
                 ),
-                _item(MenuAction.shortcuts, 'Keyboard shortcuts', ''),
+                _item(MenuAction.shortcuts, 'Keyboard shortcuts', '?'),
               ],
             ),
             const SizedBox(width: 4),
@@ -191,20 +182,18 @@ class TopBar extends StatelessWidget {
                     active: c.tool == t.$1,
                     onPressed: () => _toolTap(t.$1),
                   ),
-                  // The active tool shows its key, so the shortcuts get learned
-                  // without anyone reading a list. The slot is always reserved so
-                  // the bar never jumps.
+                  // The active tool shows its key as a little keycap, so the
+                  // shortcuts get learned without anyone reading a list. The
+                  // slot is always reserved so the bar never jumps.
                   SizedBox(
-                    height: 11,
+                    height: 17,
                     child: c.tool == t.$1
-                        ? Text(
-                            t.$4,
-                            key: ValueKey('tool-key-${t.$1.name}'),
-                            style: const TextStyle(
-                              fontSize: 9.5,
-                              height: 1.1,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF8A90A0),
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 1),
+                            child: KeyCap(
+                              t.$4,
+                              key: ValueKey('tool-key-${t.$1.name}'),
+                              compact: true,
                             ),
                           )
                         : null,

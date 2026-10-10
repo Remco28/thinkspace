@@ -76,6 +76,8 @@ static void my_application_activate(GApplication* application) {
   gtk_window_set_default_icon_name("thinkspace");
   gtk_window_set_icon_name(window, "thinkspace");
 
+  // The layout is tested down to this size; smaller would squeeze the panels.
+  gtk_widget_set_size_request(GTK_WIDGET(window), 900, 560);
   gtk_window_set_default_size(window, 1440, 900);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();

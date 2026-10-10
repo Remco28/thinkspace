@@ -57,7 +57,8 @@ The menu (☰) has **Open the storefront sample**, a small scene with two overla
 | double-click a tool | keep it active until `Esc` |
 | `Shift` while drawing / dragging | straight angles · perfect squares · lock to one axis |
 | `Ctrl` while moving | ignore snapping |
-| `Space` + drag, middle or right drag | pan |
+| `Space` + drag, middle or right drag | pan (a hint appears beside the zoom controls when the page is bigger than the window) |
+| `?` or `F1` | the shortcut sheet |
 | scroll wheel | zoom at the pointer (`Shift` + wheel pans) |
 | `Ctrl+0` / `Ctrl+1` / `F` | fit the page / actual size / fit |
 | `Ctrl+V` / `Ctrl+Shift+V` | paste (asks where) / paste into the collection |

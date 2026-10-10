@@ -198,7 +198,7 @@ class ImageObject extends BoxObject {
       assetId: j['asset'],
       center: Offset.zero,
       size: Size.zero,
-      opacity: (j['opacity'] as num).toDouble(),
+      opacity: ((j['opacity'] ?? 1) as num).toDouble(),
       visible: j['visible'] ?? true,
       locked: j['locked'] ?? false,
     );
@@ -284,8 +284,12 @@ class TextObject extends BoxObject {
       bold: j['bold'] ?? false,
       italic: j['italic'] ?? false,
       background: j['background'] ?? 0,
-      align: TextAlign.values[j['align'] ?? 0],
-      opacity: (j['opacity'] as num).toDouble(),
+      align:
+          TextAlign.values[((j['align'] ?? 0) as int).clamp(
+            0,
+            TextAlign.values.length - 1,
+          )],
+      opacity: ((j['opacity'] ?? 1) as num).toDouble(),
       visible: j['visible'] ?? true,
       locked: j['locked'] ?? false,
     );
@@ -313,6 +317,10 @@ class ShapeObject extends BoxObject {
   final bool ellipse;
   int stroke;
 
+  /// The outline is drawn centred on the edge, so it sticks out by half.
+  @override
+  Rect get bounds => super.bounds.inflate(strokeWidth / 2);
+
   /// 0 means unfilled.
   int fill;
   double strokeWidth;
@@ -326,11 +334,11 @@ class ShapeObject extends BoxObject {
     final hw = size.width / 2 + tolerance + strokeWidth / 2;
     final hh = size.height / 2 + tolerance + strokeWidth / 2;
     if (l.dx.abs() > hw || l.dy.abs() > hh) return false;
-    if (fill != 0) {
-      if (!ellipse) return true;
+    if (ellipse) {
       final x = l.dx / hw, y = l.dy / hh;
-      return x * x + y * y <= 1;
+      if (x * x + y * y > 1) return false; // outside the outer ellipse
     }
+    if (fill != 0) return true;
     // Unfilled: only the outline is grabbable, so shapes drawn around other
     // things don't swallow clicks meant for what's inside.
     final band = tolerance + strokeWidth / 2;
@@ -377,7 +385,7 @@ class ShapeObject extends BoxObject {
       stroke: j['stroke'],
       fill: j['fill'] ?? 0,
       strokeWidth: (j['strokeWidth'] as num).toDouble(),
-      opacity: (j['opacity'] as num).toDouble(),
+      opacity: ((j['opacity'] ?? 1) as num).toDouble(),
       visible: j['visible'] ?? true,
       locked: j['locked'] ?? false,
     );
@@ -444,7 +452,7 @@ class BadgeObject extends BoxObject {
       center: Offset.zero,
       size: Size.zero,
       color: j['color'],
-      opacity: (j['opacity'] as num).toDouble(),
+      opacity: ((j['opacity'] ?? 1) as num).toDouble(),
       visible: j['visible'] ?? true,
       locked: j['locked'] ?? false,
     );
@@ -535,7 +543,7 @@ class LineObject extends SceneObject {
     headEnd: j['headEnd'] ?? false,
     headStart: j['headStart'] ?? false,
     dashed: j['dashed'] ?? false,
-    opacity: (j['opacity'] as num).toDouble(),
+    opacity: ((j['opacity'] ?? 1) as num).toDouble(),
     visible: j['visible'] ?? true,
     locked: j['locked'] ?? false,
   );
@@ -606,7 +614,7 @@ class StrokeObject extends SceneObject {
     points: [for (final p in j['points']) _off(p)],
     color: j['color'],
     width: (j['width'] as num).toDouble(),
-    opacity: (j['opacity'] as num).toDouble(),
+    opacity: ((j['opacity'] ?? 1) as num).toDouble(),
     visible: j['visible'] ?? true,
     locked: j['locked'] ?? false,
   );

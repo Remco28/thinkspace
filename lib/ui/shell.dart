@@ -14,6 +14,7 @@ import '../model/scene.dart';
 import 'collection_panel.dart';
 import 'layers_panel.dart';
 import 'properties_panel.dart';
+import 'shortcuts.dart';
 import 'top_bar.dart';
 import 'widgets.dart';
 
@@ -24,8 +25,12 @@ class EditorShell extends StatefulWidget {
     this.startInspector = true,
     this.enableRecovery = false,
     this.recoveryFile,
+    this.launchFiles = const [],
   });
   final EditorController? controller;
+
+  /// Paths the app was started with (a project to open, pictures to place).
+  final List<String> launchFiles;
   final bool startInspector;
 
   /// Keep unsaved work in a recovery file and offer it back after a crash.
@@ -64,12 +69,26 @@ class _EditorShellState extends State<EditorShell> {
     super.initState();
     if (widget.enableRecovery) c.addListener(_syncTitle);
     if (widget.enableRecovery) {
+      final env = Platform.environment;
+      final home = env['HOME'];
+      final base =
+          env['XDG_DATA_HOME'] ??
+          (home == null || home.isEmpty ? null : '$home/.local/share');
       final data =
-          Platform.environment['THINKSPACE_DATA_DIR'] ??
-          '${Platform.environment['XDG_DATA_HOME'] ?? '${Platform.environment['HOME']}/.local/share'}/thinkspace';
-      c.recoveryFile = widget.recoveryFile ?? File('$data/recovery.thinkspace');
-      c.startAutosave(c.recoveryFile!);
-      WidgetsBinding.instance.addPostFrameCallback((_) => _offerRecovery());
+          env['THINKSPACE_DATA_DIR'] ??
+          (base == null ? null : '$base/thinkspace');
+      c.recoveryFile =
+          widget.recoveryFile ??
+          (data == null ? null : File('$data/recovery.thinkspace'));
+      if (c.recoveryFile != null) c.startAutosave(c.recoveryFile!);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _offerRecovery();
+        if (widget.launchFiles.isNotEmpty &&
+            mounted &&
+            (!c.dirty || await _confirmDiscard())) {
+          await c.openLaunchFiles(widget.launchFiles);
+        }
+      });
       _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
     }
     final port = int.tryParse(
@@ -77,7 +96,9 @@ class _EditorShellState extends State<EditorShell> {
     );
     if (widget.startInspector && port != null) {
       _inspector = Inspector(c: c, ix: ix, shotKey: shotKey, port: port)
-        ..start();
+        ..start().catchError((Object e) {
+          stderr.writeln('Thinkspace inspector could not start: $e');
+        });
     }
   }
 
@@ -256,6 +277,11 @@ class _EditorShellState extends State<EditorShell> {
       return KeyEventResult.handled;
     }
 
+    if (e.character == '?' || k == LogicalKeyboardKey.f1) {
+      showShortcuts(context);
+      return KeyEventResult.handled;
+    }
+
     final step = c.snapOn ? c.doc.gridSize : (shift ? 10.0 : 1.0);
     switch (k) {
       case LogicalKeyboardKey.escape:
@@ -352,9 +378,19 @@ class _EditorShellState extends State<EditorShell> {
     if (!await _confirmDiscard()) return;
     final p = await pickProject();
     if (p == null) return;
+    await _openProject(p);
+  }
+
+  Future<void> _openProject(String path) async {
     try {
-      await c.openFrom(p);
-    } catch (e) {
+      await c.openFrom(path);
+    } on FormatException catch (e) {
+      c.showToast(
+        e.message.startsWith('This project')
+            ? e.message
+            : 'That is not a Thinkspace project',
+      );
+    } catch (_) {
       c.showToast('Could not open that project');
     }
   }
@@ -379,8 +415,7 @@ class _EditorShellState extends State<EditorShell> {
       '$name${scale == 1 ? '' : '@${scale.round()}x'}.png',
     );
     if (p == null) return;
-    await File(p).writeAsBytes(await c.exportPng(scale: scale));
-    c.showToast('Exported ${p.split('/').last}');
+    await c.exportPngTo(p, scale: scale);
   }
 
   /// Files dragged in from the desktop: pictures go to the page (or the
@@ -393,11 +428,7 @@ class _EditorShellState extends State<EditorShell> {
     final projects = paths.where((p) => p.endsWith('.thinkspace')).toList();
     final images = paths.where(isImagePath).toList();
     if (projects.isNotEmpty && await _confirmDiscard()) {
-      try {
-        await c.openFrom(projects.first);
-      } catch (_) {
-        c.showToast('Could not open that project');
-      }
+      await _openProject(projects.first);
       return;
     }
     if (images.isEmpty) {
@@ -449,74 +480,8 @@ class _EditorShellState extends State<EditorShell> {
         c.autoGrow = !c.autoGrow;
         c.notify();
       case MenuAction.shortcuts:
-        _showShortcuts();
+        showShortcuts(context);
     }
-  }
-
-  void _showShortcuts() {
-    const rows = [
-      (
-        'V  L  A  R  E  T  P  C',
-        'Select, line, arrow, rectangle, ellipse, text, pen, cut out',
-      ),
-      ('Shift (drawing)', 'Straight angles / perfect square'),
-      ('Click again', 'Reach the object underneath the selected one'),
-      ('Ctrl (moving)', 'Ignore snapping'),
-      ('Space + drag', 'Pan (or middle / right mouse drag)'),
-      ('Scroll wheel', 'Zoom at the pointer  ·  Shift+scroll pans'),
-      ('Ctrl+0 / Ctrl+1', 'Fit page / actual size'),
-      ('Ctrl+V', 'Paste an image (asks where it goes)'),
-      ('Ctrl+Shift+V', 'Paste an image straight into the collection'),
-      ('Ctrl+C / X / D', 'Copy, cut, duplicate'),
-      ('Ctrl+Z / Shift+Z', 'Undo / redo'),
-      ('[  ]', 'Send backward / bring forward'),
-      ('Arrow keys', 'Nudge (Shift = 10 px)'),
-      ('G / Shift+G', 'Show grid / snap to grid'),
-      ('Ctrl+S / O / E', 'Save, open, export PNG'),
-      ('Ctrl+Shift+C', 'Copy the whole page as an image'),
-    ];
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Keyboard shortcuts'),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final r in rows)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 170,
-                        child: Text(
-                          r.$1,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(r.$2, style: const TextStyle(fontSize: 13)),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
   }
 
   // ---- layout --------------------------------------------------------------
@@ -770,9 +735,32 @@ class _ZoomBar extends StatelessWidget {
             style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7385)),
           ),
           const SizedBox(width: 8),
+          // Only when there is something off-screen to pan to: the moment
+          // someone needs to know it.
+          if (c.canPan && c.viewport.width > 520) ...[
+            const Padding(
+              padding: EdgeInsets.only(right: 6),
+              child: _PanHint(),
+            ),
+          ],
         ],
       ),
     ),
+  );
+}
+
+class _PanHint extends StatelessWidget {
+  const _PanHint();
+
+  @override
+  Widget build(BuildContext context) => const Row(
+    key: ValueKey('pan-hint'),
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text('Pan:', style: TextStyle(fontSize: 11.5, color: Color(0xFF6B7385))),
+      SizedBox(width: 5),
+      KeyCombo(['Space', 'drag']),
+    ],
   );
 }
 

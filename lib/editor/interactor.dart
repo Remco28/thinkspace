@@ -504,7 +504,10 @@ class CanvasInteractor {
       }
       live.size = Size(nw, h0);
       live.size = Size(nw, measureTextHeight(live));
-      final cy = -h0 / 2 + live.size.height / 2;
+      // A top handle moves the top edge, so the bottom stays put.
+      final cy = h.hy < 0
+          ? h0 / 2 - live.size.height / 2
+          : -h0 / 2 + live.size.height / 2;
       final cx = h.hx == 0 ? 0.0 : ax + h.hx * nw / 2;
       live.center = start.toScene(Offset(cx, cy));
       c.notify();

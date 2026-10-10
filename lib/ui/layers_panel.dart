@@ -239,6 +239,7 @@ class _LayerTile extends StatelessWidget {
           value: 'select',
           child: Text('Select everything on this layer'),
         ),
+        const PopupMenuItem(value: 'duplicate', child: Text('Duplicate layer')),
         PopupMenuItem(
           value: 'lock',
           child: Text(layer.locked ? 'Unlock layer' : 'Lock layer'),

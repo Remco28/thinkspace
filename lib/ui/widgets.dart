@@ -340,9 +340,26 @@ class _NumberFieldState extends State<NumberField> {
         decimal: true,
         signed: true,
       ),
-      onSubmitted: (_) => _submit(),
+      onSubmitted: (_) {
+        _submit();
+        _giveBackFocus();
+      },
+      // Clicking anywhere else ends the edit, so the one-key shortcuts work
+      // again without having to click the page first.
+      onTapOutside: (_) => _giveBackFocus(),
     ),
   );
+
+  /// Hand keyboard focus back to the editor around us (the shortcut handler).
+  void _giveBackFocus() {
+    if (!_focus.hasFocus) return;
+    final editor = Focus.maybeOf(context);
+    if (editor != null) {
+      editor.requestFocus();
+    } else {
+      _focus.unfocus();
+    }
+  }
 }
 
 /// Taps respond instantly; a second tap within a moment counts as a double
@@ -438,4 +455,48 @@ class _FileDropZoneState extends State<FileDropZone> {
       ],
     ),
   );
+}
+
+/// A little keyboard key. Used wherever the app says "press this", so a
+/// keystroke always looks like one.
+class KeyCap extends StatelessWidget {
+  const KeyCap(this.label, {super.key, this.compact = false});
+  final String label;
+
+  /// Smaller, for the toolbar.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final h = compact ? 14.0 : 20.0;
+    return Container(
+      constraints: BoxConstraints(
+        minWidth: h + (compact ? 2 : 4),
+        minHeight: h,
+      ),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 7),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFBFD),
+        borderRadius: BorderRadius.circular(compact ? 3.5 : 5),
+        border: Border.all(color: const Color(0xFFB9BECB)),
+        // The flat shadow under the key is what makes it read as a key.
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF9BA2B4),
+            offset: Offset(0, compact ? 1.5 : 2.5),
+          ),
+        ],
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: compact ? 9.5 : 12,
+          height: 1.1,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF2B3140),
+        ),
+      ),
+    );
+  }
 }

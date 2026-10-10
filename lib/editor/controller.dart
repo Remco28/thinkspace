@@ -69,6 +69,17 @@ class EditorController extends ChangeNotifier {
   EditorController() {
     doc = Document.blank();
     currentLayerId = doc.layers.first.id;
+    _savedSig = doc.signature();
+  }
+
+  /// The document as it was when last saved (or opened); null when the
+  /// current work has never been saved anywhere.
+  String? _savedSig;
+
+  /// Note that what is on the page now is what is on disk.
+  void markSaved() {
+    _savedSig = doc.signature();
+    dirty = false;
   }
 
   late Document doc;
@@ -155,6 +166,27 @@ class EditorController extends ChangeNotifier {
     super.dispose();
   }
 
+  // ===== memory ============================================================
+
+  /// Forget pictures nothing can bring back: not on the page, not in the
+  /// collection, not in any undo or redo step, not on the internal clipboard.
+  /// Recently made ones are kept, since an edit may be about to use them.
+  void pruneAssets({Duration minAge = const Duration(minutes: 2)}) {
+    final keep = <String>{...doc.usedAssets};
+    final pp = pendingPaste;
+    if (pp != null) keep.add(pp.assetId);
+    for (final o in _clip) {
+      if (o is ImageObject) keep.add(o.assetId);
+    }
+    final ref = RegExp(r'"asset":"([^"]+)"');
+    for (final snap in [..._undo, ..._redo]) {
+      for (final m in ref.allMatches(snap.json)) {
+        keep.add(m.group(1)!);
+      }
+    }
+    assets.retain(keep, minAge);
+  }
+
   // ===== recovery ==========================================================
 
   void startAutosave(
@@ -163,7 +195,10 @@ class EditorController extends ChangeNotifier {
   }) {
     recoveryFile = file;
     _autosaveTimer?.cancel();
-    _autosaveTimer = Timer.periodic(every, (_) => autosaveNow());
+    _autosaveTimer = Timer.periodic(every, (_) {
+      pruneAssets();
+      autosaveNow();
+    });
   }
 
   Future<void> autosaveNow() async {
@@ -172,7 +207,7 @@ class EditorController extends ChangeNotifier {
     _needsAutosave = false;
     try {
       await f.parent.create(recursive: true);
-      await f.writeAsString(projectJson());
+      await _writeAtomic(f, projectJson());
     } catch (_) {}
   }
 
@@ -187,15 +222,20 @@ class EditorController extends ChangeNotifier {
   /// was written, or null if there was nothing to restore.
   DateTime? pendingRecovery() {
     final f = recoveryFile;
-    if (f == null || !f.existsSync()) return null;
-    return f.lastModifiedSync();
+    try {
+      if (f == null || !f.existsSync()) return null;
+      return f.lastModifiedSync();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> restoreRecovery() async {
     final f = recoveryFile;
     if (f == null) return;
     await loadProjectJson(await f.readAsString());
-    dirty = true; // it has never been saved under a real name
+    _savedSig = null; // it has never been saved under a real name
+    dirty = true;
     _needsAutosave = true;
     notifyListeners();
   }
@@ -253,7 +293,13 @@ class EditorController extends ChangeNotifier {
 
   T transact<T>(String label, T Function() fn) {
     final t = beginEdit(label);
-    final r = fn();
+    final T r;
+    try {
+      r = fn();
+    } catch (_) {
+      abortEdit(t); // never leave a half-made edit with no undo step
+      rethrow;
+    }
     endEdit(t);
     return r;
   }
@@ -265,7 +311,7 @@ class EditorController extends ChangeNotifier {
         ? s.layerId
         : doc.layers.last.id;
     editingTextId = null;
-    dirty = true;
+    dirty = _savedSig == null || doc.signature() != _savedSig;
   }
 
   void undo() {
@@ -817,6 +863,11 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// True when part of the page is outside the window, so panning is useful.
+  bool get canPan =>
+      doc.canvasSize.width * zoom > viewport.width + 1 ||
+      doc.canvasSize.height * zoom > viewport.height + 1;
+
   void _growToFit() {
     final b = contentBounds(doc);
     if (b.isEmpty) return;
@@ -1283,18 +1334,31 @@ class EditorController extends ChangeNotifier {
     'assets': assets.encode(doc.usedAssets),
   });
 
-  Future<void> loadProjectJson(String s, {String? path}) async {
+  /// Load a project. Returns how many pictures could not be read (the rest of
+  /// the project still opens; a missing picture just draws as nothing).
+  Future<int> loadProjectJson(String s, {String? path}) async {
     final j = jsonDecode(s) as Map<String, dynamic>;
     if (j['format'] != 'thinkspace') {
       throw const FormatException('Not a Thinkspace project');
+    }
+    final version = j['version'];
+    if (version is num && version > 1) {
+      throw const FormatException(
+        'This project was made by a newer Thinkspace',
+      );
     }
     final newDoc = Document.fromJson(Map<String, dynamic>.from(j['document']));
     // Decode into a scratch store first, so a bad file leaves the current
     // project untouched and a good one swaps in all at once.
     final fresh = AssetStore();
     final encoded = Map<String, dynamic>.from(j['assets'] ?? {});
+    var unreadable = 0;
     for (final e in encoded.entries) {
-      await fresh.addEncoded(base64Decode(e.value as String), id: e.key);
+      try {
+        await fresh.addEncoded(base64Decode(e.value as String), id: e.key);
+      } catch (_) {
+        unreadable++;
+      }
     }
     assets.replaceWith(fresh);
     doc = newDoc;
@@ -1307,23 +1371,93 @@ class EditorController extends ChangeNotifier {
     _redo.clear();
     editingTextId = null;
     filePath = path;
-    dirty = false;
+    markSaved();
     fitToView(notify: false);
     notifyListeners();
+    if (unreadable > 0) {
+      showToast(
+        unreadable == 1
+            ? "1 picture couldn't be read and was left out"
+            : "$unreadable pictures couldn't be read and were left out",
+      );
+    }
+    return unreadable;
   }
 
-  Future<void> saveTo(String path) async {
+  /// Write to a temporary file beside [f], then rename it into place, so a
+  /// crash or a full disk can never leave a half-written project behind.
+  static Future<void> _writeAtomic(File f, String content) async {
+    final tmp = File('${f.path}.tmp');
+    try {
+      await tmp.writeAsString(content, flush: true);
+      await tmp.rename(f.path);
+    } catch (_) {
+      try {
+        if (tmp.existsSync()) tmp.deleteSync();
+      } catch (_) {}
+      rethrow;
+    }
+  }
+
+  /// Returns false (and says so) if the project could not be written.
+  Future<bool> saveTo(String path) async {
     finishTextEdit();
-    await File(path).writeAsString(projectJson());
+    try {
+      await _writeAtomic(File(path), projectJson());
+    } catch (_) {
+      showToast('Could not save ${path.split('/').last} — nothing was changed');
+      return false;
+    }
     filePath = path;
-    dirty = false;
+    markSaved();
     clearRecovery();
     showToast('Saved ${path.split('/').last}');
+    return true;
+  }
+
+  /// Render the page and write it as a PNG; false (with a message) on failure.
+  Future<bool> exportPngTo(String path, {double scale = 1}) async {
+    try {
+      await File(path).writeAsBytes(await exportPng(scale: scale));
+    } catch (_) {
+      showToast('Could not export ${path.split('/').last}');
+      return false;
+    }
+    showToast('Exported ${path.split('/').last}');
+    return true;
   }
 
   Future<void> openFrom(String path) async {
-    await loadProjectJson(await File(path).readAsString(), path: path);
-    showToast('Opened ${path.split('/').last}');
+    final bad = await loadProjectJson(
+      await File(path).readAsString(),
+      path: path,
+    );
+    if (bad == 0) showToast('Opened ${path.split('/').last}');
+  }
+
+  /// Files the app was started with (double-click in a file manager, or
+  /// `thinkspace picture.png`): a project opens, pictures go on the page.
+  Future<void> openLaunchFiles(List<String> args) async {
+    final paths = [
+      for (final a in args)
+        if (a.startsWith('file://')) Uri.parse(a).toFilePath() else a,
+    ];
+    final project = paths
+        .where((p) => p.toLowerCase().endsWith('.thinkspace'))
+        .toList();
+    try {
+      if (project.isNotEmpty) {
+        await openFrom(project.first);
+        return;
+      }
+      const exts = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'];
+      final pics = paths
+          .where((p) => exts.any((e) => p.toLowerCase().endsWith(e)))
+          .toList();
+      if (pics.isNotEmpty) await importFiles(pics);
+    } catch (_) {
+      showToast('Could not open that file');
+    }
   }
 
   void newDocument() {
@@ -1335,7 +1469,7 @@ class EditorController extends ChangeNotifier {
     _redo.clear();
     editingTextId = null;
     filePath = null;
-    dirty = false;
+    markSaved();
     pendingPaste = null;
     clearRecovery();
     fitToView(notify: false);

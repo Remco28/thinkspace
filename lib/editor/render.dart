@@ -299,8 +299,12 @@ void paintPageBackground(ui.Canvas canvas, Document doc) {
   const cell = 16.0;
   canvas.save();
   canvas.clipRect(rect);
-  for (double y = 0; y < rect.height; y += cell) {
-    for (double x = 0; x < rect.width; x += cell) {
+  // Only the cells on screen: a huge page must not cost a huge frame.
+  final vis = canvas.getLocalClipBounds().intersect(rect);
+  final y0 = (vis.top / cell).floor() * cell,
+      x0 = (vis.left / cell).floor() * cell;
+  for (double y = y0; y < vis.bottom; y += cell) {
+    for (double x = x0; x < vis.right; x += cell) {
       if (((x / cell).floor() + (y / cell).floor()) % 2 == 0) {
         canvas.drawRect(Rect.fromLTWH(x, y, cell, cell), p);
       }
@@ -309,5 +313,10 @@ void paintPageBackground(ui.Canvas canvas, Document doc) {
   canvas.restore();
 }
 
-Rect contentBounds(Document doc) =>
-    unionRects(doc.allObjects.where((o) => o.visible).map((o) => o.bounds));
+/// What actually shows on the page: hidden things and hidden layers don't count.
+Rect contentBounds(Document doc) => unionRects([
+  for (final l in doc.layers)
+    if (l.visible)
+      for (final o in l.objects)
+        if (o.visible) o.bounds,
+]);
