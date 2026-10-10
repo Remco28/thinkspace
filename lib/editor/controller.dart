@@ -1279,7 +1279,9 @@ class EditorController extends ChangeNotifier {
       final idx = layer.objects.indexWhere((o) => o.id == src.id);
       layer.objects.insert(idx < 0 ? layer.objects.length : idx + 1, placed);
       if (rest != null) {
-        (doc.objectById(src.id) as ImageObject).assetId = rest.id;
+        // The source may have been deleted or undone while we were busy.
+        final live = doc.objectById(src.id);
+        if (live is ImageObject) live.assetId = rest.id;
       }
       selection = [placed.id];
       currentLayerId = layer.id;
