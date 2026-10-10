@@ -72,6 +72,10 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Thinkspace");
   }
 
+  // Finds the installed icon (hicolor theme); harmless if it is not installed.
+  gtk_window_set_default_icon_name("thinkspace");
+  gtk_window_set_icon_name(window, "thinkspace");
+
   gtk_window_set_default_size(window, 1440, 900);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();

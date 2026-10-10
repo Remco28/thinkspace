@@ -88,6 +88,11 @@ class TopBar extends StatelessWidget {
             color: Colors.white,
             border: Border(bottom: BorderSide(color: kBorder))),
         child: Row(children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, right: 2),
+            child: Image.asset('assets/logo.png',
+                width: 22, height: 22, filterQuality: FilterQuality.medium),
+          ),
           PopupMenuButton<MenuAction>(
             key: const ValueKey('main-menu'),
             tooltip: 'Menu',
@@ -141,13 +146,33 @@ class TopBar extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           for (final t in _tools)
-            SmallIconButton(
-              key: ValueKey('tool-${t.$1.name}'),
-              icon: t.$2,
-              tooltip:
-                  '${t.$3}  (${t.$4})${t.$1 == Tool.select ? '' : ' — double-click to keep it active'}',
-              active: c.tool == t.$1,
-              onPressed: () => _toolTap(t.$1),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SmallIconButton(
+                  key: ValueKey('tool-${t.$1.name}'),
+                  icon: t.$2,
+                  tooltip:
+                      '${t.$3}  (${t.$4})${t.$1 == Tool.select ? '' : ' — double-click to keep it active'}',
+                  active: c.tool == t.$1,
+                  onPressed: () => _toolTap(t.$1),
+                ),
+                // The active tool shows its key, so the shortcuts get learned
+                // without anyone reading a list. The slot is always reserved so
+                // the bar never jumps.
+                SizedBox(
+                  height: 11,
+                  child: c.tool == t.$1
+                      ? Text(t.$4,
+                          key: ValueKey('tool-key-${t.$1.name}'),
+                          style: const TextStyle(
+                              fontSize: 9.5,
+                              height: 1.1,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF8A90A0)))
+                      : null,
+                ),
+              ],
             ),
           if (c.toolLocked)
             const Padding(

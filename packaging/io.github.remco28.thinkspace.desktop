@@ -8,4 +8,4 @@ Icon=thinkspace
 Terminal=false
 Categories=Graphics;
 MimeType=application/x-thinkspace;image/png;image/jpeg;
-StartupWMClass=thinkspace
+StartupWMClass=io.github.remco28.thinkspace

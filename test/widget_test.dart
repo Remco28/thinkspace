@@ -130,6 +130,17 @@ void main() {
     expect(find.byKey(const ValueKey('canvas-w')), findsOneWidget);
   });
 
+  appTest('the active tool shows its shortcut key underneath', (tester) async {
+    await pumpApp(tester);
+    expect(find.byKey(const ValueKey('tool-key-select')), findsOneWidget);
+    expect(find.byKey(const ValueKey('tool-key-arrow')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('tool-arrow')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('tool-key-arrow')), findsOneWidget);
+    expect(find.text('A'), findsOneWidget);
+    expect(find.byKey(const ValueKey('tool-key-select')), findsNothing);
+  });
+
   appTest(
       'drawing an arrow with the mouse lists it, selects it, and undo removes it',
       (tester) async {
