@@ -16,10 +16,15 @@ class PanelHeader extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         height: 36,
         padding: const EdgeInsets.only(left: 12, right: 4),
-        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: kBorder))),
+        decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: kBorder))),
         child: Row(children: [
           Text(title.toUpperCase(),
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: Color(0xFF5B6272))),
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: Color(0xFF5B6272))),
           const Spacer(),
           ...actions,
         ]),
@@ -78,7 +83,11 @@ class LabeledRow extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(children: [
-          SizedBox(width: 62, child: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF5B6272)))),
+          SizedBox(
+              width: 62,
+              child: Text(label,
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF5B6272)))),
           Expanded(child: child),
         ]),
       );
@@ -111,13 +120,17 @@ class _LiveSliderState extends State<LiveSlider> {
 
   @override
   Widget build(BuildContext context) => SliderTheme(
-        data: SliderTheme.of(context).copyWith(trackHeight: 3, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7), overlayShape: SliderComponentShape.noOverlay),
+        data: SliderTheme.of(context).copyWith(
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+            overlayShape: SliderComponentShape.noOverlay),
         child: Slider(
           value: widget.value.clamp(widget.min, widget.max),
           min: widget.min,
           max: widget.max,
           divisions: widget.divisions,
-          onChangeStart: (_) => _token = widget.controller.beginEdit(widget.label),
+          onChangeStart: (_) =>
+              _token = widget.controller.beginEdit(widget.label),
           onChanged: widget.apply,
           onChangeEnd: (_) {
             if (_token != null) widget.controller.endEdit(_token!);
@@ -128,7 +141,11 @@ class _LiveSliderState extends State<LiveSlider> {
 }
 
 class ColorRow extends StatelessWidget {
-  const ColorRow({super.key, required this.value, required this.onChanged, this.allowNone = false});
+  const ColorRow(
+      {super.key,
+      required this.value,
+      required this.onChanged,
+      this.allowNone = false});
   final int value;
   final ValueChanged<int> onChanged;
   final bool allowNone;
@@ -146,9 +163,13 @@ class ColorRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: argb == 0 ? Colors.white : Color(argb),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: selected ? kAccent : const Color(0xFFBFC4CF), width: selected ? 2 : 1),
+            border: Border.all(
+                color: selected ? kAccent : const Color(0xFFBFC4CF),
+                width: selected ? 2 : 1),
           ),
-          child: argb == 0 ? const Icon(Icons.block, size: 12, color: Color(0xFFD32F2F)) : null,
+          child: argb == 0
+              ? const Icon(Icons.block, size: 12, color: Color(0xFFD32F2F))
+              : null,
         ),
       );
     }
@@ -168,9 +189,20 @@ class ColorRow extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 4),
           decoration: BoxDecoration(
             color: custom ? Color(value) : null,
-            gradient: custom ? null : const SweepGradient(colors: [Colors.red, Colors.yellow, Colors.green, Colors.blue, Colors.purple, Colors.red]),
+            gradient: custom
+                ? null
+                : const SweepGradient(colors: [
+                    Colors.red,
+                    Colors.yellow,
+                    Colors.green,
+                    Colors.blue,
+                    Colors.purple,
+                    Colors.red
+                  ]),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: custom ? kAccent : const Color(0xFFBFC4CF), width: custom ? 2 : 1),
+            border: Border.all(
+                color: custom ? kAccent : const Color(0xFFBFC4CF),
+                width: custom ? 2 : 1),
           ),
         ),
       ),
@@ -179,7 +211,13 @@ class ColorRow extends StatelessWidget {
 }
 
 Future<int?> showHexDialog(BuildContext context, int current) {
-  final ctl = TextEditingController(text: current == 0 ? '' : (current & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase());
+  final ctl = TextEditingController(
+      text: current == 0
+          ? ''
+          : (current & 0xFFFFFF)
+              .toRadixString(16)
+              .padLeft(6, '0')
+              .toUpperCase());
   return showDialog<int>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -191,8 +229,11 @@ Future<int?> showHexDialog(BuildContext context, int current) {
         onSubmitted: (s) => Navigator.pop(ctx, _parseHex(s)),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, _parseHex(ctl.text)), child: const Text('Use colour')),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, _parseHex(ctl.text)),
+            child: const Text('Use colour')),
       ],
     ),
   );
@@ -207,7 +248,12 @@ int? _parseHex(String s) {
 }
 
 class NumberField extends StatefulWidget {
-  const NumberField({super.key, required this.value, required this.onSubmitted, this.suffix, this.width = 64});
+  const NumberField(
+      {super.key,
+      required this.value,
+      required this.onSubmitted,
+      this.suffix,
+      this.width = 64});
   final double value;
   final ValueChanged<double> onSubmitted;
   final String? suffix;
@@ -218,10 +264,12 @@ class NumberField extends StatefulWidget {
 }
 
 class _NumberFieldState extends State<NumberField> {
-  late final TextEditingController _ctl = TextEditingController(text: _fmt(widget.value));
+  late final TextEditingController _ctl =
+      TextEditingController(text: _fmt(widget.value));
   final FocusNode _focus = FocusNode();
 
-  String _fmt(double v) => v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(1);
+  String _fmt(double v) =>
+      v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(1);
 
   @override
   void initState() {
@@ -234,7 +282,9 @@ class _NumberFieldState extends State<NumberField> {
   @override
   void didUpdateWidget(NumberField old) {
     super.didUpdateWidget(old);
-    if (!_focus.hasFocus && old.value != widget.value) _ctl.text = _fmt(widget.value);
+    if (!_focus.hasFocus && old.value != widget.value) {
+      _ctl.text = _fmt(widget.value);
+    }
   }
 
   void _submit() {
@@ -261,20 +311,26 @@ class _NumberFieldState extends State<NumberField> {
           decoration: InputDecoration(
             isDense: true,
             suffixText: widget.suffix,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             border: const OutlineInputBorder(),
           ),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+          keyboardType: const TextInputType.numberWithOptions(
+              decimal: true, signed: true),
           onSubmitted: (_) => _submit(),
         ),
       );
 }
 
-
 /// Taps respond instantly; a second tap within a moment counts as a double
 /// tap. (GestureDetector.onDoubleTap would delay every single tap.)
 class QuickTap extends StatefulWidget {
-  const QuickTap({super.key, required this.onTap, this.onDoubleTap, required this.child, this.onSecondaryTapDown});
+  const QuickTap(
+      {super.key,
+      required this.onTap,
+      this.onDoubleTap,
+      required this.child,
+      this.onSecondaryTapDown});
   final VoidCallback onTap;
   final VoidCallback? onDoubleTap;
   final void Function(TapDownDetails)? onSecondaryTapDown;
@@ -305,10 +361,10 @@ class _QuickTapState extends State<QuickTap> {
       );
 }
 
-
 const _imageExts = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'];
 
-bool isImagePath(String p) => _imageExts.contains(p.split('.').last.toLowerCase());
+bool isImagePath(String p) =>
+    _imageExts.contains(p.split('.').last.toLowerCase());
 
 /// Accepts files dragged in from the desktop.
 class FileDropZone extends StatefulWidget {
@@ -342,7 +398,11 @@ class _FileDropZoneState extends State<FileDropZone> {
                     border: Border.all(color: kAccent, width: 2),
                   ),
                   child: const Center(
-                    child: Text('Drop to add', style: TextStyle(color: kAccent, fontWeight: FontWeight.w700, fontSize: 16)),
+                    child: Text('Drop to add',
+                        style: TextStyle(
+                            color: kAccent,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16)),
                   ),
                 ),
               ),

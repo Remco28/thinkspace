@@ -7,7 +7,8 @@ import 'geometry.dart';
 
 enum ObjectKind { image, text, rect, ellipse, line, stroke }
 
-Offset _off(dynamic j) => Offset((j[0] as num).toDouble(), (j[1] as num).toDouble());
+Offset _off(dynamic j) =>
+    Offset((j[0] as num).toDouble(), (j[1] as num).toDouble());
 List<double> _offJson(Offset o) => [o.dx, o.dy];
 
 /// Something on the page. Position, size and look are all plain data so the
@@ -119,7 +120,8 @@ abstract class BoxObject extends SceneObject {
 
   void readBox(Map<String, dynamic> j) {
     center = _off(j['center']);
-    size = Size((j['size'][0] as num).toDouble(), (j['size'][1] as num).toDouble());
+    size = Size(
+        (j['size'][0] as num).toDouble(), (j['size'][1] as num).toDouble());
     rotation = (j['rotation'] as num?)?.toDouble() ?? 0;
     flipX = j['flipX'] as bool? ?? false;
   }
@@ -156,7 +158,8 @@ class ImageObject extends BoxObject {
     final v = (l.dy / size.height + 0.5);
     final px = (u * a.width).floor(), py = (v * a.height).floor();
     // Look at a small neighbourhood so thin cutout edges stay easy to grab.
-    final r = math.max(1, (tolerance * a.width / math.max(1, size.width)).ceil());
+    final r =
+        math.max(1, (tolerance * a.width / math.max(1, size.width)).ceil());
     for (int dy = -r; dy <= r; dy += r) {
       for (int dx = -r; dx <= r; dx += r) {
         if (a.alphaAt(px + dx, py + dy) > 24) return true;
@@ -406,7 +409,8 @@ class LineObject extends SceneObject {
   double get length => (p2 - p1).distance;
 
   @override
-  Rect get bounds => rectFromPoints([p1, p2]).inflate(width / 2 + ((headEnd || headStart) ? headSize / 2 : 0));
+  Rect get bounds => rectFromPoints([p1, p2])
+      .inflate(width / 2 + ((headEnd || headStart) ? headSize / 2 : 0));
 
   @override
   bool hitTest(Offset p, double tolerance, AssetStore assets) =>
@@ -487,9 +491,13 @@ class StrokeObject extends SceneObject {
 
   @override
   bool hitTest(Offset p, double tolerance, AssetStore assets) {
-    if (points.length == 1) return (p - points.first).distance <= tolerance + width / 2;
+    if (points.length == 1) {
+      return (p - points.first).distance <= tolerance + width / 2;
+    }
     for (int i = 0; i < points.length - 1; i++) {
-      if (distToSegment(p, points[i], points[i + 1]) <= tolerance + width / 2) return true;
+      if (distToSegment(p, points[i], points[i + 1]) <= tolerance + width / 2) {
+        return true;
+      }
     }
     return false;
   }
@@ -559,7 +567,8 @@ class Layer {
         visible: j['visible'] ?? true,
         locked: j['locked'] ?? false,
         objects: [
-          for (final o in j['objects']) SceneObject.fromJson(Map<String, dynamic>.from(o)),
+          for (final o in j['objects'])
+            SceneObject.fromJson(Map<String, dynamic>.from(o)),
         ],
       );
 }
@@ -655,18 +664,23 @@ class Document {
   }
 
   factory Document.fromJson(Map<String, dynamic> j) => Document(
-        canvasSize: Size((j['canvas'][0] as num).toDouble(), (j['canvas'][1] as num).toDouble()),
+        canvasSize: Size((j['canvas'][0] as num).toDouble(),
+            (j['canvas'][1] as num).toDouble()),
         background: j['background'] ?? kDefaultBackground,
         gridSize: (j['gridSize'] as num?)?.toDouble() ?? 40,
         nextId: j['nextId'] ?? 1,
-        layers: [for (final l in j['layers']) Layer.fromJson(Map<String, dynamic>.from(l))],
+        layers: [
+          for (final l in j['layers'])
+            Layer.fromJson(Map<String, dynamic>.from(l))
+        ],
         collection: [
           for (final c in j['collection'] ?? const [])
             CollectionItem.fromJson(Map<String, dynamic>.from(c)),
         ],
       );
 
-  factory Document.decode(String s) => Document.fromJson(jsonDecode(s) as Map<String, dynamic>);
+  factory Document.decode(String s) =>
+      Document.fromJson(jsonDecode(s) as Map<String, dynamic>);
 
   /// A fresh page with one empty layer.
   factory Document.blank() {

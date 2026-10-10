@@ -7,7 +7,21 @@ import '../model/scene.dart';
 import 'controller.dart';
 import 'render.dart';
 
-enum _Mode { none, pan, move, resize, rotate, lineEnd, marquee, create, pen, lasso, cutBox, gripResize, textBox }
+enum _Mode {
+  none,
+  pan,
+  move,
+  resize,
+  rotate,
+  lineEnd,
+  marquee,
+  create,
+  pen,
+  lasso,
+  cutBox,
+  gripResize,
+  textBox
+}
 
 class Modifiers {
   const Modifiers({this.shift = false, this.ctrl = false, this.alt = false});
@@ -81,7 +95,9 @@ class CanvasInteractor {
       return pick;
     }
 
-    return delta + Offset(best([r.left, r.center.dx, r.right]), best([r.top, r.center.dy, r.bottom]));
+    return delta +
+        Offset(best([r.left, r.center.dx, r.right]),
+            best([r.top, r.center.dy, r.bottom]));
   }
 
   // ---- hover ---------------------------------------------------------------
@@ -96,7 +112,9 @@ class CanvasInteractor {
       if (h.kind != HandleKind.resize) return SystemMouseCursors.precise;
       if (h.hx == 0) return SystemMouseCursors.resizeUpDown;
       if (h.hy == 0) return SystemMouseCursors.resizeLeftRight;
-      return h.hx == h.hy ? SystemMouseCursors.resizeUpLeftDownRight : SystemMouseCursors.resizeUpRightDownLeft;
+      return h.hx == h.hy
+          ? SystemMouseCursors.resizeUpLeftDownRight
+          : SystemMouseCursors.resizeUpRightDownLeft;
     }
     final g = _hitGrip(p);
     if (g != null) {
@@ -141,7 +159,8 @@ class CanvasInteractor {
     _startScene = c.toScene(screen);
     _moved = false;
     final now = DateTime.now();
-    final isDouble = now.difference(_lastDown).inMilliseconds < 350 && (screen - _lastDownScreen).distance < 6;
+    final isDouble = now.difference(_lastDown).inMilliseconds < 350 &&
+        (screen - _lastDownScreen).distance < 6;
     _lastDown = now;
     _lastDownScreen = screen;
 
@@ -177,7 +196,8 @@ class CanvasInteractor {
       final obj = c.single!;
       _handle = handle;
       _startObj = obj.copyWith();
-      _token = c.beginEdit(handle.kind == HandleKind.rotate ? 'rotate' : 'resize');
+      _token =
+          c.beginEdit(handle.kind == HandleKind.rotate ? 'rotate' : 'resize');
       _mode = switch (handle.kind) {
         HandleKind.rotate => _Mode.rotate,
         HandleKind.resize => _Mode.resize,
@@ -231,9 +251,13 @@ class CanvasInteractor {
         hits[_cycleIndex].id == c.selection.first) {
       _stickyCycle = true; // keep going down the stack on a plain click
       target = hits[_cycleIndex];
-    } else if (c.selection.length == 1 && c.selection.first == target.id && hits.length > 1) {
+    } else if (c.selection.length == 1 &&
+        c.selection.first == target.id &&
+        hits.length > 1) {
       _clickOnSelectedTop = true;
-    } else if (c.selection.isNotEmpty && !c.selection.contains(target.id) && hits.any((o) => c.selection.contains(o.id))) {
+    } else if (c.selection.isNotEmpty &&
+        !c.selection.contains(target.id) &&
+        hits.any((o) => c.selection.contains(o.id))) {
       // Pressing where a selected object sits beneath something else keeps
       // the selection, so it can be dragged; a plain click still picks the top.
       _selectTopOnRelease = true;
@@ -268,7 +292,8 @@ class CanvasInteractor {
   }
 
   void _downShape(Offset p, Modifiers m) {
-    _token = c.beginEdit(c.tool == Tool.ellipse ? 'draw ellipse' : 'draw rectangle');
+    _token =
+        c.beginEdit(c.tool == Tool.ellipse ? 'draw ellipse' : 'draw rectangle');
     final a = _snapPoint(p, m);
     final s = ShapeObject(
       id: c.doc.newId('o'),
@@ -309,7 +334,10 @@ class CanvasInteractor {
     final sel = c.single;
     final under = c.imageAt(p);
     ImageObject? target = under;
-    if (sel is ImageObject && (under == null || under.id == sel.id || sel.containsLocal(sel.toLocal(p), 0))) {
+    if (sel is ImageObject &&
+        (under == null ||
+            under.id == sel.id ||
+            sel.containsLocal(sel.toLocal(p), 0))) {
       target = sel;
     }
     if (target == null) {
@@ -447,7 +475,8 @@ class CanvasInteractor {
     final start = _startObj as BoxObject;
     final live = c.doc.objectById(start.id) as BoxObject?;
     if (live == null) return;
-    var a = math.atan2(p.dy - start.center.dy, p.dx - start.center.dx) + math.pi / 2;
+    var a = math.atan2(p.dy - start.center.dy, p.dx - start.center.dx) +
+        math.pi / 2;
     const step = math.pi / 12;
     final nearest = (a / step).roundToDouble() * step;
     if (m.shift || (!m.ctrl && (a - nearest).abs() < 0.07)) a = nearest;
@@ -519,7 +548,8 @@ class CanvasInteractor {
       w = _startCanvas.width * k;
       h = _startCanvas.height * k;
     }
-    c.doc.canvasSize = Size(w.clamp(64, 12000).toDouble(), h.clamp(64, 12000).toDouble());
+    c.doc.canvasSize =
+        Size(w.clamp(64, 12000).toDouble(), h.clamp(64, 12000).toDouble());
     c.notify();
   }
 

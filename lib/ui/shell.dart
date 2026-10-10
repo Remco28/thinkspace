@@ -18,7 +18,12 @@ import 'top_bar.dart';
 import 'widgets.dart';
 
 class EditorShell extends StatefulWidget {
-  const EditorShell({super.key, this.controller, this.startInspector = true, this.enableRecovery = false, this.recoveryFile});
+  const EditorShell(
+      {super.key,
+      this.controller,
+      this.startInspector = true,
+      this.enableRecovery = false,
+      this.recoveryFile});
   final EditorController? controller;
   final bool startInspector;
 
@@ -40,10 +45,23 @@ class _EditorShellState extends State<EditorShell> {
   bool collectionOpen = true;
   Inspector? _inspector;
   AppLifecycleListener? _lifecycle;
+  String? _lastTitle;
+  static const _windowChannel = MethodChannel('thinkspace/window');
+
+  void _syncTitle() {
+    final t =
+        '${c.dirty ? '• ' : ''}${c.filePath == null ? 'Untitled' : baseName(c.filePath!)} — Thinkspace';
+    if (t == _lastTitle) return;
+    _lastTitle = t;
+    _windowChannel
+        .invokeMethod<void>('setTitle', t)
+        .catchError((_) {}); // absent in tests
+  }
 
   @override
   void initState() {
     super.initState();
+    if (widget.enableRecovery) c.addListener(_syncTitle);
     if (widget.enableRecovery) {
       final data = Platform.environment['THINKSPACE_DATA_DIR'] ??
           '${Platform.environment['XDG_DATA_HOME'] ?? '${Platform.environment['HOME']}/.local/share'}/thinkspace';
@@ -52,9 +70,11 @@ class _EditorShellState extends State<EditorShell> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _offerRecovery());
       _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
     }
-    final port = int.tryParse(Platform.environment['THINKSPACE_DEBUG_PORT'] ?? '');
+    final port =
+        int.tryParse(Platform.environment['THINKSPACE_DEBUG_PORT'] ?? '');
     if (widget.startInspector && port != null) {
-      _inspector = Inspector(c: c, ix: ix, shotKey: shotKey, port: port)..start();
+      _inspector = Inspector(c: c, ix: ix, shotKey: shotKey, port: port)
+        ..start();
     }
   }
 
@@ -62,16 +82,28 @@ class _EditorShellState extends State<EditorShell> {
     final when = c.pendingRecovery();
     if (when == null || !mounted) return;
     final ago = DateTime.now().difference(when);
-    final label = ago.inMinutes < 1 ? 'a moment ago' : ago.inHours < 1 ? '${ago.inMinutes} minutes ago' : ago.inDays < 1 ? '${ago.inHours} hours ago' : '${ago.inDays} days ago';
+    final label = ago.inMinutes < 1
+        ? 'a moment ago'
+        : ago.inHours < 1
+            ? '${ago.inMinutes} minutes ago'
+            : ago.inDays < 1
+                ? '${ago.inHours} hours ago'
+                : '${ago.inDays} days ago';
     final restore = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: const Text('Pick up where you left off?'),
-        content: Text('Thinkspace found work that was never saved (last changed $label).'),
+        content: Text(
+            'Thinkspace found work that was never saved (last changed $label).'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Start fresh')),
-          FilledButton(key: const ValueKey('restore'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Restore it')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Start fresh')),
+          FilledButton(
+              key: const ValueKey('restore'),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Restore it')),
         ],
       ),
     );
@@ -97,11 +129,18 @@ class _EditorShellState extends State<EditorShell> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Close with unsaved changes?'),
-        content: const Text('Save this project first, or close and lose the changes.'),
+        content: const Text(
+            'Save this project first, or close and lose the changes.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, 'cancel'), child: const Text('Keep working')),
-          TextButton(onPressed: () => Navigator.pop(ctx, 'discard'), child: const Text('Close without saving')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, 'save'), child: const Text('Save…')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, 'cancel'),
+              child: const Text('Keep working')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, 'discard'),
+              child: const Text('Close without saving')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, 'save'),
+              child: const Text('Save…')),
         ],
       ),
     );
@@ -118,6 +157,7 @@ class _EditorShellState extends State<EditorShell> {
 
   @override
   void dispose() {
+    c.removeListener(_syncTitle);
     _lifecycle?.dispose();
     _inspector?.stop();
     _focus.dispose();
@@ -127,7 +167,8 @@ class _EditorShellState extends State<EditorShell> {
   bool get _typing {
     final ctx = FocusManager.instance.primaryFocus?.context;
     if (ctx == null) return false;
-    return ctx.widget is EditableText || ctx.findAncestorWidgetOfExactType<EditableText>() != null;
+    return ctx.widget is EditableText ||
+        ctx.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
   // ---- keyboard ------------------------------------------------------------
@@ -267,7 +308,8 @@ class _EditorShellState extends State<EditorShell> {
 
   // ---- file operations -----------------------------------------------------
 
-  String get _fileLabel => '${c.filePath == null ? 'Untitled' : baseName(c.filePath!)}${c.dirty ? ' •' : ''}';
+  String get _fileLabel =>
+      '${c.filePath == null ? 'Untitled' : baseName(c.filePath!)}${c.dirty ? ' •' : ''}';
 
   Future<bool> _confirmDiscard() async {
     if (!c.dirty) return true;
@@ -275,10 +317,15 @@ class _EditorShellState extends State<EditorShell> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Discard unsaved changes?'),
-        content: const Text('This project has changes that haven’t been saved.'),
+        content:
+            const Text('This project has changes that haven’t been saved.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep working')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep working')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Discard')),
         ],
       ),
     );
@@ -306,13 +353,16 @@ class _EditorShellState extends State<EditorShell> {
   }
 
   Future<void> _saveAs() async {
-    final p = await chooseProjectPath(c.filePath == null ? 'untitled.thinkspace' : '${baseName(c.filePath!)}.thinkspace');
+    final p = await chooseProjectPath(c.filePath == null
+        ? 'untitled.thinkspace'
+        : '${baseName(c.filePath!)}.thinkspace');
     if (p != null) await c.saveTo(p);
   }
 
   Future<void> _export(double scale) async {
     final name = c.filePath == null ? 'thinkspace' : baseName(c.filePath!);
-    final p = await choosePngPath('$name${scale == 1 ? '' : '@${scale.round()}x'}.png');
+    final p = await choosePngPath(
+        '$name${scale == 1 ? '' : '@${scale.round()}x'}.png');
     if (p == null) return;
     await File(p).writeAsBytes(await c.exportPng(scale: scale));
     c.showToast('Exported ${p.split('/').last}');
@@ -320,7 +370,8 @@ class _EditorShellState extends State<EditorShell> {
 
   /// Files dragged in from the desktop: pictures go to the page (or the
   /// collection), a project file opens.
-  Future<void> _dropped(List<String> paths, {Offset? at, bool toCollection = false}) async {
+  Future<void> _dropped(List<String> paths,
+      {Offset? at, bool toCollection = false}) async {
     final projects = paths.where((p) => p.endsWith('.thinkspace')).toList();
     final images = paths.where(isImagePath).toList();
     if (projects.isNotEmpty && await _confirmDiscard()) {
@@ -332,7 +383,8 @@ class _EditorShellState extends State<EditorShell> {
       return;
     }
     if (images.isEmpty) {
-      c.showToast('Drop pictures (PNG, JPG, WebP, GIF, BMP) or a .thinkspace project');
+      c.showToast(
+          'Drop pictures (PNG, JPG, WebP, GIF, BMP) or a .thinkspace project');
       return;
     }
     await c.importFiles(images, at: at, toCollection: toCollection);
@@ -384,7 +436,10 @@ class _EditorShellState extends State<EditorShell> {
 
   void _showShortcuts() {
     const rows = [
-      ('V  L  A  R  E  T  P  C', 'Select, line, arrow, rectangle, ellipse, text, pen, cut out'),
+      (
+        'V  L  A  R  E  T  P  C',
+        'Select, line, arrow, rectangle, ellipse, text, pen, cut out'
+      ),
       ('Shift (drawing)', 'Straight angles / perfect square'),
       ('Click again', 'Reach the object underneath the selected one'),
       ('Ctrl (moving)', 'Ignore snapping'),
@@ -411,14 +466,25 @@ class _EditorShellState extends State<EditorShell> {
             for (final r in rows)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  SizedBox(width: 170, child: Text(r.$1, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-                  Expanded(child: Text(r.$2, style: const TextStyle(fontSize: 13))),
-                ]),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                          width: 170,
+                          child: Text(r.$1,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13))),
+                      Expanded(
+                          child:
+                              Text(r.$2, style: const TextStyle(fontSize: 13))),
+                    ]),
               ),
           ]),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Close'))
+        ],
       ),
     );
   }
@@ -443,21 +509,27 @@ class _EditorShellState extends State<EditorShell> {
                   SizedBox(
                     width: collectionWidth,
                     child: FileDropZone(
-                      onFiles: (paths, _) => _dropped(paths, toCollection: true),
-                      child: Material(color: kPanel, child: CollectionPanel(controller: c)),
+                      onFiles: (paths, _) =>
+                          _dropped(paths, toCollection: true),
+                      child: Material(
+                          color: kPanel, child: CollectionPanel(controller: c)),
                     ),
                   ),
-                  _Divider(onDrag: (dx) => setState(() => collectionWidth = (collectionWidth + dx).clamp(170, 560))),
+                  _Divider(
+                      onDrag: (dx) => setState(() => collectionWidth =
+                          (collectionWidth + dx).clamp(170, 560))),
                 ],
                 Expanded(
                   child: FileDropZone(
-                    onFiles: (paths, local) => _dropped(paths, at: c.toScene(local)),
+                    onFiles: (paths, local) =>
+                        _dropped(paths, at: c.toScene(local)),
                     child: _canvasArea(),
                   ),
                 ),
                 Container(
                   width: 292,
-                  decoration: const BoxDecoration(border: Border(left: BorderSide(color: kBorder))),
+                  decoration: const BoxDecoration(
+                      border: Border(left: BorderSide(color: kBorder))),
                   child: Material(
                     color: kPanel,
                     child: Column(children: [
@@ -481,7 +553,12 @@ class _EditorShellState extends State<EditorShell> {
     return ListenableBuilder(
       listenable: c,
       builder: (context, _) => Stack(children: [
-        Positioned.fill(child: CanvasView(controller: c, interactor: ix, spaceDown: spaceDown, focusNode: _focus)),
+        Positioned.fill(
+            child: CanvasView(
+                controller: c,
+                interactor: ix,
+                spaceDown: spaceDown,
+                focusNode: _focus)),
         Positioned(
           left: 8,
           top: 8,
@@ -491,14 +568,29 @@ class _EditorShellState extends State<EditorShell> {
             borderRadius: BorderRadius.circular(8),
             child: SmallIconButton(
               key: const ValueKey('toggle-collection'),
-              icon: collectionOpen ? Icons.keyboard_double_arrow_left : Icons.collections_outlined,
-              tooltip: collectionOpen ? 'Hide the collection' : 'Show the collection',
+              icon: collectionOpen
+                  ? Icons.keyboard_double_arrow_left
+                  : Icons.collections_outlined,
+              tooltip: collectionOpen
+                  ? 'Hide the collection'
+                  : 'Show the collection',
               onPressed: () => setState(() => collectionOpen = !collectionOpen),
             ),
           ),
         ),
-        if (c.tool == Tool.cutout) Positioned(top: 8, left: 52, right: 8, child: Align(alignment: Alignment.topCenter, child: _CutoutBar(c: c))),
-        if (c.pendingPaste != null) Positioned(bottom: 56, left: 0, right: 0, child: Center(child: _PasteChooser(c: c))),
+        if (c.tool == Tool.cutout)
+          Positioned(
+              top: 8,
+              left: 52,
+              right: 8,
+              child: Align(
+                  alignment: Alignment.topCenter, child: _CutoutBar(c: c))),
+        if (c.pendingPaste != null)
+          Positioned(
+              bottom: 56,
+              left: 0,
+              right: 0,
+              child: Center(child: _PasteChooser(c: c))),
         Positioned(left: 8, bottom: 8, child: _ZoomBar(c: c)),
         if (c.toastMessage != null)
           Positioned(
@@ -508,9 +600,15 @@ class _EditorShellState extends State<EditorShell> {
             child: IgnorePointer(
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(color: const Color(0xE6222733), borderRadius: BorderRadius.circular(8)),
-                  child: Text(c.toastMessage!, key: const ValueKey('toast'), style: const TextStyle(color: Colors.white, fontSize: 12.5)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                      color: const Color(0xE6222733),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(c.toastMessage!,
+                      key: const ValueKey('toast'),
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 12.5)),
                 ),
               ),
             ),
@@ -531,7 +629,11 @@ class _Divider extends StatelessWidget {
           key: const ValueKey('collection-divider'),
           behavior: HitTestBehavior.opaque,
           onHorizontalDragUpdate: (d) => onDrag(d.delta.dx),
-          child: Container(width: 7, color: kPanel, child: const Center(child: VerticalDivider(width: 1, color: kBorder))),
+          child: Container(
+              width: 7,
+              color: kPanel,
+              child: const Center(
+                  child: VerticalDivider(width: 1, color: kBorder))),
         ),
       );
 }
@@ -548,15 +650,31 @@ class _ZoomBar extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            SmallIconButton(icon: Icons.remove, tooltip: 'Zoom out', onPressed: () => c.zoomTo(c.zoom / 1.25)),
+            SmallIconButton(
+                icon: Icons.remove,
+                tooltip: 'Zoom out',
+                onPressed: () => c.zoomTo(c.zoom / 1.25)),
             SizedBox(
               width: 48,
-              child: Text('${(c.zoom * 100).round()}%', key: const ValueKey('zoom-label'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+              child: Text('${(c.zoom * 100).round()}%',
+                  key: const ValueKey('zoom-label'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w600)),
             ),
-            SmallIconButton(icon: Icons.add, tooltip: 'Zoom in', onPressed: () => c.zoomTo(c.zoom * 1.25)),
-            SmallIconButton(icon: Icons.fit_screen_outlined, tooltip: 'Fit the page  Ctrl+0', onPressed: c.fitToView),
+            SmallIconButton(
+                icon: Icons.add,
+                tooltip: 'Zoom in',
+                onPressed: () => c.zoomTo(c.zoom * 1.25)),
+            SmallIconButton(
+                icon: Icons.fit_screen_outlined,
+                tooltip: 'Fit the page  Ctrl+0',
+                onPressed: c.fitToView),
             const SizedBox(width: 4),
-            Text('${c.doc.canvasSize.width.round()} × ${c.doc.canvasSize.height.round()}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7385))),
+            Text(
+                '${c.doc.canvasSize.width.round()} × ${c.doc.canvasSize.height.round()}',
+                style:
+                    const TextStyle(fontSize: 11.5, color: Color(0xFF6B7385))),
             const SizedBox(width: 8),
           ]),
         ),
@@ -587,49 +705,74 @@ class _PasteChooserState extends State<_PasteChooser> {
         padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              if (a != null)
-                Container(
-                  width: 56,
-                  height: 42,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(border: Border.all(color: kBorder), borderRadius: BorderRadius.circular(6)),
-                  padding: const EdgeInsets.all(2),
-                  child: RawImage(image: a.image, fit: BoxFit.contain),
-                ),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Pasted an image${a == null ? '' : ' (${a.width} × ${a.height})'}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  const Text('Where should it go?', style: TextStyle(fontSize: 12, color: Color(0xFF6B7385))),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  if (a != null)
+                    Container(
+                      width: 56,
+                      height: 42,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: kBorder),
+                          borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.all(2),
+                      child: RawImage(image: a.image, fit: BoxFit.contain),
+                    ),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                              'Pasted an image${a == null ? '' : ' (${a.width} × ${a.height})'}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 13)),
+                          const Text('Where should it go?',
+                              style: TextStyle(
+                                  fontSize: 12, color: Color(0xFF6B7385))),
+                        ]),
+                  ),
+                  SmallIconButton(
+                      icon: Icons.close,
+                      tooltip: 'Discard  Esc',
+                      onPressed: c.cancelPendingPaste),
                 ]),
-              ),
-              SmallIconButton(icon: Icons.close, tooltip: 'Discard  Esc', onPressed: c.cancelPendingPaste),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: FilledButton(
-                  key: const ValueKey('paste-to-layer'),
-                  onPressed: () => c.resolvePaste(toCollection: false, remember: remember),
-                  child: Text('Add to “${c.currentLayer.name}”  ⏎', overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                    child: FilledButton(
+                      key: const ValueKey('paste-to-layer'),
+                      onPressed: () => c.resolvePaste(
+                          toCollection: false, remember: remember),
+                      child: Text('Add to “${c.currentLayer.name}”  ⏎',
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    key: const ValueKey('paste-to-collection'),
+                    onPressed: () =>
+                        c.resolvePaste(toCollection: true, remember: remember),
+                    child: const Text('Collection  C'),
+                  ),
+                ]),
+                SizedBox(
+                  height: 28,
+                  child: Row(children: [
+                    Checkbox(
+                        value: remember,
+                        visualDensity: VisualDensity.compact,
+                        onChanged: (v) =>
+                            setState(() => remember = v ?? false)),
+                    const Flexible(
+                        child: Text(
+                            'Always do this (change it later in the menu)',
+                            style: TextStyle(fontSize: 12))),
+                  ]),
                 ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                key: const ValueKey('paste-to-collection'),
-                onPressed: () => c.resolvePaste(toCollection: true, remember: remember),
-                child: const Text('Collection  C'),
-              ),
-            ]),
-            SizedBox(
-              height: 28,
-              child: Row(children: [
-                Checkbox(value: remember, visualDensity: VisualDensity.compact, onChanged: (v) => setState(() => remember = v ?? false)),
-                const Flexible(child: Text('Always do this (change it later in the menu)', style: TextStyle(fontSize: 12))),
               ]),
-            ),
-          ]),
         ),
       ),
     );
@@ -650,54 +793,72 @@ class _CutoutBar extends StatelessWidget {
       color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 4, children: [
-          const Icon(Icons.content_cut, size: 16, color: Color(0xFFFF6D00)),
-          SegmentedButton<CutoutMode>(
-            showSelectedIcon: false,
-            style: const ButtonStyle(visualDensity: VisualDensity.compact),
-            segments: const [
-              ButtonSegment(value: CutoutMode.lasso, label: Text('Freehand')),
-              ButtonSegment(value: CutoutMode.box, label: Text('Box')),
-              ButtonSegment(value: CutoutMode.wand, label: Text('Remove colour')),
-            ],
-            selected: {c.cutoutMode},
-            onSelectionChanged: (s) {
-              c.cutoutMode = s.first;
-              c.notify();
-            },
-          ),
-          if (c.cutoutMode == CutoutMode.wand) ...[
-            const Text('Match', style: TextStyle(fontSize: 12)),
-            SizedBox(
-              width: 120,
-              child: Slider(value: c.wandTolerance, min: 0.02, max: 0.5, onChanged: (v) {
-                c.wandTolerance = v;
-                c.notify();
-              }),
-            ),
-            FilterChip(
-              label: const Text('Only touching'),
-              selected: c.wandContiguous,
-              visualDensity: VisualDensity.compact,
-              onSelected: (v) {
-                c.wandContiguous = v;
-                c.notify();
-              },
-            ),
-          ] else ...[
-            Text(sel is ImageObject ? 'Drag around the part to keep' : 'Drag across an image', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7385))),
-            FilterChip(
-              label: const Text('Also remove it from the original'),
-              selected: c.cutoutLeavesHole,
-              visualDensity: VisualDensity.compact,
-              onSelected: (v) {
-                c.cutoutLeavesHole = v;
-                c.notify();
-              },
-            ),
-          ],
-          SmallIconButton(icon: Icons.close, tooltip: 'Done  Esc', onPressed: () => c.setTool(Tool.select)),
-        ]),
+        child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              const Icon(Icons.content_cut, size: 16, color: Color(0xFFFF6D00)),
+              SegmentedButton<CutoutMode>(
+                showSelectedIcon: false,
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                segments: const [
+                  ButtonSegment(
+                      value: CutoutMode.lasso, label: Text('Freehand')),
+                  ButtonSegment(value: CutoutMode.box, label: Text('Box')),
+                  ButtonSegment(
+                      value: CutoutMode.wand, label: Text('Remove colour')),
+                ],
+                selected: {c.cutoutMode},
+                onSelectionChanged: (s) {
+                  c.cutoutMode = s.first;
+                  c.notify();
+                },
+              ),
+              if (c.cutoutMode == CutoutMode.wand) ...[
+                const Text('Match', style: TextStyle(fontSize: 12)),
+                SizedBox(
+                  width: 120,
+                  child: Slider(
+                      value: c.wandTolerance,
+                      min: 0.02,
+                      max: 0.5,
+                      onChanged: (v) {
+                        c.wandTolerance = v;
+                        c.notify();
+                      }),
+                ),
+                FilterChip(
+                  label: const Text('Only touching'),
+                  selected: c.wandContiguous,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (v) {
+                    c.wandContiguous = v;
+                    c.notify();
+                  },
+                ),
+              ] else ...[
+                Text(
+                    sel is ImageObject
+                        ? 'Drag around the part to keep'
+                        : 'Drag across an image',
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF6B7385))),
+                FilterChip(
+                  label: const Text('Also remove it from the original'),
+                  selected: c.cutoutLeavesHole,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (v) {
+                    c.cutoutLeavesHole = v;
+                    c.notify();
+                  },
+                ),
+              ],
+              SmallIconButton(
+                  icon: Icons.close,
+                  tooltip: 'Done  Esc',
+                  onPressed: () => c.setTool(Tool.select)),
+            ]),
       ),
     );
   }

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Thinkspace
+GenericName=Visual idea workspace
+Comment=Combine images, lines and layers to show what you mean
+Exec=thinkspace %F
+Icon=thinkspace
+Terminal=false
+Categories=Graphics;
+MimeType=application/x-thinkspace;image/png;image/jpeg;
+StartupWMClass=thinkspace

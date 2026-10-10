@@ -33,7 +33,8 @@ class CanvasPainter extends CustomPainter {
     );
     paintPageBackground(canvas, doc);
     if (c.showGrid) _paintGrid(canvas, page);
-    paintDocumentObjects(canvas, doc, c.assets, hidden: {if (c.editingTextId != null) c.editingTextId!});
+    paintDocumentObjects(canvas, doc, c.assets,
+        hidden: {if (c.editingTextId != null) c.editingTextId!});
     canvas.drawRect(
       page,
       Paint()
@@ -74,23 +75,37 @@ class CanvasPainter extends CustomPainter {
       _outline(canvas, o, accent);
     }
     if (sel.length > 1) {
-      _dashedRect(canvas, Rect.fromPoints(_s(c.selectionBounds.topLeft), _s(c.selectionBounds.bottomRight)).inflate(4), accent);
+      _dashedRect(
+          canvas,
+          Rect.fromPoints(_s(c.selectionBounds.topLeft),
+                  _s(c.selectionBounds.bottomRight))
+              .inflate(4),
+          accent);
     }
     final one = c.single;
-    if (one != null && !one.locked && c.editingTextId == null) _paintHandles(canvas, one);
-    if (sel.isNotEmpty && c.editingTextId == null) _paintLabel(canvas, sel, size);
+    if (one != null && !one.locked && c.editingTextId == null) {
+      _paintHandles(canvas, one);
+    }
+    if (sel.isNotEmpty && c.editingTextId == null) {
+      _paintLabel(canvas, sel, size);
+    }
 
     if (c.marquee != null) {
-      final r = Rect.fromPoints(_s(c.marquee!.topLeft), _s(c.marquee!.bottomRight));
+      final r =
+          Rect.fromPoints(_s(c.marquee!.topLeft), _s(c.marquee!.bottomRight));
       canvas.drawRect(r, Paint()..color = kAccent.withValues(alpha: 0.10));
       canvas.drawRect(r, accent..strokeWidth = 1);
     }
     if (c.cutBox != null) {
-      final r = Rect.fromPoints(_s(c.cutBox!.topLeft), _s(c.cutBox!.bottomRight));
-      _dashedRect(canvas, r, Paint()
-        ..color = const Color(0xFFFF6D00)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2);
+      final r =
+          Rect.fromPoints(_s(c.cutBox!.topLeft), _s(c.cutBox!.bottomRight));
+      _dashedRect(
+          canvas,
+          r,
+          Paint()
+            ..color = const Color(0xFFFF6D00)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2);
     }
     if (c.lasso != null && c.lasso!.length > 1) {
       final path = Path();
@@ -101,10 +116,13 @@ class CanvasPainter extends CustomPainter {
       }
       path.close();
       canvas.drawPath(path, Paint()..color = const Color(0x22FF6D00));
-      _dashedPath(canvas, path, Paint()
-        ..color = const Color(0xFFFF6D00)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2);
+      _dashedPath(
+          canvas,
+          path,
+          Paint()
+            ..color = const Color(0xFFFF6D00)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2);
     }
   }
 
@@ -114,13 +132,17 @@ class CanvasPainter extends CustomPainter {
       final path = Path()..addPolygon(pts, true);
       canvas.drawPath(path, accent);
     } else if (o is LineObject) {
-      canvas.drawLine(_s(o.p1), _s(o.p2), Paint()
-        ..color = kAccent.withValues(alpha: 0.35)
-        ..strokeWidth = math.max(3, o.width * c.zoom + 4)
-        ..strokeCap = StrokeCap.round);
+      canvas.drawLine(
+          _s(o.p1),
+          _s(o.p2),
+          Paint()
+            ..color = kAccent.withValues(alpha: 0.35)
+            ..strokeWidth = math.max(3, o.width * c.zoom + 4)
+            ..strokeCap = StrokeCap.round);
     } else {
       final b = o.bounds;
-      _dashedRect(canvas, Rect.fromPoints(_s(b.topLeft), _s(b.bottomRight)).inflate(3), accent);
+      _dashedRect(canvas,
+          Rect.fromPoints(_s(b.topLeft), _s(b.bottomRight)).inflate(3), accent);
     }
   }
 
@@ -138,9 +160,11 @@ class CanvasPainter extends CustomPainter {
         canvas.drawCircle(p, 6, fill);
         canvas.drawCircle(p, 6, stroke);
         // little arc to hint at rotation
-        canvas.drawArc(Rect.fromCircle(center: p, radius: 3), -2.4, 4.4, false, stroke..strokeWidth = 1.2);
+        canvas.drawArc(Rect.fromCircle(center: p, radius: 3), -2.4, 4.4, false,
+            stroke..strokeWidth = 1.2);
         stroke.strokeWidth = 1.5;
-      } else if (h.kind == HandleKind.lineStart || h.kind == HandleKind.lineEnd) {
+      } else if (h.kind == HandleKind.lineStart ||
+          h.kind == HandleKind.lineEnd) {
         canvas.drawCircle(p, 6.5, fill);
         canvas.drawCircle(p, 6.5, stroke);
       } else {
@@ -162,11 +186,14 @@ class CanvasPainter extends CustomPainter {
       final Rect r;
       switch (e.key) {
         case CanvasGrip.right:
-          r = Rect.fromCenter(center: p + const Offset(5, 0), width: 8, height: 36);
+          r = Rect.fromCenter(
+              center: p + const Offset(5, 0), width: 8, height: 36);
         case CanvasGrip.bottom:
-          r = Rect.fromCenter(center: p + const Offset(0, 5), width: 36, height: 8);
+          r = Rect.fromCenter(
+              center: p + const Offset(0, 5), width: 36, height: 8);
         case CanvasGrip.corner:
-          r = Rect.fromCenter(center: p + const Offset(6, 6), width: 12, height: 12);
+          r = Rect.fromCenter(
+              center: p + const Offset(6, 6), width: 12, height: 12);
       }
       final rr = RRect.fromRectAndRadius(r, const Radius.circular(3));
       canvas.drawRRect(rr, fill);
@@ -183,26 +210,37 @@ class CanvasPainter extends CustomPainter {
       text = '${sel.length} objects';
     }
     final tp = TextPainter(
-      text: TextSpan(text: text, style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600)),
+      text: TextSpan(
+          text: text,
+          style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: 260);
     final b = c.selectionBounds;
     var anchor = _s(b.topLeft);
     if (sel.length == 1 && sel.first is BoxObject) {
       final o = sel.first as BoxObject;
-      anchor = _s(o.corners.reduce((a, b) => (a.dy < b.dy || (a.dy == b.dy && a.dx < b.dx)) ? a : b));
+      anchor = _s(o.corners.reduce(
+          (a, b) => (a.dy < b.dy || (a.dy == b.dy && a.dx < b.dx)) ? a : b));
     }
     final w = tp.width + 14, h = tp.height + 6;
     var pos = anchor + Offset(0, -h - 8);
-    if (sel.length == 1 && sel.first is BoxObject) pos += const Offset(0, -34); // clear the rotate handle
-    pos = Offset(pos.dx.clamp(4, math.max(4, size.width - w - 4)), pos.dy < 4 ? anchor.dy + 10 : pos.dy);
-    final r = RRect.fromRectAndRadius(Rect.fromLTWH(pos.dx, pos.dy, w, h), const Radius.circular(5));
+    if (sel.length == 1 && sel.first is BoxObject) {
+      pos += const Offset(0, -34); // clear the rotate handle
+    }
+    pos = Offset(pos.dx.clamp(4, math.max(4, size.width - w - 4)),
+        pos.dy < 4 ? anchor.dy + 10 : pos.dy);
+    final r = RRect.fromRectAndRadius(
+        Rect.fromLTWH(pos.dx, pos.dy, w, h), const Radius.circular(5));
     canvas.drawRRect(r, Paint()..color = kAccent);
     tp.paint(canvas, pos + const Offset(7, 3));
     tp.dispose();
   }
 
-  void _dashedRect(Canvas canvas, Rect r, Paint p) => _dashedPath(canvas, Path()..addRect(r), p);
+  void _dashedRect(Canvas canvas, Rect r, Paint p) =>
+      _dashedPath(canvas, Path()..addRect(r), p);
 
   void _dashedPath(Canvas canvas, Path path, Paint p) {
     for (final m in path.computeMetrics()) {

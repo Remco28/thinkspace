@@ -14,10 +14,16 @@ Future<String?> promptText(BuildContext context, String title, String initial) {
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
-      content: TextField(controller: ctl, autofocus: true, onSubmitted: (v) => Navigator.pop(ctx, v)),
+      content: TextField(
+          controller: ctl,
+          autofocus: true,
+          onSubmitted: (v) => Navigator.pop(ctx, v)),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, ctl.text), child: const Text('OK')),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctl.text),
+            child: const Text('OK')),
       ],
     ),
   );
@@ -28,7 +34,8 @@ IconData kindIcon(SceneObject o) => switch (o.kind) {
       ObjectKind.text => Icons.title,
       ObjectKind.rect => Icons.crop_square,
       ObjectKind.ellipse => Icons.circle_outlined,
-      ObjectKind.line => o is LineObject && o.headEnd ? Icons.north_east : Icons.horizontal_rule,
+      ObjectKind.line =>
+        o is LineObject && o.headEnd ? Icons.north_east : Icons.horizontal_rule,
       ObjectKind.stroke => Icons.draw_outlined,
     };
 
@@ -53,19 +60,29 @@ class _LayersPanelState extends State<LayersPanel> {
         final n = layers.length;
         return Column(children: [
           PanelHeader('Layers', actions: [
-            SmallIconButton(icon: Icons.add, tooltip: 'Add layer', onPressed: c.addLayer),
+            SmallIconButton(
+                icon: Icons.add, tooltip: 'Add layer', onPressed: c.addLayer),
           ]),
           Expanded(
             child: ReorderableListView.builder(
               buildDefaultDragHandles: false,
               padding: const EdgeInsets.symmetric(vertical: 4),
               itemCount: n,
-              onReorderItem: (oldI, newI) => c.moveLayer(n - 1 - oldI, n - 1 - newI),
+              onReorderItem: (oldI, newI) =>
+                  c.moveLayer(n - 1 - oldI, n - 1 - newI),
               itemBuilder: (context, i) {
                 final layer = layers[n - 1 - i];
-                return _LayerTile(key: ValueKey(layer.id), c: c, layer: layer, index: i, collapsed: _collapsed.contains(layer.id), onToggle: () {
-                  setState(() => _collapsed.contains(layer.id) ? _collapsed.remove(layer.id) : _collapsed.add(layer.id));
-                });
+                return _LayerTile(
+                    key: ValueKey(layer.id),
+                    c: c,
+                    layer: layer,
+                    index: i,
+                    collapsed: _collapsed.contains(layer.id),
+                    onToggle: () {
+                      setState(() => _collapsed.contains(layer.id)
+                          ? _collapsed.remove(layer.id)
+                          : _collapsed.add(layer.id));
+                    });
               },
             ),
           ),
@@ -76,7 +93,13 @@ class _LayersPanelState extends State<LayersPanel> {
 }
 
 class _LayerTile extends StatelessWidget {
-  const _LayerTile({super.key, required this.c, required this.layer, required this.index, required this.collapsed, required this.onToggle});
+  const _LayerTile(
+      {super.key,
+      required this.c,
+      required this.layer,
+      required this.index,
+      required this.collapsed,
+      required this.onToggle});
   final EditorController c;
   final Layer layer;
   final int index;
@@ -103,24 +126,36 @@ class _LayerTile extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 6),
             padding: const EdgeInsets.only(left: 2, right: 4),
             decoration: BoxDecoration(
-              color: cand.isNotEmpty ? kAccent.withValues(alpha: 0.18) : isCurrent ? kAccent.withValues(alpha: 0.09) : null,
+              color: cand.isNotEmpty
+                  ? kAccent.withValues(alpha: 0.18)
+                  : isCurrent
+                      ? kAccent.withValues(alpha: 0.09)
+                      : null,
               borderRadius: BorderRadius.circular(6),
               border: cand.isNotEmpty ? Border.all(color: kAccent) : null,
             ),
             child: Row(children: [
               ReorderableDragStartListener(
                 index: index,
-                child: const MouseRegion(cursor: SystemMouseCursors.grab, child: Padding(padding: EdgeInsets.all(2), child: Icon(Icons.drag_indicator, size: 16, color: Color(0xFF9AA0AE)))),
+                child: const MouseRegion(
+                    cursor: SystemMouseCursors.grab,
+                    child: Padding(
+                        padding: EdgeInsets.all(2),
+                        child: Icon(Icons.drag_indicator,
+                            size: 16, color: Color(0xFF9AA0AE)))),
               ),
               InkResponse(
                 onTap: onToggle,
                 radius: 12,
-                child: Icon(collapsed ? Icons.chevron_right : Icons.expand_more, size: 18, color: const Color(0xFF5B6272)),
+                child: Icon(collapsed ? Icons.chevron_right : Icons.expand_more,
+                    size: 18, color: const Color(0xFF5B6272)),
               ),
               const SizedBox(width: 2),
               SmallIconButton(
                 key: ValueKey('layer-eye-${layer.id}'),
-                icon: layer.visible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                icon: layer.visible
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
                 tooltip: layer.visible ? 'Hide layer' : 'Show layer',
                 onPressed: () => c.setLayerVisible(layer.id, !layer.visible),
                 color: layer.visible ? null : const Color(0xFFB4B8C2),
@@ -129,16 +164,26 @@ class _LayerTile extends StatelessWidget {
               Expanded(
                 child: Text(layer.name,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: layer.visible ? const Color(0xFF222733) : const Color(0xFF9AA0AE))),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: layer.visible
+                            ? const Color(0xFF222733)
+                            : const Color(0xFF9AA0AE))),
               ),
-              if (layer.locked) const Icon(Icons.lock_outline, size: 14, color: Color(0xFF8A90A0)),
-              Text('${layer.objects.length}', style: const TextStyle(fontSize: 11, color: Color(0xFF8A90A0))),
+              if (layer.locked)
+                const Icon(Icons.lock_outline,
+                    size: 14, color: Color(0xFF8A90A0)),
+              Text('${layer.objects.length}',
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xFF8A90A0))),
             ]),
           ),
         ),
       ),
       if (!collapsed)
-        for (final o in layer.objects.reversed) _ObjectRow(c: c, layer: layer, object: o),
+        for (final o in layer.objects.reversed)
+          _ObjectRow(c: c, layer: layer, object: o),
     ]);
   }
 
@@ -148,8 +193,11 @@ class _LayerTile extends StatelessWidget {
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
         const PopupMenuItem(value: 'rename', child: Text('Rename')),
-        const PopupMenuItem(value: 'select', child: Text('Select everything on this layer')),
-        PopupMenuItem(value: 'lock', child: Text(layer.locked ? 'Unlock layer' : 'Lock layer')),
+        const PopupMenuItem(
+            value: 'select', child: Text('Select everything on this layer')),
+        PopupMenuItem(
+            value: 'lock',
+            child: Text(layer.locked ? 'Unlock layer' : 'Lock layer')),
         const PopupMenuItem(value: 'delete', child: Text('Delete layer')),
       ],
     );
@@ -169,7 +217,8 @@ class _LayerTile extends StatelessWidget {
 }
 
 class _ObjectRow extends StatelessWidget {
-  const _ObjectRow({required this.c, required this.layer, required this.object});
+  const _ObjectRow(
+      {required this.c, required this.layer, required this.object});
   final EditorController c;
   final Layer layer;
   final SceneObject object;
@@ -188,12 +237,18 @@ class _ObjectRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(5),
       ),
       child: Row(children: [
-        Icon(kindIcon(object), size: 15, color: dim ? const Color(0xFFB4B8C2) : const Color(0xFF5B6272)),
+        Icon(kindIcon(object),
+            size: 15,
+            color: dim ? const Color(0xFFB4B8C2) : const Color(0xFF5B6272)),
         const SizedBox(width: 6),
         Expanded(
           child: Text(object.name,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12.5, color: dim ? const Color(0xFF9AA0AE) : const Color(0xFF222733), fontWeight: selected ? FontWeight.w600 : FontWeight.w400)),
+              style: TextStyle(
+                  fontSize: 12.5,
+                  color:
+                      dim ? const Color(0xFF9AA0AE) : const Color(0xFF222733),
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400)),
         ),
         if (object.locked)
           SmallIconButton(
@@ -209,7 +264,9 @@ class _ObjectRow extends StatelessWidget {
           ),
         SmallIconButton(
           key: ValueKey('object-eye-${object.id}'),
-          icon: object.visible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          icon: object.visible
+              ? Icons.visibility_outlined
+              : Icons.visibility_off_outlined,
           tooltip: object.visible ? 'Hide' : 'Show',
           size: 15,
           onPressed: () => c.setObjectVisible(object.id, !object.visible),
@@ -224,8 +281,13 @@ class _ObjectRow extends StatelessWidget {
         color: Colors.transparent,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: kAccent, borderRadius: BorderRadius.circular(6)),
-          child: Text(selected && c.selection.length > 1 ? '${c.selection.length} objects' : object.name, style: const TextStyle(color: Colors.white, fontSize: 12)),
+          decoration: BoxDecoration(
+              color: kAccent, borderRadius: BorderRadius.circular(6)),
+          child: Text(
+              selected && c.selection.length > 1
+                  ? '${c.selection.length} objects'
+                  : object.name,
+              style: const TextStyle(color: Colors.white, fontSize: 12)),
         ),
       ),
       child: QuickTap(

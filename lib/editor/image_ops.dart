@@ -20,25 +20,31 @@ class CutResult {
 }
 
 /// Cut a polygon (in source pixel coordinates) out of [src].
-Future<CutResult?> cutoutPolygon(Asset src, List<Offset> polyPx, {bool leaveHole = false}) async {
+Future<CutResult?> cutoutPolygon(Asset src, List<Offset> polyPx,
+    {bool leaveHole = false}) async {
   if (polyPx.length < 3) return null;
-  var box = rectFromPoints(polyPx).intersect(Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble()));
+  var box = rectFromPoints(polyPx).intersect(
+      Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble()));
   if (box.isEmpty || box.width < 2 || box.height < 2) return null;
-  box = Rect.fromLTRB(box.left.floorToDouble(), box.top.floorToDouble(), box.right.ceilToDouble(), box.bottom.ceilToDouble());
+  box = Rect.fromLTRB(box.left.floorToDouble(), box.top.floorToDouble(),
+      box.right.ceilToDouble(), box.bottom.ceilToDouble());
   final path = Path()..addPolygon(polyPx, true);
 
   final rec = PictureRecorder();
   final c = Canvas(rec);
   c.translate(-box.left, -box.top);
   c.clipPath(path, doAntiAlias: true);
-  c.drawImage(src.image, Offset.zero, Paint()..filterQuality = FilterQuality.none);
-  final piece = await rec.endRecording().toImage(box.width.round(), box.height.round());
+  c.drawImage(
+      src.image, Offset.zero, Paint()..filterQuality = FilterQuality.none);
+  final piece =
+      await rec.endRecording().toImage(box.width.round(), box.height.round());
 
   Image? rest;
   if (leaveHole) {
     final r2 = PictureRecorder();
     final c2 = Canvas(r2);
-    final full = Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble());
+    final full =
+        Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble());
     c2.saveLayer(full, Paint());
     c2.drawImage(src.image, Offset.zero, Paint());
     c2.clipPath(path, doAntiAlias: true);
@@ -95,7 +101,11 @@ Future<ColorRemoval?> removeColorFrom(
     final r = src.rgba[si], g = src.rgba[si + 1], b = src.rgba[si + 2];
     if (!contiguous) {
       for (int p = 0; p < w * h; p++) {
-        if (done[p] == 0 && src.rgba[p * 4 + 3] > 0 && _dist(src.rgba, p * 4, r, g, b) <= limit) clear(p);
+        if (done[p] == 0 &&
+            src.rgba[p * 4 + 3] > 0 &&
+            _dist(src.rgba, p * 4, r, g, b) <= limit) {
+          clear(p);
+        }
       }
       continue;
     }
@@ -134,4 +144,12 @@ Future<ColorRemoval?> removeColorFrom(
 
 /// Remove the page-coloured background by flooding from the four corners.
 Future<ColorRemoval?> removeBackground(Asset src, double tolerance) =>
-    removeColorFrom(src, [(0, 0), (src.width - 1, 0), (0, src.height - 1), (src.width - 1, src.height - 1)], tolerance);
+    removeColorFrom(
+        src,
+        [
+          (0, 0),
+          (src.width - 1, 0),
+          (0, src.height - 1),
+          (src.width - 1, src.height - 1)
+        ],
+        tolerance);

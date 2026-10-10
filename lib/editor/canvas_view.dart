@@ -21,12 +21,18 @@ class ObjectDrag {
 
 Modifiers currentModifiers() => Modifiers(
       shift: HardwareKeyboard.instance.isShiftPressed,
-      ctrl: HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed,
+      ctrl: HardwareKeyboard.instance.isControlPressed ||
+          HardwareKeyboard.instance.isMetaPressed,
       alt: HardwareKeyboard.instance.isAltPressed,
     );
 
 class CanvasView extends StatefulWidget {
-  const CanvasView({super.key, required this.controller, required this.interactor, required this.spaceDown, this.focusNode});
+  const CanvasView(
+      {super.key,
+      required this.controller,
+      required this.interactor,
+      required this.spaceDown,
+      this.focusNode});
   final FocusNode? focusNode;
   final EditorController controller;
   final CanvasInteractor interactor;
@@ -57,7 +63,9 @@ class _CanvasViewState extends State<CanvasView> {
         final box = _key.currentContext!.findRenderObject() as RenderBox;
         final local = box.globalToLocal(d.offset);
         final data = d.data;
-        if (data is CollectionDrag) c.placeCollectionItem(data.itemId, at: c.toScene(local));
+        if (data is CollectionDrag) {
+          c.placeCollectionItem(data.itemId, at: c.toScene(local));
+        }
       },
       builder: (context, candidate, rejected) => LayoutBuilder(
         key: _key,
@@ -74,15 +82,22 @@ class _CanvasViewState extends State<CanvasView> {
                     onPointerDown: (e) {
                       widget.focusNode?.requestFocus();
                       final right = e.buttons == kSecondaryMouseButton;
-                      final pan = e.buttons == kMiddleMouseButton || widget.spaceDown.value || right;
+                      final pan = e.buttons == kMiddleMouseButton ||
+                          widget.spaceDown.value ||
+                          right;
                       _rightDown = right ? e.localPosition : null;
                       _rightMoved = false;
-                      ix.pointerDown(e.localPosition, currentModifiers(), forcePan: pan);
+                      ix.pointerDown(e.localPosition, currentModifiers(),
+                          forcePan: pan);
                     },
                     onPointerMove: (e) {
-                      if (_rightDown != null && (e.localPosition - _rightDown!).distance > 4) _rightMoved = true;
+                      if (_rightDown != null &&
+                          (e.localPosition - _rightDown!).distance > 4) {
+                        _rightMoved = true;
+                      }
                       ix.pointerMove(e.localPosition, currentModifiers());
-                      final cur = ix.cursorAt(e.localPosition, spaceDown: widget.spaceDown.value);
+                      final cur = ix.cursorAt(e.localPosition,
+                          spaceDown: widget.spaceDown.value);
                       if (cur != _cursor) setState(() => _cursor = cur);
                     },
                     onPointerUp: (e) {
@@ -92,27 +107,38 @@ class _CanvasViewState extends State<CanvasView> {
                       if (rd != null && !_rightMoved) {
                         // Right-click without dragging: a menu for what's under the pointer.
                         final hits = c.objectsAt(c.toScene(rd));
-                        if (hits.isNotEmpty && !c.selection.contains(hits.first.id)) c.select([hits.first.id]);
+                        if (hits.isNotEmpty &&
+                            !c.selection.contains(hits.first.id)) {
+                          c.select([hits.first.id]);
+                        }
                         if (hits.isEmpty) c.clearSelection();
                         showObjectMenu(context, c, e.position);
                       }
                     },
                     onPointerCancel: (e) => ix.cancel(),
                     onPointerSignal: (e) {
-                      if (e is PointerScrollEvent) ix.scroll(e.localPosition, e.scrollDelta, currentModifiers());
+                      if (e is PointerScrollEvent) {
+                        ix.scroll(
+                            e.localPosition, e.scrollDelta, currentModifiers());
+                      }
                     },
                     onPointerPanZoomUpdate: (e) {
                       if (e.scale != 1) {
-                        c.zoomTo(c.zoom * (1 + (e.scale - 1) * 0.05), anchorScreen: e.localPosition);
+                        c.zoomTo(c.zoom * (1 + (e.scale - 1) * 0.05),
+                            anchorScreen: e.localPosition);
                       }
                       c.panBy(e.panDelta);
                     },
-                    child: CustomPaint(painter: CanvasPainter(c), size: Size.infinite),
+                    child: CustomPaint(
+                        painter: CanvasPainter(c), size: Size.infinite),
                   ),
                 ),
               ),
-              if (c.editingTextId != null) _TextEditorOverlay(c: c, key: ValueKey(c.editingTextId)),
-              if (candidate.isNotEmpty) IgnorePointer(child: Container(color: kAccent.withValues(alpha: 0.06))),
+              if (c.editingTextId != null)
+                _TextEditorOverlay(c: c, key: ValueKey(c.editingTextId)),
+              if (candidate.isNotEmpty)
+                IgnorePointer(
+                    child: Container(color: kAccent.withValues(alpha: 0.06))),
             ]),
           );
         },
@@ -176,7 +202,8 @@ class _TextEditorOverlayState extends State<_TextEditorOverlay> {
           height: t.size.height,
           child: Focus(
             onKeyEvent: (node, e) {
-              if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) {
+              if (e is KeyDownEvent &&
+                  e.logicalKey == LogicalKeyboardKey.escape) {
                 c.finishTextEdit();
                 return KeyEventResult.handled;
               }

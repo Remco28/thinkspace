@@ -8,7 +8,8 @@ import 'dart:typed_data';
 class SystemClipboard {
   static final _png = [0x89, 0x50, 0x4E, 0x47];
 
-  static bool get _wayland => (Platform.environment['WAYLAND_DISPLAY'] ?? '').isNotEmpty;
+  static bool get _wayland =>
+      (Platform.environment['WAYLAND_DISPLAY'] ?? '').isNotEmpty;
 
   static Future<Uint8List?> readImage() async {
     final attempts = <List<String>>[
@@ -20,8 +21,11 @@ class SystemClipboard {
       if (bytes != null && bytes.length > 8 && _isPng(bytes)) return bytes;
     }
     // Some sources only offer JPEG.
-    final jpeg = await _run(['xclip', '-selection', 'clipboard', '-t', 'image/jpeg', '-o']);
-    if (jpeg != null && jpeg.length > 4 && jpeg[0] == 0xFF && jpeg[1] == 0xD8) return jpeg;
+    final jpeg = await _run(
+        ['xclip', '-selection', 'clipboard', '-t', 'image/jpeg', '-o']);
+    if (jpeg != null && jpeg.length > 4 && jpeg[0] == 0xFF && jpeg[1] == 0xD8) {
+      return jpeg;
+    }
     return null;
   }
 
@@ -34,8 +38,9 @@ class SystemClipboard {
 
   static Future<Uint8List?> _run(List<String> cmd) async {
     try {
-      final r = await Process.run(cmd.first, cmd.sublist(1), stdoutEncoding: null)
-          .timeout(const Duration(seconds: 4));
+      final r =
+          await Process.run(cmd.first, cmd.sublist(1), stdoutEncoding: null)
+              .timeout(const Duration(seconds: 4));
       if (r.exitCode != 0) return null;
       return Uint8List.fromList(r.stdout as List<int>);
     } catch (_) {
@@ -53,7 +58,8 @@ class SystemClipboard {
       try {
         // xclip and wl-copy stay alive to serve the selection, so don't wait
         // for them to exit.
-        final p = await Process.start(cmd.first, cmd.sublist(1), mode: ProcessStartMode.detachedWithStdio);
+        final p = await Process.start(cmd.first, cmd.sublist(1),
+            mode: ProcessStartMode.detachedWithStdio);
         p.stdin.add(png);
         await p.stdin.close();
         await Future<void>.delayed(const Duration(milliseconds: 150));

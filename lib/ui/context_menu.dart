@@ -3,13 +3,34 @@ import 'package:flutter/material.dart';
 import '../editor/controller.dart';
 import '../model/scene.dart';
 
-enum _Act { copy, cut, duplicate, delete, front, back, lock, cutout, removeBg, keep, merge, paste, selectAll, fit }
+enum _Act {
+  copy,
+  cut,
+  duplicate,
+  delete,
+  front,
+  back,
+  lock,
+  cutout,
+  removeBg,
+  keep,
+  merge,
+  paste,
+  selectAll,
+  fit
+}
 
 /// The right-click menu: what you can do with the thing under the pointer.
-Future<void> showObjectMenu(BuildContext context, EditorController c, Offset global) async {
+Future<void> showObjectMenu(
+    BuildContext context, EditorController c, Offset global) async {
   final sel = c.selectedObjects;
   final one = c.single;
-  final others = c.doc.layers.where((l) => sel.isNotEmpty && sel.any((o) => c.doc.layerOf(o.id)?.id != l.id)).toList().reversed.toList();
+  final others = c.doc.layers
+      .where((l) =>
+          sel.isNotEmpty && sel.any((o) => c.doc.layerOf(o.id)?.id != l.id))
+      .toList()
+      .reversed
+      .toList();
   final items = <PopupMenuEntry<Object>>[
     if (sel.isNotEmpty) ...[
       const PopupMenuItem(value: _Act.copy, child: Text('Copy')),
@@ -19,18 +40,27 @@ Future<void> showObjectMenu(BuildContext context, EditorController c, Offset glo
       const PopupMenuDivider(),
       const PopupMenuItem(value: _Act.front, child: Text('Bring to front')),
       const PopupMenuItem(value: _Act.back, child: Text('Send to back')),
-      for (final l in others) PopupMenuItem(value: l.id, child: Text('Move to “${l.name}”')),
+      for (final l in others)
+        PopupMenuItem(value: l.id, child: Text('Move to “${l.name}”')),
       const PopupMenuDivider(),
       if (one is ImageObject) ...[
         const PopupMenuItem(value: _Act.cutout, child: Text('Cut out…')),
-        const PopupMenuItem(value: _Act.removeBg, child: Text('Remove background')),
-        const PopupMenuItem(value: _Act.keep, child: Text('Keep in collection')),
+        const PopupMenuItem(
+            value: _Act.removeBg, child: Text('Remove background')),
+        const PopupMenuItem(
+            value: _Act.keep, child: Text('Keep in collection')),
       ],
-      PopupMenuItem(value: _Act.merge, child: Text(sel.length > 1 ? 'Merge into one image' : 'Turn into an image')),
-      PopupMenuItem(value: _Act.lock, child: Text(sel.every((o) => o.locked) ? 'Unlock' : 'Lock in place')),
+      PopupMenuItem(
+          value: _Act.merge,
+          child: Text(
+              sel.length > 1 ? 'Merge into one image' : 'Turn into an image')),
+      PopupMenuItem(
+          value: _Act.lock,
+          child: Text(sel.every((o) => o.locked) ? 'Unlock' : 'Lock in place')),
     ] else ...[
       const PopupMenuItem(value: _Act.paste, child: Text('Paste')),
-      const PopupMenuItem(value: _Act.selectAll, child: Text('Select everything')),
+      const PopupMenuItem(
+          value: _Act.selectAll, child: Text('Select everything')),
       const PopupMenuItem(value: _Act.fit, child: Text('Fit the page in view')),
     ],
   ];

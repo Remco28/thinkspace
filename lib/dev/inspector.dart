@@ -26,7 +26,11 @@ final GlobalKey appShotKey = GlobalKey(debugLabel: 'app-shot');
 ///   GET  /export       PNG of the page itself
 ///   POST /do           {"cmd": ..., ...}  drive the app (see _run)
 class Inspector {
-  Inspector({required this.c, required this.ix, required this.shotKey, required this.port});
+  Inspector(
+      {required this.c,
+      required this.ix,
+      required this.shotKey,
+      required this.port});
   final EditorController c;
   final CanvasInteractor ix;
   final GlobalKey shotKey;
@@ -48,20 +52,31 @@ class Inspector {
           await _json(req, c.stateJson());
         case '/screenshot':
           await WidgetsBinding.instance.endOfFrame;
-          final b = (appShotKey.currentContext ?? shotKey.currentContext)!.findRenderObject() as RenderRepaintBoundary; // ignore: use_build_context_synchronously
+          final b = (appShotKey.currentContext ?? shotKey.currentContext)!
+                  .findRenderObject()
+              as RenderRepaintBoundary; // ignore: use_build_context_synchronously
           final img = await b.toImage(pixelRatio: 1);
           final data = await img.toByteData(format: ui.ImageByteFormat.png);
           await _bytes(req, data!.buffer.asUint8List());
         case '/export':
-          final scale = double.tryParse(req.uri.queryParameters['scale'] ?? '') ?? 1;
+          final scale =
+              double.tryParse(req.uri.queryParameters['scale'] ?? '') ?? 1;
           await _bytes(req, await c.exportPng(scale: scale));
         case '/do':
           final body = req.method == 'POST'
-              ? jsonDecode(await utf8.decoder.bind(req).join()) as Map<String, dynamic>
-              : Map<String, dynamic>.from(jsonDecode(req.uri.queryParameters['json'] ?? '{}') as Map);
+              ? jsonDecode(await utf8.decoder.bind(req).join())
+                  as Map<String, dynamic>
+              : Map<String, dynamic>.from(
+                  jsonDecode(req.uri.queryParameters['json'] ?? '{}') as Map);
           final result = await _run(body);
           await WidgetsBinding.instance.endOfFrame;
-          await _json(req, {'ok': true, 'result': result, 'selection': c.selection, 'tool': c.tool.name, 'history': {'undo': c.undoDepth, 'redo': c.redoDepth}});
+          await _json(req, {
+            'ok': true,
+            'result': result,
+            'selection': c.selection,
+            'tool': c.tool.name,
+            'history': {'undo': c.undoDepth, 'redo': c.redoDepth}
+          });
         default:
           req.response.statusCode = 404;
           await req.response.close();
@@ -69,7 +84,11 @@ class Inspector {
     } catch (e, st) {
       req.response.statusCode = 500;
       req.response.headers.contentType = ContentType.json;
-      req.response.write(jsonEncode({'ok': false, 'error': '$e', 'stack': '$st'.split('\n').take(6).toList()}));
+      req.response.write(jsonEncode({
+        'ok': false,
+        'error': '$e',
+        'stack': '$st'.split('\n').take(6).toList()
+      }));
       await req.response.close();
     }
   }
@@ -91,8 +110,10 @@ class Inspector {
     return (cmd['space'] == 'screen') ? p : c.toScreen(p);
   }
 
-  Modifiers _mods(Map<String, dynamic> cmd) =>
-      Modifiers(shift: cmd['shift'] == true, ctrl: cmd['ctrl'] == true, alt: cmd['alt'] == true);
+  Modifiers _mods(Map<String, dynamic> cmd) => Modifiers(
+      shift: cmd['shift'] == true,
+      ctrl: cmd['ctrl'] == true,
+      alt: cmd['alt'] == true);
 
   SceneObject? _find(Map<String, dynamic> cmd) {
     final id = cmd['id'] as String?;
@@ -121,8 +142,12 @@ class Inspector {
         c.cutoutMode = CutoutMode.values.byName(cmd['mode'] as String);
         c.notify();
       case 'select':
-        final names = [for (final n in (cmd['names'] ?? const []) as List) n as String];
-        final ids = [for (final i in (cmd['ids'] ?? const []) as List) i as String];
+        final names = [
+          for (final n in (cmd['names'] ?? const []) as List) n as String
+        ];
+        final ids = [
+          for (final i in (cmd['ids'] ?? const []) as List) i as String
+        ];
         for (final o in c.doc.allObjects) {
           if (names.contains(o.name)) ids.add(o.id);
         }
@@ -168,25 +193,35 @@ class Inspector {
         final o = _find(cmd);
         if (o != null) {
           c.select([o.id]);
-          c.editSelected('opacity', (x) => x.opacity = (cmd['value'] as num).toDouble());
+          c.editSelected(
+              'opacity', (x) => x.opacity = (cmd['value'] as num).toDouble());
         }
       case 'rotation':
         final o = _find(cmd);
         if (o != null) {
           c.select([o.id]);
-          c.editSelected('rotate', (x) => (x as BoxObject).rotation = (cmd['degrees'] as num).toDouble() * math.pi / 180);
+          c.editSelected(
+              'rotate',
+              (x) => (x as BoxObject).rotation =
+                  (cmd['degrees'] as num).toDouble() * math.pi / 180);
         }
       case 'layerVisible':
-        final l = c.doc.layers.firstWhere((l) => l.id == cmd['layer'] || l.name == cmd['layer']);
+        final l = c.doc.layers
+            .firstWhere((l) => l.id == cmd['layer'] || l.name == cmd['layer']);
         c.setLayerVisible(l.id, cmd['visible'] == true);
       case 'moveToLayer':
-        final l = c.doc.layers.firstWhere((l) => l.id == cmd['layer'] || l.name == cmd['layer']);
-        final ids = [for (final o in c.doc.allObjects) if (cmd['names'].contains(o.name)) o.id];
+        final l = c.doc.layers
+            .firstWhere((l) => l.id == cmd['layer'] || l.name == cmd['layer']);
+        final ids = [
+          for (final o in c.doc.allObjects)
+            if (cmd['names'].contains(o.name)) o.id
+        ];
         c.moveObjectsToLayer(ids, l.id);
       case 'addLayer':
         c.addLayer();
       case 'selectLayer':
-        final l = c.doc.layers.firstWhere((l) => l.id == cmd['layer'] || l.name == cmd['layer']);
+        final l = c.doc.layers
+            .firstWhere((l) => l.id == cmd['layer'] || l.name == cmd['layer']);
         c.selectLayerContents(l.id);
       case 'grid':
         c.showGrid = cmd['show'] != false;
@@ -199,7 +234,8 @@ class Inspector {
           c.zoomTo((cmd['value'] as num).toDouble());
         }
       case 'canvasSize':
-        c.setCanvasSize(Size((cmd['w'] as num).toDouble(), (cmd['h'] as num).toDouble()));
+        c.setCanvasSize(
+            Size((cmd['w'] as num).toDouble(), (cmd['h'] as num).toDouble()));
       case 'removeBackground':
         final o = _find(cmd);
         if (o is ImageObject) await c.removeBackgroundFrom(o);
@@ -208,9 +244,11 @@ class Inspector {
       case 'open':
         await c.openFrom(cmd['path'] as String);
       case 'exportPng':
-        await File(cmd['path'] as String).writeAsBytes(await c.exportPng(scale: (cmd['scale'] as num?)?.toDouble() ?? 1));
+        await File(cmd['path'] as String).writeAsBytes(
+            await c.exportPng(scale: (cmd['scale'] as num?)?.toDouble() ?? 1));
       case 'importFile':
-        await c.importFiles([cmd['path'] as String], toCollection: cmd['collection'] == true);
+        await c.importFiles([cmd['path'] as String],
+            toCollection: cmd['collection'] == true);
       case 'editText':
         final o = _find(cmd);
         if (o is TextObject) {

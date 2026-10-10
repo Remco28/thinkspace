@@ -26,7 +26,9 @@ class CollectionPanel extends StatelessWidget {
               tooltip: 'Add images to the collection',
               onPressed: () async {
                 final paths = await pickImages();
-                if (paths.isNotEmpty) await c.importFiles(paths, toCollection: true);
+                if (paths.isNotEmpty) {
+                  await c.importFiles(paths, toCollection: true);
+                }
               },
             ),
             SmallIconButton(
@@ -43,7 +45,10 @@ class CollectionPanel extends StatelessWidget {
                       child: Text(
                         'Keep images here until you need them.\n\nPaste (Ctrl+V) and choose “Add to collection”, or drag a file in. Drag an item onto the page to use it — the original stays here.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12.5, height: 1.4, color: Color(0xFF6B7385)),
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.4,
+                            color: Color(0xFF6B7385)),
                       ),
                     ),
                   )
@@ -51,7 +56,11 @@ class CollectionPanel extends StatelessWidget {
                     final cols = (box.maxWidth / 112).floor().clamp(1, 6);
                     return GridView.builder(
                       padding: const EdgeInsets.all(8),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 0.86),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: cols,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          childAspectRatio: 0.86),
                       itemCount: items.length,
                       itemBuilder: (context, i) => _Thumb(c: c, item: items[i]),
                     );
@@ -72,16 +81,26 @@ class _Thumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final a = c.assets[item.assetId];
     final image = Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: kBorder)),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: kBorder)),
       padding: const EdgeInsets.all(4),
-      child: a == null ? const Icon(Icons.broken_image_outlined) : RawImage(image: a.image, fit: BoxFit.contain, filterQuality: FilterQuality.medium),
+      child: a == null
+          ? const Icon(Icons.broken_image_outlined)
+          : RawImage(
+              image: a.image,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.medium),
     );
     return Draggable<CollectionDrag>(
       data: CollectionDrag(item.id),
       dragAnchorStrategy: pointerDragAnchorStrategy,
       feedback: Material(
         color: Colors.transparent,
-        child: Opacity(opacity: 0.85, child: SizedBox(width: 96, height: 80, child: image)),
+        child: Opacity(
+            opacity: 0.85,
+            child: SizedBox(width: 96, height: 80, child: image)),
       ),
       childWhenDragging: Opacity(opacity: 0.5, child: _body(context, image)),
       child: _body(context, image),
@@ -95,11 +114,13 @@ class _Thumb extends StatelessWidget {
         onSecondaryTapDown: (d) async {
           final v = await showMenu<String>(
             context: context,
-            position: RelativeRect.fromLTRB(d.globalPosition.dx, d.globalPosition.dy, d.globalPosition.dx, d.globalPosition.dy),
+            position: RelativeRect.fromLTRB(d.globalPosition.dx,
+                d.globalPosition.dy, d.globalPosition.dx, d.globalPosition.dy),
             items: const [
               PopupMenuItem(value: 'place', child: Text('Place on page')),
               PopupMenuItem(value: 'rename', child: Text('Rename')),
-              PopupMenuItem(value: 'remove', child: Text('Remove from collection')),
+              PopupMenuItem(
+                  value: 'remove', child: Text('Remove from collection')),
             ],
           );
           if (!context.mounted) return;
@@ -119,7 +140,10 @@ class _Thumb extends StatelessWidget {
           child: Column(children: [
             Expanded(child: image),
             const SizedBox(height: 3),
-            Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5)),
+            Text(item.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11.5)),
           ]),
         ),
       );

@@ -21,10 +21,21 @@ void main() {
     ix = CanvasInteractor(c);
   });
 
-  Future<ImageObject> addImage({Offset at = const Offset(300, 300), int w = 200, int h = 100, int color = 0xFFFF0000, int? centerColor}) async {
-    final a = await makeAsset(c, w: w, h: h, color: color, centerColor: centerColor);
+  Future<ImageObject> addImage(
+      {Offset at = const Offset(300, 300),
+      int w = 200,
+      int h = 100,
+      int color = 0xFFFF0000,
+      int? centerColor}) async {
+    final a =
+        await makeAsset(c, w: w, h: h, color: color, centerColor: centerColor);
     c.doc.canvasSize = const Size(1600, 1000); // not "pristine"
-    c.doc.layers.first.objects.add(ImageObject(id: c.doc.newId('o'), name: 'image ${c.doc.nextId}', assetId: a.id, center: at, size: Size(w.toDouble(), h.toDouble())));
+    c.doc.layers.first.objects.add(ImageObject(
+        id: c.doc.newId('o'),
+        name: 'image ${c.doc.nextId}',
+        assetId: a.id,
+        center: at,
+        size: Size(w.toDouble(), h.toDouble())));
     return c.doc.layers.first.objects.last as ImageObject;
   }
 
@@ -57,7 +68,8 @@ void main() {
 
     test('shift keeps a line on a 15 degree step', () {
       c.setTool(Tool.line);
-      drag(ix, const Offset(100, 100), const Offset(300, 110), m: const Modifiers(shift: true));
+      drag(ix, const Offset(100, 100), const Offset(300, 110),
+          m: const Modifiers(shift: true));
       final l = c.doc.allObjects.single as LineObject;
       expect((l.p2 - l.p1).direction, closeTo(0, 1e-9));
     });
@@ -85,7 +97,8 @@ void main() {
       c.setTool(Tool.pen);
       ix.pointerDown(const Offset(100, 100), noMods);
       for (int i = 1; i <= 40; i++) {
-        ix.pointerMove(Offset(100 + i * 5.0, 100 + (i.isEven ? 0.3 : 0)), noMods);
+        ix.pointerMove(
+            Offset(100 + i * 5.0, 100 + (i.isEven ? 0.3 : 0)), noMods);
       }
       ix.pointerUp(const Offset(300, 100), noMods);
       final s = c.doc.allObjects.single as StrokeObject;
@@ -126,7 +139,8 @@ void main() {
       expect(img.center, const Offset(400, 380));
       expect(c.undoDepth, 1);
       c.undo();
-      expect((c.doc.allObjects.single as ImageObject).center, const Offset(300, 300));
+      expect((c.doc.allObjects.single as ImageObject).center,
+          const Offset(300, 300));
     });
 
     test('a tiny wobble while clicking does not move anything', () async {
@@ -134,14 +148,17 @@ void main() {
       ix.pointerDown(const Offset(300, 300), noMods);
       ix.pointerMove(const Offset(301, 301), noMods);
       ix.pointerUp(const Offset(301, 301), noMods);
-      expect((c.doc.allObjects.single as ImageObject).center, const Offset(300, 300));
+      expect((c.doc.allObjects.single as ImageObject).center,
+          const Offset(300, 300));
       expect(c.undoDepth, 0);
     });
 
     test('shift while moving locks an axis', () async {
       await addImage();
-      drag(ix, const Offset(300, 300), const Offset(400, 320), m: const Modifiers(shift: true));
-      expect((c.doc.allObjects.single as ImageObject).center, const Offset(400, 300));
+      drag(ix, const Offset(300, 300), const Offset(400, 320),
+          m: const Modifiers(shift: true));
+      expect((c.doc.allObjects.single as ImageObject).center,
+          const Offset(400, 300));
     });
 
     test('snapping aligns an object to the grid; ctrl bypasses it', () async {
@@ -151,11 +168,14 @@ void main() {
       drag(ix, const Offset(300, 300), const Offset(353, 337));
       // The nearest of left / centre / right edges lands on a grid line.
       final b = img.bounds;
-      final onGrid = [b.left, b.center.dx, b.right].any((v) => (v / 40 - (v / 40).round()).abs() < 1e-6);
+      final onGrid = [b.left, b.center.dx, b.right]
+          .any((v) => (v / 40 - (v / 40).round()).abs() < 1e-6);
       expect(onGrid, isTrue);
       final before = img.center;
-      drag(ix, const Offset(353, 337), const Offset(373, 357), m: const Modifiers(ctrl: true));
-      expect(img.center - before, const Offset(20, 20), reason: 'ctrl moves freely');
+      drag(ix, const Offset(353, 337), const Offset(373, 357),
+          m: const Modifiers(ctrl: true));
+      expect(img.center - before, const Offset(20, 20),
+          reason: 'ctrl moves freely');
     });
 
     test('corner handles resize an image proportionally', () async {
@@ -173,7 +193,8 @@ void main() {
     test('shift releases the aspect lock on an image', () async {
       final img = await addImage(at: const Offset(300, 300), w: 200, h: 100);
       c.select([img.id]);
-      drag(ix, const Offset(400, 350), const Offset(500, 350), m: const Modifiers(shift: true));
+      drag(ix, const Offset(400, 350), const Offset(500, 350),
+          m: const Modifiers(shift: true));
       expect(img.size.height, closeTo(100, 1e-6));
       expect(img.size.width, closeTo(300, 1e-6));
     });
@@ -190,23 +211,28 @@ void main() {
       expect(img.rotation, closeTo(math.pi / 6, 1e-9));
     });
 
-    test('the rotate handle turns an object and snaps near 15 degrees', () async {
+    test('the rotate handle turns an object and snaps near 15 degrees',
+        () async {
       final img = await addImage(at: const Offset(300, 300), w: 200, h: 100);
       c.select([img.id]);
       // Rotate handle sits 30px above the top edge.
-      final handle = Offset(300, 250 - 30);
-      drag(ix, handle, const Offset(500, 300 + 1)); // pointing right => 90 degrees
+      const handle = Offset(300, 250 - 30);
+      drag(ix, handle,
+          const Offset(500, 300 + 1)); // pointing right => 90 degrees
       expect(img.rotation, closeTo(math.pi / 2, 0.02));
       expect(c.undoDepth, 1);
     });
 
     test('click again reaches the object underneath', () async {
-      final back = await addImage(at: const Offset(300, 300), w: 300, h: 300, color: 0xFF00FF00);
-      final front = await addImage(at: const Offset(320, 320), w: 300, h: 300, color: 0xFF0000FF);
+      final back = await addImage(
+          at: const Offset(300, 300), w: 300, h: 300, color: 0xFF00FF00);
+      final front = await addImage(
+          at: const Offset(320, 320), w: 300, h: 300, color: 0xFF0000FF);
       click(ix, const Offset(320, 320));
       expect(c.selection, [front.id]);
       click(ix, const Offset(320, 320));
-      expect(c.selection, [back.id], reason: 'a second click goes down the stack');
+      expect(c.selection, [back.id],
+          reason: 'a second click goes down the stack');
       click(ix, const Offset(320, 320));
       expect(c.selection, [front.id]);
     });
@@ -230,9 +256,15 @@ void main() {
 
     test('transparent pixels are not grabbable', () async {
       // A cutout-like image: opaque only in its left half.
-      final back = await addImage(at: const Offset(300, 300), w: 200, h: 200, color: 0xFF00FF00);
+      final back = await addImage(
+          at: const Offset(300, 300), w: 200, h: 200, color: 0xFF00FF00);
       final a = await makeAsset(c, w: 100, h: 100, color: 0x00000000);
-      final ghost = ImageObject(id: c.doc.newId('o'), name: 'ghost', assetId: a.id, center: const Offset(300, 300), size: const Size(200, 200));
+      final ghost = ImageObject(
+          id: c.doc.newId('o'),
+          name: 'ghost',
+          assetId: a.id,
+          center: const Offset(300, 300),
+          size: const Size(200, 200));
       c.doc.layers.first.objects.add(ghost);
       click(ix, const Offset(300, 300));
       expect(c.selection, [back.id]);
@@ -244,7 +276,8 @@ void main() {
       final far = await addImage(at: const Offset(900, 700), w: 50, h: 50);
       drag(ix, const Offset(20, 20), const Offset(350, 160));
       expect(c.selection.toSet(), {a.id, b.id});
-      drag(ix, const Offset(800, 600), const Offset(1000, 800), m: const Modifiers(shift: true));
+      drag(ix, const Offset(800, 600), const Offset(1000, 800),
+          m: const Modifiers(shift: true));
       expect(c.selection.toSet(), {a.id, b.id, far.id});
     });
 
@@ -261,9 +294,11 @@ void main() {
     test('adding, hiding, reordering and deleting layers', () {
       c.addLayer();
       c.addLayer();
-      expect(c.doc.layers.map((l) => l.name), ['Layer 1', 'Layer 2', 'Layer 3']);
+      expect(
+          c.doc.layers.map((l) => l.name), ['Layer 1', 'Layer 2', 'Layer 3']);
       c.moveLayer(2, 0);
-      expect(c.doc.layers.map((l) => l.name), ['Layer 3', 'Layer 1', 'Layer 2']);
+      expect(
+          c.doc.layers.map((l) => l.name), ['Layer 3', 'Layer 1', 'Layer 2']);
       c.setLayerVisible(c.doc.layers[1].id, false);
       expect(c.doc.layers[1].visible, isFalse);
       c.undo();
@@ -287,12 +322,18 @@ void main() {
       expect(c.objectsAt(const Offset(300, 300)), isEmpty);
     });
 
-    test('selecting a layer selects its contents, which move together', () async {
+    test('selecting a layer selects its contents, which move together',
+        () async {
       final a = await addImage(at: const Offset(100, 100), w: 50, h: 50);
       final b = await addImage(at: const Offset(300, 100), w: 50, h: 50);
       c.addLayer();
       final other = await makeAsset(c);
-      c.currentLayer.objects.add(ImageObject(id: c.doc.newId('o'), name: 'other', assetId: other.id, center: const Offset(500, 500), size: const Size(50, 50)));
+      c.currentLayer.objects.add(ImageObject(
+          id: c.doc.newId('o'),
+          name: 'other',
+          assetId: other.id,
+          center: const Offset(500, 500),
+          size: const Size(50, 50)));
 
       c.selectLayerContents(c.doc.layers.first.id);
       expect(c.selection.toSet(), {a.id, b.id});
@@ -301,8 +342,10 @@ void main() {
       expect(a.center, const Offset(130, 160));
       expect(b.center, const Offset(330, 160));
       expect(c.doc.allObjects.last.name, 'other');
-      expect((c.doc.allObjects.last as ImageObject).center, const Offset(500, 500));
-      expect(c.undoDepth, depth + 1, reason: 'moving a whole layer is one step');
+      expect((c.doc.allObjects.last as ImageObject).center,
+          const Offset(500, 500));
+      expect(c.undoDepth, depth + 1,
+          reason: 'moving a whole layer is one step');
     });
 
     test('an object can change layers and stay itself', () async {
@@ -384,8 +427,10 @@ void main() {
       c.pasteObjects();
       c.pasteObjects();
       expect(c.doc.allObjects.length, 3);
-      final centers = c.doc.allObjects.map((o) => (o as ImageObject).center).toSet();
-      expect(centers.length, 3, reason: 'each paste steps further so copies are visible');
+      final centers =
+          c.doc.allObjects.map((o) => (o as ImageObject).center).toSet();
+      expect(centers.length, 3,
+          reason: 'each paste steps further so copies are visible');
     });
 
     test('delete and undo bring an object back with its data', () async {
@@ -432,7 +477,8 @@ void main() {
       await addImage(at: const Offset(500, 500), w: 100, h: 100);
       c.fitCanvasToContent(padding: 20);
       expect(c.doc.canvasSize, const Size(140, 140));
-      expect((c.doc.allObjects.single as ImageObject).center, const Offset(70, 70));
+      expect((c.doc.allObjects.single as ImageObject).center,
+          const Offset(70, 70));
     });
 
     test('auto-grow expands the page to include new content', () async {
@@ -444,12 +490,13 @@ void main() {
     });
 
     test('zoom keeps the point under the pointer still', () {
-      final p = const Offset(400, 300);
+      const p = Offset(400, 300);
       final scene = c.toScene(p);
       c.zoomTo(2.5, anchorScreen: p);
       expect(c.toScene(p).dx, closeTo(scene.dx, 1e-9));
       expect(c.toScene(p).dy, closeTo(scene.dy, 1e-9));
-      expect(c.doc.allObjects, isEmpty, reason: 'zoom is a view change, not a document change');
+      expect(c.doc.allObjects, isEmpty,
+          reason: 'zoom is a view change, not a document change');
       expect(c.undoDepth, 0);
     });
   });
@@ -463,7 +510,8 @@ void main() {
       expect(o.size, const Size(900, 600));
     });
 
-    test('later images are fitted into view and land in the current layer', () async {
+    test('later images are fitted into view and land in the current layer',
+        () async {
       final first = await makeAsset(c, w: 900, h: 600);
       c.placeAsset(first);
       c.addLayer();
@@ -484,10 +532,12 @@ void main() {
       c.pendingPaste = PendingPaste(a.id, 'pasted');
       c.resolvePaste(toCollection: false, remember: true);
       expect(c.doc.allObjects.length, 1);
-      expect(c.pasteMode, PasteMode.layer, reason: 'Always do this is remembered');
+      expect(c.pasteMode, PasteMode.layer,
+          reason: 'Always do this is remembered');
     });
 
-    test('placing a collected image leaves the source in the collection', () async {
+    test('placing a collected image leaves the source in the collection',
+        () async {
       final a = await makeAsset(c, w: 100, h: 100);
       final item = c.addToCollection(a, name: 'awning');
       final o1 = c.placeCollectionItem(item.id, at: const Offset(200, 200))!;
@@ -506,10 +556,21 @@ void main() {
   });
 
   group('cutouts', () {
-    test('a box cutout makes a new object and leaves the original intact', () async {
-      final img = await addImage(at: const Offset(300, 300), w: 200, h: 100, color: 0xFF0000FF, centerColor: 0xFFFFFF00);
+    test('a box cutout makes a new object and leaves the original intact',
+        () async {
+      final img = await addImage(
+          at: const Offset(300, 300),
+          w: 200,
+          h: 100,
+          color: 0xFF0000FF,
+          centerColor: 0xFFFFFF00);
       c.select([img.id]);
-      final piece = await c.cutout(img, [const Offset(250, 275), const Offset(350, 275), const Offset(350, 325), const Offset(250, 325)]);
+      final piece = await c.cutout(img, [
+        const Offset(250, 275),
+        const Offset(350, 275),
+        const Offset(350, 325),
+        const Offset(250, 325)
+      ]);
       expect(piece, isNotNull);
       expect(c.doc.allObjects.length, 2);
       expect(piece!.size.width, closeTo(100, 1));
@@ -521,23 +582,38 @@ void main() {
       // The piece is the yellow middle.
       final i = (25 * a.width + 50) * 4;
       expect(a.rgba.sublist(i, i + 3), [255, 255, 0]);
-      expect(c.assets[img.assetId]!.width, 200, reason: 'the original asset is untouched');
+      expect(c.assets[img.assetId]!.width, 200,
+          reason: 'the original asset is untouched');
       expect(c.selection, [piece.id]);
       expect(c.undoDepth, 1);
     });
 
     test('a triangular lasso is transparent outside the triangle', () async {
-      final img = await addImage(at: const Offset(300, 300), w: 200, h: 200, color: 0xFFFF0000);
-      final piece = await c.cutout(img, [const Offset(200, 200), const Offset(400, 200), const Offset(200, 400)]);
+      final img = await addImage(
+          at: const Offset(300, 300), w: 200, h: 200, color: 0xFFFF0000);
+      final piece = await c.cutout(img, [
+        const Offset(200, 200),
+        const Offset(400, 200),
+        const Offset(200, 400)
+      ]);
       final a = c.assets[piece!.assetId]!;
       expect(a.alphaAt(10, 10), 255);
       expect(a.alphaAt(190, 190), 0);
     });
 
     test('a hole can be left in the original', () async {
-      final img = await addImage(at: const Offset(300, 300), w: 200, h: 100, color: 0xFF0000FF);
+      final img = await addImage(
+          at: const Offset(300, 300), w: 200, h: 100, color: 0xFF0000FF);
       final oldAsset = img.assetId;
-      await c.cutout(img, [const Offset(250, 275), const Offset(350, 275), const Offset(350, 325), const Offset(250, 325)], leaveHole: true);
+      await c.cutout(
+          img,
+          [
+            const Offset(250, 275),
+            const Offset(350, 275),
+            const Offset(350, 325),
+            const Offset(250, 325)
+          ],
+          leaveHole: true);
       final orig = c.doc.objectById(img.id) as ImageObject;
       expect(orig.assetId, isNot(oldAsset));
       final a = c.assets[orig.assetId]!;
@@ -548,11 +624,21 @@ void main() {
     });
 
     test('a rotated, flipped image cuts out the right pixels', () async {
-      final img = await addImage(at: const Offset(300, 300), w: 200, h: 100, color: 0xFF0000FF, centerColor: 0xFFFFFF00);
+      final img = await addImage(
+          at: const Offset(300, 300),
+          w: 200,
+          h: 100,
+          color: 0xFF0000FF,
+          centerColor: 0xFFFFFF00);
       img.rotation = math.pi / 2;
       img.flipX = true;
       // After a quarter turn the image is 100 wide and 200 tall on the page.
-      final piece = await c.cutout(img, [const Offset(250, 250), const Offset(350, 250), const Offset(350, 350), const Offset(250, 350)]);
+      final piece = await c.cutout(img, [
+        const Offset(250, 250),
+        const Offset(350, 250),
+        const Offset(350, 350),
+        const Offset(250, 350)
+      ]);
       expect(piece, isNotNull);
       expect(piece!.rotation, math.pi / 2);
       expect(piece.flipX, isTrue);
@@ -560,8 +646,10 @@ void main() {
       expect(piece.center.dy, closeTo(300, 1));
     });
 
-    test('remove background clears the surrounding colour but not the subject', () async {
-      final img = await addImage(w: 100, h: 100, color: 0xFFFFFFFF, centerColor: 0xFFCC0000);
+    test('remove background clears the surrounding colour but not the subject',
+        () async {
+      final img = await addImage(
+          w: 100, h: 100, color: 0xFFFFFFFF, centerColor: 0xFFCC0000);
       final ok = await c.removeBackgroundFrom(img);
       expect(ok, isTrue);
       final a = c.assets[(c.doc.objectById(img.id) as ImageObject).assetId]!;
@@ -571,7 +659,8 @@ void main() {
     });
 
     test('removing a colour only floods what touches the click', () async {
-      final img = await addImage(w: 100, h: 100, color: 0xFFFFFFFF, centerColor: 0xFF000000);
+      final img = await addImage(
+          w: 100, h: 100, color: 0xFFFFFFFF, centerColor: 0xFF000000);
       final inner = img.copyWith();
       expect(inner, isNotNull);
       // Click on the black square: the white border must survive.
@@ -584,9 +673,12 @@ void main() {
   });
 
   group('merge and recovery', () {
-    test('merging pieces makes one image and undo brings the pieces back', () async {
-      final a = await addImage(at: const Offset(100, 100), w: 100, h: 100, color: 0xFFFF0000);
-      final b = await addImage(at: const Offset(200, 100), w: 100, h: 100, color: 0xFF0000FF);
+    test('merging pieces makes one image and undo brings the pieces back',
+        () async {
+      final a = await addImage(
+          at: const Offset(100, 100), w: 100, h: 100, color: 0xFFFF0000);
+      final b = await addImage(
+          at: const Offset(200, 100), w: 100, h: 100, color: 0xFF0000FF);
       c.select([a.id, b.id]);
       final merged = await c.flattenSelection();
       expect(merged, isNotNull);
@@ -605,7 +697,8 @@ void main() {
     test('unsaved work is autosaved and can be restored', () async {
       final dir = Directory.systemTemp.createTempSync('thinkspace_recovery');
       addTearDown(() => dir.deleteSync(recursive: true));
-      c.startAutosave(File('${dir.path}/recovery.thinkspace'), every: const Duration(days: 1));
+      c.startAutosave(File('${dir.path}/recovery.thinkspace'),
+          every: const Duration(days: 1));
       await addImage();
       c.setCanvasSize(const Size(900, 900));
       await c.autosaveNow();
@@ -620,7 +713,8 @@ void main() {
       expect(fresh.dirty, isTrue, reason: 'restored work still needs saving');
 
       await c.saveTo('${dir.path}/real.thinkspace');
-      expect(c.pendingRecovery(), isNull, reason: 'saving clears the recovery file');
+      expect(c.pendingRecovery(), isNull,
+          reason: 'saving clears the recovery file');
     });
 
     test('undo and redo labels say what they will do', () async {
@@ -635,13 +729,15 @@ void main() {
 
   group('projects', () {
     test('save and load bring back the editable pieces', () async {
-      final img = await addImage(at: const Offset(300, 300), w: 120, h: 80, color: 0xFF336699);
+      final img = await addImage(
+          at: const Offset(300, 300), w: 120, h: 80, color: 0xFF336699);
       img.rotation = 0.4;
       img.opacity = 0.55;
       c.addLayer();
       c.setTool(Tool.arrow);
       drag(ix, const Offset(10, 10), const Offset(200, 120));
-      final item = c.addToCollection(await makeAsset(c, w: 30, h: 30), name: 'swatch');
+      final item =
+          c.addToCollection(await makeAsset(c, w: 30, h: 30), name: 'swatch');
       c.setCanvasSize(const Size(1234, 777));
 
       final dir = Directory.systemTemp.createTempSync('thinkspace_test');
@@ -660,7 +756,8 @@ void main() {
       expect(c2.assets[loaded.assetId]!.width, 120);
       expect(c2.assets[c2.doc.collection.single.assetId], isNotNull);
       expect(c2.doc.collection.single.id, item.id);
-      expect(c2.undoDepth, 0, reason: 'a freshly opened project has no history');
+      expect(c2.undoDepth, 0,
+          reason: 'a freshly opened project has no history');
       // The file is plain JSON.
       expect(jsonDecode(File(path).readAsStringSync())['format'], 'thinkspace');
     });
@@ -674,12 +771,14 @@ void main() {
 
     test('a non-project file is rejected without damage', () async {
       await addImage();
-      expect(() => c.loadProjectJson('{"format":"other"}'), throwsFormatException);
+      expect(
+          () => c.loadProjectJson('{"format":"other"}'), throwsFormatException);
       expect(c.doc.allObjects.length, 1);
     });
 
     test('export renders the page at the requested scale', () async {
-      final img = await addImage(at: const Offset(100, 100), w: 100, h: 100, color: 0xFFFF0000);
+      final img = await addImage(
+          at: const Offset(100, 100), w: 100, h: 100, color: 0xFFFF0000);
       expect(img, isNotNull);
       c.setCanvasSize(const Size(300, 200));
       final png = await c.exportPng(scale: 2);
@@ -687,13 +786,15 @@ void main() {
       final frame = await codec.getNextFrame();
       expect(frame.image.width, 600);
       expect(frame.image.height, 400);
-      final raw = (await frame.image.toByteData(format: ImageByteFormat.rawRgba))!;
+      final raw =
+          (await frame.image.toByteData(format: ImageByteFormat.rawRgba))!;
       int px(int x, int y) => raw.getUint32((y * 600 + x) * 4);
       expect(px(200, 200), 0xFF0000FF, reason: 'red object, rgba order');
       expect(px(500, 350), 0xFFFFFFFF, reason: 'white page');
     });
 
-    test('hidden things are not exported, and the page can be transparent', () async {
+    test('hidden things are not exported, and the page can be transparent',
+        () async {
       final img = await addImage(at: const Offset(100, 100), w: 100, h: 100);
       c.setObjectVisible(img.id, false);
       c.setCanvasSize(const Size(200, 200));

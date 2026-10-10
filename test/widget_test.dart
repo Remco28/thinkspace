@@ -16,7 +16,8 @@ Future<EditorController> pumpApp(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final c = EditorController();
-  await tester.pumpWidget(MaterialApp(home: EditorShell(controller: c, startInspector: false)));
+  await tester.pumpWidget(
+      MaterialApp(home: EditorShell(controller: c, startInspector: false)));
   await tester.pump();
   return c;
 }
@@ -36,14 +37,21 @@ Rect canvasRect(WidgetTester tester) {
 
 void main() {
   smallWindowTests();
-  appTest('after a crash, the unsaved work is offered back and can be restored', (tester) async {
-    final dir = Directory.systemTemp.createTempSync('thinkspace_widget_recovery');
+  appTest('after a crash, the unsaved work is offered back and can be restored',
+      (tester) async {
+    final dir =
+        Directory.systemTemp.createTempSync('thinkspace_widget_recovery');
     addTearDown(() => dir.deleteSync(recursive: true));
     final file = File('${dir.path}/recovery.thinkspace');
     // A previous session that never saved.
     final old = newEditor();
     old.recoveryFile = file;
-    old.addObject(ShapeObject(id: old.doc.newId('o'), name: 'survivor', ellipse: false, center: const Offset(10, 10), size: const Size(50, 50)));
+    old.addObject(ShapeObject(
+        id: old.doc.newId('o'),
+        name: 'survivor',
+        ellipse: false,
+        center: const Offset(10, 10),
+        size: const Size(50, 50)));
     await tester.runAsync(old.autosaveNow);
     expect(file.existsSync(), isTrue);
 
@@ -51,14 +59,20 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final c = EditorController();
-    await tester.pumpWidget(MaterialApp(home: EditorShell(controller: c, startInspector: false, enableRecovery: true, recoveryFile: file)));
+    await tester.pumpWidget(MaterialApp(
+        home: EditorShell(
+            controller: c,
+            startInspector: false,
+            enableRecovery: true,
+            recoveryFile: file)));
     await tester.pump();
     await tester.pump();
     expect(find.text('Pick up where you left off?'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('restore')));
     // File reads finish in real time; give them turns between frames.
     for (int i = 0; i < 12 && c.doc.allObjects.isEmpty; i++) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pump();
     }
     expect(c.doc.allObjects.single.name, 'survivor');
@@ -67,15 +81,23 @@ void main() {
     c.dispose();
   });
 
-  appTest('declining the offer clears it, so it never nags twice', (tester) async {
-    final dir = Directory.systemTemp.createTempSync('thinkspace_widget_recovery2');
+  appTest('declining the offer clears it, so it never nags twice',
+      (tester) async {
+    final dir =
+        Directory.systemTemp.createTempSync('thinkspace_widget_recovery2');
     addTearDown(() => dir.deleteSync(recursive: true));
-    final file = File('${dir.path}/recovery.thinkspace')..writeAsStringSync('{}');
+    final file = File('${dir.path}/recovery.thinkspace')
+      ..writeAsStringSync('{}');
     tester.view.physicalSize = const Size(1500, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final c = EditorController();
-    await tester.pumpWidget(MaterialApp(home: EditorShell(controller: c, startInspector: false, enableRecovery: true, recoveryFile: file)));
+    await tester.pumpWidget(MaterialApp(
+        home: EditorShell(
+            controller: c,
+            startInspector: false,
+            enableRecovery: true,
+            recoveryFile: file)));
     await tester.pump();
     await tester.pump();
     await tester.tap(find.text('Start fresh'));
@@ -84,9 +106,20 @@ void main() {
     c.dispose();
   });
 
-  appTest('opens on an empty page with the tools, layers and collection in view', (tester) async {
+  appTest(
+      'opens on an empty page with the tools, layers and collection in view',
+      (tester) async {
     await pumpApp(tester);
-    for (final t in ['select', 'line', 'arrow', 'rect', 'ellipse', 'text', 'pen', 'cutout']) {
+    for (final t in [
+      'select',
+      'line',
+      'arrow',
+      'rect',
+      'ellipse',
+      'text',
+      'pen',
+      'cutout'
+    ]) {
       expect(find.byKey(ValueKey('tool-$t')), findsOneWidget, reason: t);
     }
     expect(find.text('LAYERS'), findsOneWidget);
@@ -97,20 +130,25 @@ void main() {
     expect(find.byKey(const ValueKey('canvas-w')), findsOneWidget);
   });
 
-  appTest('drawing an arrow with the mouse lists it, selects it, and undo removes it', (tester) async {
+  appTest(
+      'drawing an arrow with the mouse lists it, selects it, and undo removes it',
+      (tester) async {
     final c = await pumpApp(tester);
     await tester.tap(find.byKey(const ValueKey('tool-arrow')));
     await tester.pump();
     final r = canvasRect(tester);
-    final g = await tester.startGesture(r.center - const Offset(120, 40), kind: PointerDeviceKind.mouse);
+    final g = await tester.startGesture(r.center - const Offset(120, 40),
+        kind: PointerDeviceKind.mouse);
     await g.moveTo(r.center);
     await g.moveTo(r.center + const Offset(120, 60));
     await g.up();
     await tester.pump();
 
     expect(c.doc.allObjects.single, isA<LineObject>());
-    expect(find.text('arrow 1'), findsWidgets, reason: 'object list and selection label');
-    expect(find.text('ARROW'), findsOneWidget, reason: 'properties panel names the selection');
+    expect(find.text('arrow 1'), findsWidgets,
+        reason: 'object list and selection label');
+    expect(find.text('ARROW'), findsOneWidget,
+        reason: 'properties panel names the selection');
 
     await tester.tap(find.byKey(const ValueKey('undo')));
     await tester.pump();
@@ -125,7 +163,8 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
     expect(c.tool, Tool.rect);
     final r = canvasRect(tester);
-    final g = await tester.startGesture(r.center, kind: PointerDeviceKind.mouse);
+    final g =
+        await tester.startGesture(r.center, kind: PointerDeviceKind.mouse);
     await g.moveTo(r.center + const Offset(100, 80));
     await g.up();
     await tester.pump();
@@ -152,7 +191,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('tool-rect')));
     await tester.pump();
     final r = canvasRect(tester);
-    final g = await tester.startGesture(r.center, kind: PointerDeviceKind.mouse);
+    final g =
+        await tester.startGesture(r.center, kind: PointerDeviceKind.mouse);
     await g.moveTo(r.center + const Offset(100, 80));
     await g.up();
     await tester.pump();
@@ -167,7 +207,8 @@ void main() {
     expect(c.doc.layers.first.visible, isTrue);
   });
 
-  appTest('adding a layer and picking it makes new drawings land there', (tester) async {
+  appTest('adding a layer and picking it makes new drawings land there',
+      (tester) async {
     final c = await pumpApp(tester);
     await tester.tap(find.byTooltip('Add layer'));
     await tester.pump();
@@ -175,7 +216,8 @@ void main() {
     expect(c.currentLayer.name, 'Layer 2');
     await tester.tap(find.byKey(const ValueKey('tool-ellipse')));
     final r = canvasRect(tester);
-    final g = await tester.startGesture(r.center, kind: PointerDeviceKind.mouse);
+    final g =
+        await tester.startGesture(r.center, kind: PointerDeviceKind.mouse);
     await g.moveTo(r.center + const Offset(80, 80));
     await g.up();
     await tester.pump();
@@ -187,16 +229,19 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('tool-text')));
     await tester.pump();
     final r = canvasRect(tester);
-    final g = await tester.startGesture(r.center, kind: PointerDeviceKind.mouse);
+    final g =
+        await tester.startGesture(r.center, kind: PointerDeviceKind.mouse);
     await g.up();
     await tester.pump();
     await tester.pump();
     expect(c.editingTextId, isNotNull);
     expect(find.byType(TextField), findsWidgets);
-    await tester.enterText(find.byKey(const ValueKey('text-editor')), 'Which one?');
+    await tester.enterText(
+        find.byKey(const ValueKey('text-editor')), 'Which one?');
     await tester.pump();
     // Click on empty canvas to finish.
-    final g2 = await tester.startGesture(r.bottomRight - const Offset(40, 40), kind: PointerDeviceKind.mouse);
+    final g2 = await tester.startGesture(r.bottomRight - const Offset(40, 40),
+        kind: PointerDeviceKind.mouse);
     await g2.up();
     await tester.pump();
     expect(c.editingTextId, isNull);
@@ -214,7 +259,8 @@ void main() {
     await tester.pump();
     expect(c.doc.collection.length, 1);
     expect(find.byKey(const ValueKey('paste-chooser')), findsNothing);
-    expect(find.byKey(ValueKey('collection-${c.doc.collection.first.id}')), findsOneWidget);
+    expect(find.byKey(ValueKey('collection-${c.doc.collection.first.id}')),
+        findsOneWidget);
 
     c.pendingPaste = PendingPaste(asset.id, 'pasted image');
     c.notify();
@@ -224,11 +270,18 @@ void main() {
     expect(c.doc.allObjects.whereType<ImageObject>().length, 1);
   });
 
-  appTest('the storefront sample shows layers, objects and a labelled selection', (tester) async {
+  appTest(
+      'the storefront sample shows layers, objects and a labelled selection',
+      (tester) async {
     final c = await pumpApp(tester);
     await tester.runAsync(() => loadStorefrontSample(c));
     await tester.pump();
-    for (final n in ['Notes', 'Navy awnings', 'Striped awnings', 'Storefront']) {
+    for (final n in [
+      'Notes',
+      'Navy awnings',
+      'Striped awnings',
+      'Storefront'
+    ]) {
       expect(find.text(n), findsWidgets, reason: n);
     }
     expect(find.text('awning_01'), findsOneWidget);
@@ -237,7 +290,8 @@ void main() {
     await tester.tap(find.text('awning_02'));
     await tester.pump();
     expect(c.single!.name, 'awning_02');
-    expect(find.text('awning_02 · Navy awnings'), findsNothing, reason: 'the label is painted, not a widget');
+    expect(find.text('awning_02 · Navy awnings'), findsNothing,
+        reason: 'the label is painted, not a widget');
     expect(find.text('IMAGE'), findsOneWidget);
     expect(find.byKey(const ValueKey('opacity')), findsOneWidget);
     expect(find.byKey(const ValueKey('cutout-button')), findsOneWidget);
@@ -249,7 +303,8 @@ void main() {
     expect(navy.visible, isFalse);
   });
 
-  appTest('moving an object to another layer from the properties panel', (tester) async {
+  appTest('moving an object to another layer from the properties panel',
+      (tester) async {
     final c = await pumpApp(tester);
     await tester.runAsync(() => loadStorefrontSample(c));
     await tester.pump();
@@ -280,7 +335,8 @@ void main() {
     expect(c.doc.canvasSize.width, 1600);
   });
 
-  appTest('the collection can be hidden to give the canvas room', (tester) async {
+  appTest('the collection can be hidden to give the canvas room',
+      (tester) async {
     await pumpApp(tester);
     expect(find.text('COLLECTION'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('toggle-collection')));
@@ -292,12 +348,15 @@ void main() {
 // Smaller windows (a laptop with the panels open) must still lay out cleanly.
 void smallWindowTests() {
   for (final size in const [Size(1024, 640), Size(900, 600), Size(1280, 720)]) {
-    appTest('lays out without overflow at ${size.width.toInt()}x${size.height.toInt()}', (tester) async {
+    appTest(
+        'lays out without overflow at ${size.width.toInt()}x${size.height.toInt()}',
+        (tester) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final c = EditorController();
-      await tester.pumpWidget(MaterialApp(home: EditorShell(controller: c, startInspector: false)));
+      await tester.pumpWidget(
+          MaterialApp(home: EditorShell(controller: c, startInspector: false)));
       await tester.pump();
       await tester.runAsync(() => loadStorefrontSample(c));
       await tester.pump();

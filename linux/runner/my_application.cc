@@ -14,6 +14,26 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+// Lets the Dart side put the project name in the window title.
+static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
+                             gpointer user_data) {
+  GtkWindow* window = GTK_WINDOW(user_data);
+  if (g_strcmp0(fl_method_call_get_name(call), "setTitle") == 0) {
+    FlValue* args = fl_method_call_get_args(call);
+    if (fl_value_get_type(args) == FL_VALUE_TYPE_STRING) {
+      const gchar* title = fl_value_get_string(args);
+      GtkWidget* titlebar = gtk_window_get_titlebar(window);
+      if (titlebar != nullptr && GTK_IS_HEADER_BAR(titlebar)) {
+        gtk_header_bar_set_title(GTK_HEADER_BAR(titlebar), title);
+      }
+      gtk_window_set_title(window, title);
+    }
+    fl_method_call_respond_success(call, nullptr, nullptr);
+  } else {
+    fl_method_call_respond_not_implemented(call, nullptr);
+  }
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -45,14 +65,14 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "thinkspace");
+    gtk_header_bar_set_title(header_bar, "Thinkspace");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "thinkspace");
+    gtk_window_set_title(window, "Thinkspace");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  gtk_window_set_default_size(window, 1440, 900);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
@@ -74,6 +94,14 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  FlEngine* engine = fl_view_get_engine(view);
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  FlMethodChannel* channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(engine), "thinkspace/window",
+      FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(channel, window_method_cb, window,
+                                            nullptr);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
