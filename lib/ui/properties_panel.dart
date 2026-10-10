@@ -495,27 +495,31 @@ class PropertiesPanel extends StatelessWidget {
                       c.penWidth = v.roundToDouble();
                     }))),
         LabeledRow(
-            'Ends',
-            Wrap(spacing: 6, children: [
-              FilterChip(
-                  label: const Text('Arrow at start'),
-                  selected: o.headStart,
-                  visualDensity: VisualDensity.compact,
-                  onSelected: (v) => c.editSelected(
-                      'arrowhead', (x) => (x as LineObject).headStart = v)),
-              FilterChip(
-                  label: const Text('Arrow at end'),
-                  selected: o.headEnd,
-                  visualDensity: VisualDensity.compact,
-                  onSelected: (v) => c.editSelected(
-                      'arrowhead', (x) => (x as LineObject).headEnd = v)),
-              FilterChip(
-                  label: const Text('Dashed'),
-                  selected: o.dashed,
-                  visualDensity: VisualDensity.compact,
-                  onSelected: (v) => c.editSelected(
-                      'dashed', (x) => (x as LineObject).dashed = v)),
-            ])),
+          'Ends',
+          Wrap(spacing: 4, children: [
+            SmallIconButton(
+              icon: Icons.arrow_back,
+              tooltip: 'Arrowhead at the start',
+              active: o.headStart,
+              onPressed: () => c.editSelected('arrowhead',
+                  (x) => (x as LineObject).headStart = !x.headStart),
+            ),
+            SmallIconButton(
+              icon: Icons.arrow_forward,
+              tooltip: 'Arrowhead at the end',
+              active: o.headEnd,
+              onPressed: () => c.editSelected(
+                  'arrowhead', (x) => (x as LineObject).headEnd = !x.headEnd),
+            ),
+            SmallIconButton(
+              icon: Icons.more_horiz,
+              tooltip: 'Dashed',
+              active: o.dashed,
+              onPressed: () => c.editSelected(
+                  'dashed', (x) => (x as LineObject).dashed = !x.dashed),
+            ),
+          ]),
+        ),
       ]);
     }
     if (o is StrokeObject) {
