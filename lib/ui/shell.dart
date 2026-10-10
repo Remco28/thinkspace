@@ -332,9 +332,21 @@ class _EditorShellState extends State<EditorShell> {
       case LogicalKeyboardKey.keyF:
         c.fitToView();
       case LogicalKeyboardKey.keyM:
-        if (c.canMerge) c.flattenSelection();
+        if (c.canMerge) {
+          c.flattenSelection();
+        } else if (c.selection.isNotEmpty) {
+          c.showToast(
+            'Nothing to merge: select two or more things that are visible and unlocked',
+          );
+        }
       case LogicalKeyboardKey.keyU:
-        if (c.canUnmerge) c.unmerge();
+        if (c.canUnmerge) {
+          c.unmerge();
+        } else if (c.selection.isNotEmpty) {
+          c.showToast(
+            'That picture was not made by merging, so it cannot be unmerged',
+          );
+        }
       case LogicalKeyboardKey.bracketRight:
         c.reorderSelection('forward');
       case LogicalKeyboardKey.bracketLeft:

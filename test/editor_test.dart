@@ -1775,4 +1775,97 @@ void main() {
       );
     });
   });
+
+  group('round five', () {
+    ShapeObject shape(String id, double x, {bool locked = false}) =>
+        ShapeObject(
+          id: id,
+          name: id,
+          ellipse: false,
+          center: Offset(x, 100),
+          size: const Size(40, 40),
+          fill: 0xFF3366FF,
+          locked: locked,
+        );
+
+    test('the list arrows hand back to nudging after anything else changes '
+        'the selection', () async {
+      c.doc.layers.first.objects.addAll([shape('a', 100), shape('b', 200)]);
+      c.clickListRow('a');
+      expect(c.listFocus, isTrue);
+      // Merging replaces the selection without going through select().
+      c.clickListRow('b', shift: true);
+      await c.flattenSelection();
+      expect(c.listFocus, isFalse);
+      // Undo restores a selection, too.
+      c.clickListRow(c.doc.allObjects.single.id);
+      expect(c.listFocus, isTrue);
+      c.undo();
+      expect(c.listFocus, isFalse);
+      // Clicking the page on the very same thing also ends the walk.
+      c.clickListRow('a');
+      c.endListWalk();
+      expect(c.listFocus, isFalse);
+    });
+
+    test('Shift+click in the list runs from the current selection if it '
+        'moved on', () {
+      c.doc.layers.first.objects.addAll([
+        shape('a', 100),
+        shape('b', 200),
+        shape('c', 300),
+      ]);
+      c.clickListRow('c'); // list order: c, b, a
+      c.select(['a']); // chosen some other way
+      c.clickListRow('c', shift: true);
+      expect(c.selection.toSet(), {'a', 'b', 'c'});
+    });
+
+    test('a merge leaves locked and hidden things where they are', () async {
+      final locked = shape('locked', 100, locked: true);
+      final hidden = shape('hidden', 150)..visible = false;
+      c.doc.layers.first.objects.addAll([
+        locked,
+        hidden,
+        shape('a', 200),
+        shape('b', 260),
+      ]);
+      c.select(['locked', 'hidden', 'a', 'b']);
+      expect(c.mergeable.map((o) => o.id), ['a', 'b']);
+      final m = await c.flattenSelection();
+      expect(m, isNotNull);
+      expect(
+        c.doc.allObjects.map((o) => o.name).toSet(),
+        containsAll(['locked', 'hidden']),
+      );
+      expect(c.doc.allObjects.length, 3);
+    });
+
+    test('nothing is merged if only one eligible thing is left', () async {
+      c.doc.layers.first.objects.addAll([
+        shape('a', 100, locked: true),
+        shape('b', 200, locked: true),
+      ]);
+      c.select(['a', 'b']);
+      expect(c.canMerge, isFalse);
+      expect(await c.flattenSelection(), isNull);
+      expect(c.doc.allObjects.length, 2);
+    });
+
+    test('a Shift-tap with the pen leaves nothing behind', () {
+      c.setTool(Tool.pen);
+      const shift = Modifiers(shift: true);
+      ix.pointerDown(const Offset(100, 100), shift);
+      ix.pointerUp(const Offset(100, 100), shift);
+      expect(c.doc.allObjects, isEmpty);
+      expect(c.undoDepth, 0);
+    });
+
+    test('removing a colour works the same through the isolate path', () async {
+      final a = await makeAsset(c, w: 1400, h: 1100, color: 0xFFFF0000);
+      final r = await removeBackground(a, 0.2);
+      expect(r, isNotNull);
+      expect(r!.removedPixels, 1400 * 1100);
+    });
+  });
 }

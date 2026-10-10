@@ -355,11 +355,7 @@ class _ObjectRow extends StatelessWidget {
         },
         onTap: () {
           final kb = currentModifiers();
-          if (!layer.visible || !object.visible) {
-            c.clickListRow(object.id);
-          } else {
-            c.clickListRow(object.id, shift: kb.shift, ctrl: kb.ctrl);
-          }
+          c.clickListRow(object.id, shift: kb.shift, ctrl: kb.ctrl);
         },
         onDoubleTap: () async {
           final v = await promptText(context, 'Rename', object.name);

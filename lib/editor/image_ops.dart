@@ -118,9 +118,34 @@ Future<ColorRemoval?> removeColorFrom(
   bool contiguous = true,
 }) async {
   final w = src.width, h = src.height;
-  final source = await src.rgbaBytes();
+  final job = (
+    source: await src.rgbaBytes(),
+    w: w,
+    h: h,
+    seeds: seeds,
+    limit: tolerance * 441.67,
+    contiguous: contiguous,
+  );
+  // Same rule as the gap fill: a big photo goes to another isolate.
+  final res = w * h > 1500000
+      ? await compute(_removeColor, job)
+      : _removeColor(job);
+  if (res.removed == 0) return null;
+  return ColorRemoval(await imageFromRgba(res.px, w, h), res.removed);
+}
+
+typedef _RemoveJob = ({
+  Uint8List source,
+  int w,
+  int h,
+  List<(int, int)> seeds,
+  double limit,
+  bool contiguous,
+});
+
+({Uint8List px, int removed}) _removeColor(_RemoveJob j) {
+  final w = j.w, h = j.h, source = j.source, limit = j.limit;
   final px = Uint8List.fromList(source);
-  final limit = tolerance * 441.67;
   final done = Uint8List(w * h);
   int removed = 0;
 
@@ -131,12 +156,12 @@ Future<ColorRemoval?> removeColorFrom(
     done[p] = 1;
   }
 
-  for (final (sx, sy) in seeds) {
+  for (final (sx, sy) in j.seeds) {
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
     final si = (sy * w + sx) * 4;
     if (source[si + 3] < 8) continue;
     final r = source[si], g = source[si + 1], b = source[si + 2];
-    if (!contiguous) {
+    if (!j.contiguous) {
       for (int p = 0; p < w * h; p++) {
         if (done[p] == 0 &&
             source[p * 4 + 3] > 0 &&
@@ -175,8 +200,7 @@ Future<ColorRemoval?> removeColorFrom(
       }
     }
   }
-  if (removed == 0) return null;
-  return ColorRemoval(await imageFromRgba(px, w, h), removed);
+  return (px: px, removed: removed);
 }
 
 /// Remove the page-coloured background by flooding from the four corners.

@@ -68,7 +68,7 @@ class _CanvasViewState extends State<CanvasView> {
       c.editingTextId == null &&
       c.pendingPaste == null &&
       c.selection.isNotEmpty &&
-      ((c.selection.length > 1 && c.canMerge) || c.canUnmerge);
+      (c.mergeable.length > 1 || c.canUnmerge);
 
   @override
   Widget build(BuildContext context) {
@@ -97,6 +97,7 @@ class _CanvasViewState extends State<CanvasView> {
                       behavior: HitTestBehavior.opaque,
                       onPointerDown: (e) {
                         widget.focusNode?.requestFocus();
+                        c.endListWalk();
                         final right = e.buttons == kSecondaryMouseButton;
                         final pan =
                             e.buttons == kMiddleMouseButton ||

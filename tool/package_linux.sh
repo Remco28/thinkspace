@@ -10,6 +10,10 @@ rm -rf dist && mkdir -p "$out"
 cp -r build/linux/x64/release/bundle "$out/app"
 cp packaging/io.github.remco28.thinkspace.desktop packaging/thinkspace-mime.xml "$out/"
 cp -r packaging/icons "$out/icons"
+# The fonts are under the SIL Open Font License, which asks that the licence text travel with them.
+mkdir -p "$out/licenses"
+cp LICENSE "$out/licenses/Thinkspace-MIT.txt"
+cp assets/fonts/OFL-*.txt "$out/licenses/"
 cat > "$out/install.sh" <<'INSTALL'
 #!/usr/bin/env bash
 # Installs Thinkspace for the current user. Remove with: ./install.sh --remove
@@ -32,6 +36,8 @@ rm -f "$prefix/share/applications/thinkspace.desktop" \
       "$prefix/share/icons/hicolor/scalable/apps/thinkspace.svg"
 rm -rf "$prefix/share/thinkspace/app"
 cp -r "$here/app" "$prefix/share/thinkspace/app"
+rm -rf "$prefix/share/thinkspace/licenses"
+cp -r "$here/licenses" "$prefix/share/thinkspace/licenses"
 ln -sf "$prefix/share/thinkspace/app/thinkspace" "$prefix/bin/thinkspace"
 for f in "$here"/icons/thinkspace-*.png; do
   n="$(basename "$f" .png)"; n="${n#thinkspace-}"

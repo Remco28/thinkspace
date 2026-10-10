@@ -670,7 +670,7 @@ class CanvasInteractor {
       case _Mode.create:
         _finishCreate(token, p, m);
       case _Mode.pen:
-        _finishPen(token);
+        _finishPen(token, m);
       case _Mode.textBox:
         _finishTextBox(token, p, m);
       case _Mode.lasso:
@@ -736,10 +736,17 @@ class CanvasInteractor {
     if (token != null) c.endEdit(token);
   }
 
-  void _finishPen(EditToken? token) {
+  void _finishPen(EditToken? token, Modifiers m) {
     final o = c.doc.objectById(_createId!) as StrokeObject?;
     if (o != null && o.points.length > 2 && !_penStraight) {
       o.points = simplifyPolyline(o.points, 1.2 / c.zoom);
+    }
+    if (o != null &&
+        (_penStraight || (m.shift && o.points.length == 1)) &&
+        (o.points.last - o.points.first).distance < 4) {
+      // A Shift-tap is not a line; a plain tap still leaves a dot.
+      c.doc.layerOf(o.id)?.objects.remove(o);
+      c.selection = [];
     }
     if (token != null) c.endEdit(token);
     // The pen stays active: sketching is usually many strokes.

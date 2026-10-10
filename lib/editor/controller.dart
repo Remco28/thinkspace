@@ -348,7 +348,6 @@ class EditorController extends ChangeNotifier {
       finishTextEdit();
     }
     selection = ids;
-    listFocus = false;
     if (ids.length == 1) {
       final l = doc.layerOf(ids.first);
       if (l != null) currentLayerId = l.id;
@@ -364,7 +363,17 @@ class EditorController extends ChangeNotifier {
   /// True after a row in the Layers list was clicked, until the selection
   /// changes some other way: the arrow keys then walk the list, as in any
   /// file list, instead of nudging the selection on the page.
-  bool listFocus = false;
+  bool get listFocus => _listSel != null && listEquals(selection, _listSel);
+
+  /// What the list itself last selected. The arrows walk the list only while
+  /// the selection is still exactly that, so merging, undoing, pasting or
+  /// clicking on the page all hand them back to nudging without anyone
+  /// having to remember to switch the mode off.
+  List<String>? _listSel;
+
+  /// A click on the page: the arrows nudge again, even if it picked the very
+  /// same things the list had.
+  void endListWalk() => _listSel = null;
   String? _listAnchor, _listCursor;
 
   /// Object ids in the order the Layers panel shows them (top layer first,
@@ -379,7 +388,11 @@ class EditorController extends ChangeNotifier {
   /// everything between the last clicked row and this one.
   void clickListRow(String id, {bool shift = false, bool ctrl = false}) {
     final order = listOrder;
-    final anchor = _listAnchor;
+    // The run starts from the last row clicked in the list, or, if the
+    // selection has moved on since, from what is selected now.
+    final anchor = listFocus
+        ? _listAnchor
+        : (selection.isEmpty ? null : selection.last);
     if (shift && anchor != null && order.contains(anchor)) {
       select(_between(order, anchor, id));
       _listCursor = id;
@@ -390,7 +403,7 @@ class EditorController extends ChangeNotifier {
       select([id]);
       _listAnchor = _listCursor = id;
     }
-    listFocus = selection.isNotEmpty;
+    _listSel = List.of(selection);
   }
 
   static List<String> _between(List<String> order, String a, String b) {
@@ -419,7 +432,7 @@ class EditorController extends ChangeNotifier {
     select(extend ? _between(order, anchor, id) : [id]);
     _listAnchor = anchor;
     _listCursor = id;
-    listFocus = true;
+    _listSel = List.of(selection);
     notifyListeners();
   }
 
@@ -1261,12 +1274,10 @@ class EditorController extends ChangeNotifier {
   bool _flattening = false;
 
   Future<ImageObject?> _flattenSelection() async {
-    final chosen = selection.toSet();
-    final ordered = <SceneObject>[
-      for (final l in doc.layers)
-        for (final o in l.objects)
-          if (chosen.contains(o.id)) o,
-    ];
+    // Locked and hidden things are left where they are: a merge only takes
+    // what you can see and are free to change.
+    final ordered = mergeable;
+    final chosen = {for (final o in ordered) o.id};
     if (ordered.isEmpty) return null;
     final b = unionRects(ordered.map((o) => o.bounds)).inflate(1);
     var scale = 1.0;
@@ -1316,14 +1327,26 @@ class EditorController extends ChangeNotifier {
     return merged;
   }
 
-  /// The selected picture, if it is a merge that can be taken apart again.
+  /// The selected things a merge would take, bottom to top: visible, not
+  /// locked, and not on a hidden or locked layer.
+  List<SceneObject> get mergeable {
+    final chosen = selection.toSet();
+    return [
+      for (final l in doc.layers)
+        if (l.visible && !l.locked)
+          for (final o in l.objects)
+            if (chosen.contains(o.id) && o.visible && !o.locked) o,
+    ];
+  }
+
   /// Merging needs two or more things, or one thing that is not already a
   /// picture.
   bool get canMerge {
-    final sel = selectedObjects;
+    final sel = mergeable;
     return sel.length > 1 || (sel.length == 1 && sel.first is! ImageObject);
   }
 
+  /// The selected picture, if it is a merge that can be taken apart again.
   bool get canUnmerge {
     final o = single;
     return o is ImageObject && o.canUnmerge;
