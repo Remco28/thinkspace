@@ -57,6 +57,7 @@ class CanvasInteractor {
   SceneObject? _startObj;
   CanvasGrip? _grip;
   Size _startCanvas = Size.zero;
+  Offset _gripGrab = Offset.zero;
 
   // creation
   String? _createId;
@@ -73,20 +74,43 @@ class CanvasInteractor {
 
   bool _snapping(Modifiers m) => c.snapOn && !m.ctrl;
 
+  /// Snap one coordinate. The page's own edges and centre win when they are
+  /// close (so things can be made to fill the page exactly, whatever its
+  /// size); otherwise the grid.
+  double _snapAxis(double v, List<double> pageLines) {
+    final near = 10 / c.zoom;
+    double? best;
+    for (final l in pageLines) {
+      if ((l - v).abs() <= near &&
+          (best == null || (l - v).abs() < (best - v).abs())) {
+        best = l;
+      }
+    }
+    return best ?? snapToGrid(v, c.doc.gridSize);
+  }
+
+  List<double> get _pageXs {
+    final w = c.doc.canvasSize.width;
+    return [0, w / 2, w];
+  }
+
+  List<double> get _pageYs {
+    final h = c.doc.canvasSize.height;
+    return [0, h / 2, h];
+  }
+
   Offset _snapPoint(Offset p, Modifiers m) {
     if (!_snapping(m)) return p;
-    final g = c.doc.gridSize;
-    return Offset(snapToGrid(p.dx, g), snapToGrid(p.dy, g));
+    return Offset(_snapAxis(p.dx, _pageXs), _snapAxis(p.dy, _pageYs));
   }
 
   Offset _snapDelta(Rect start, Offset delta) {
-    final g = c.doc.gridSize;
     final r = start.shift(delta);
-    double best(List<double> vs) {
+    double best(List<double> vs, List<double> pageLines) {
       double pick = 0;
       double bestAbs = double.infinity;
       for (final v in vs) {
-        final d = snapToGrid(v, g) - v;
+        final d = _snapAxis(v, pageLines) - v;
         if (d.abs() < bestAbs) {
           bestAbs = d.abs();
           pick = d;
@@ -96,8 +120,8 @@ class CanvasInteractor {
     }
 
     return delta +
-        Offset(best([r.left, r.center.dx, r.right]),
-            best([r.top, r.center.dy, r.bottom]));
+        Offset(best([r.left, r.center.dx, r.right], _pageXs),
+            best([r.top, r.center.dy, r.bottom], _pageYs));
   }
 
   // ---- hover ---------------------------------------------------------------
@@ -211,6 +235,8 @@ class CanvasInteractor {
     if (grip != null) {
       _grip = grip;
       _startCanvas = c.doc.canvasSize;
+      // Keep the page edge under the same spot of the grip you grabbed.
+      _gripGrab = c.gripPositions[grip]! - p;
       _token = c.beginEdit('resize canvas');
       _mode = _Mode.gripResize;
       return;
@@ -561,11 +587,26 @@ class CanvasInteractor {
   }
 
   void _doGrip(Offset p, Modifiers m) {
-    final g = c.doc.gridSize;
-    double fit(double v) => _snapping(m) ? snapToGrid(v, g) : v.roundToDouble();
+    final target = p + _gripGrab;
+    final content = contentBounds(c.doc);
+    final near = 10 / c.zoom;
+    // Priority: land exactly on the content's far edge, then the grid, then
+    // whole pixels. Ctrl turns the first two off.
+    double fit(double v, double? contentEdge) {
+      if (!m.ctrl && contentEdge != null && (v - contentEdge).abs() <= near) {
+        return contentEdge;
+      }
+      return _snapping(m) ? snapToGrid(v, c.doc.gridSize) : v.roundToDouble();
+    }
+
+    final has = !content.isEmpty;
     var w = _startCanvas.width, h = _startCanvas.height;
-    if (_grip != CanvasGrip.bottom) w = math.max(64, fit(p.dx));
-    if (_grip != CanvasGrip.right) h = math.max(64, fit(p.dy));
+    if (_grip != CanvasGrip.bottom) {
+      w = math.max(64, fit(target.dx, has ? content.right : null));
+    }
+    if (_grip != CanvasGrip.right) {
+      h = math.max(64, fit(target.dy, has ? content.bottom : null));
+    }
     if (_grip == CanvasGrip.corner && m.shift) {
       final k = math.max(w / _startCanvas.width, h / _startCanvas.height);
       w = _startCanvas.width * k;

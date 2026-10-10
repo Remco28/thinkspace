@@ -219,7 +219,8 @@ class EditorController extends ChangeNotifier {
 
   /// Record [token]'s state for undo if the document changed since.
   void endEdit(EditToken token) {
-    if (autoGrow) _growToFit();
+    // Resizing the page by hand is a deliberate choice; never undo it.
+    if (autoGrow && token._snap.label != 'resize canvas') _growToFit();
     if (token._snap.signature == doc.signature()) {
       notifyListeners();
       return;
@@ -775,7 +776,7 @@ class EditorController extends ChangeNotifier {
     transact(label, () => doc.canvasSize = c);
   }
 
-  void fitCanvasToContent({double padding = 40}) {
+  void fitCanvasToContent({double padding = 0}) {
     final b = contentBounds(doc);
     if (b.isEmpty) return;
     transact('fit canvas to content', () {
@@ -801,8 +802,8 @@ class EditorController extends ChangeNotifier {
   void _growToFit() {
     final b = contentBounds(doc);
     if (b.isEmpty) return;
-    final w = math.max(doc.canvasSize.width, (b.right + 40).ceilToDouble());
-    final h = math.max(doc.canvasSize.height, (b.bottom + 40).ceilToDouble());
+    final w = math.max(doc.canvasSize.width, b.right.ceilToDouble());
+    final h = math.max(doc.canvasSize.height, b.bottom.ceilToDouble());
     if (w != doc.canvasSize.width || h != doc.canvasSize.height) {
       doc.canvasSize = Size(w, h);
     }

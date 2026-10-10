@@ -481,6 +481,56 @@ void main() {
           const Offset(70, 70));
     });
 
+    test('fit page to content can be exact (no border)', () async {
+      await addImage(at: const Offset(500, 500), w: 100, h: 100);
+      c.fitCanvasToContent(padding: 0);
+      expect(c.doc.canvasSize, const Size(100, 100));
+      expect((c.doc.allObjects.single as ImageObject).center,
+          const Offset(50, 50));
+    });
+
+    test('page grip follows the grab point instead of jumping to the cursor',
+        () {
+      // Grab the corner grip 6px inside it; the page must not jump by 6px.
+      ix.pointerDown(const Offset(1594, 994), noMods);
+      ix.pointerMove(const Offset(1494, 894), noMods);
+      ix.pointerUp(const Offset(1494, 894), noMods);
+      expect(c.doc.canvasSize, const Size(1500, 900));
+    });
+
+    test('page grip snaps exactly onto the content edge', () async {
+      await addImage(at: const Offset(251, 163), w: 200, h: 100);
+      // Image spans x 151..351, y 113..213; drag the corner grip near it.
+      ix.pointerDown(const Offset(1600, 1000), noMods);
+      ix.pointerMove(const Offset(354, 216), noMods);
+      ix.pointerUp(const Offset(354, 216), noMods);
+      expect(c.doc.canvasSize, const Size(351, 213));
+    });
+
+    test('shrinking the page is not undone by auto-grow margins', () async {
+      await addImage(at: const Offset(251, 163), w: 200, h: 100);
+      c.autoGrow = true;
+      ix.pointerDown(const Offset(1600, 1000), noMods);
+      ix.pointerMove(const Offset(351, 213), noMods);
+      ix.pointerUp(const Offset(351, 213), noMods);
+      expect(c.doc.canvasSize, const Size(351, 213));
+    });
+
+    test('with snap on, an image can still be sized to the page edge',
+        () async {
+      final img = await addImage(at: const Offset(300, 300), w: 200, h: 100);
+      c.doc.canvasSize = const Size(1633, 1000); // not a multiple of the grid
+      c.snapOn = true;
+      c.select([img.id]);
+      c.setTool(Tool.select);
+      // Drag the image's right edge handle toward the page edge.
+      final r = img.center + Offset(img.size.width / 2, 0);
+      ix.pointerDown(r, noMods);
+      ix.pointerMove(const Offset(1630, 300), noMods);
+      ix.pointerUp(const Offset(1630, 300), noMods);
+      expect((img.center.dx + img.size.width / 2), closeTo(1633, 0.01));
+    });
+
     test('auto-grow expands the page to include new content', () async {
       c.autoGrow = true;
       c.setTool(Tool.rect);
