@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +35,55 @@ Rect canvasRect(WidgetTester tester) {
 }
 
 void main() {
+  smallWindowTests();
+  appTest('after a crash, the unsaved work is offered back and can be restored', (tester) async {
+    final dir = Directory.systemTemp.createTempSync('thinkspace_widget_recovery');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final file = File('${dir.path}/recovery.thinkspace');
+    // A previous session that never saved.
+    final old = newEditor();
+    old.recoveryFile = file;
+    old.addObject(ShapeObject(id: old.doc.newId('o'), name: 'survivor', ellipse: false, center: const Offset(10, 10), size: const Size(50, 50)));
+    await tester.runAsync(old.autosaveNow);
+    expect(file.existsSync(), isTrue);
+
+    tester.view.physicalSize = const Size(1500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final c = EditorController();
+    await tester.pumpWidget(MaterialApp(home: EditorShell(controller: c, startInspector: false, enableRecovery: true, recoveryFile: file)));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Pick up where you left off?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('restore')));
+    // File reads finish in real time; give them turns between frames.
+    for (int i = 0; i < 12 && c.doc.allObjects.isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+    }
+    expect(c.doc.allObjects.single.name, 'survivor');
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('survivor'), findsWidgets);
+    c.dispose();
+  });
+
+  appTest('declining the offer clears it, so it never nags twice', (tester) async {
+    final dir = Directory.systemTemp.createTempSync('thinkspace_widget_recovery2');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final file = File('${dir.path}/recovery.thinkspace')..writeAsStringSync('{}');
+    tester.view.physicalSize = const Size(1500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final c = EditorController();
+    await tester.pumpWidget(MaterialApp(home: EditorShell(controller: c, startInspector: false, enableRecovery: true, recoveryFile: file)));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Start fresh'));
+    await tester.pump();
+    expect(file.existsSync(), isFalse);
+    c.dispose();
+  });
+
   appTest('opens on an empty page with the tools, layers and collection in view', (tester) async {
     await pumpApp(tester);
     for (final t in ['select', 'line', 'arrow', 'rect', 'ellipse', 'text', 'pen', 'cutout']) {
@@ -236,4 +287,29 @@ void main() {
     await tester.pump();
     expect(find.text('COLLECTION'), findsNothing);
   });
+}
+
+// Smaller windows (a laptop with the panels open) must still lay out cleanly.
+void smallWindowTests() {
+  for (final size in const [Size(1024, 640), Size(900, 600), Size(1280, 720)]) {
+    appTest('lays out without overflow at ${size.width.toInt()}x${size.height.toInt()}', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final c = EditorController();
+      await tester.pumpWidget(MaterialApp(home: EditorShell(controller: c, startInspector: false)));
+      await tester.pump();
+      await tester.runAsync(() => loadStorefrontSample(c));
+      await tester.pump();
+      // A selection exercises the properties panel, text exercises its extras.
+      for (final name in ['awning_01', 'question', 'pointer']) {
+        c.select([c.doc.allObjects.firstWhere((o) => o.name == name).id]);
+        await tester.pump();
+      }
+      c.setTool(Tool.cutout);
+      c.pendingPaste = PendingPaste(c.assets.all.first.id, 'pasted');
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

@@ -583,6 +583,56 @@ void main() {
     });
   });
 
+  group('merge and recovery', () {
+    test('merging pieces makes one image and undo brings the pieces back', () async {
+      final a = await addImage(at: const Offset(100, 100), w: 100, h: 100, color: 0xFFFF0000);
+      final b = await addImage(at: const Offset(200, 100), w: 100, h: 100, color: 0xFF0000FF);
+      c.select([a.id, b.id]);
+      final merged = await c.flattenSelection();
+      expect(merged, isNotNull);
+      expect(c.doc.allObjects.length, 1);
+      expect(merged!.size.width, closeTo(202, 2));
+      expect(merged.size.height, closeTo(102, 2));
+      final asset = c.assets[merged.assetId]!;
+      // Red on the left half, blue on the right.
+      int px(int x, int y) => asset.rgba[(y * asset.width + x) * 4];
+      expect(px(10, 50), 255, reason: 'red channel on the red side');
+      expect(px(asset.width - 10, 50), 0, reason: 'no red on the blue side');
+      c.undo();
+      expect(c.doc.allObjects.length, 2);
+    });
+
+    test('unsaved work is autosaved and can be restored', () async {
+      final dir = Directory.systemTemp.createTempSync('thinkspace_recovery');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      c.startAutosave(File('${dir.path}/recovery.thinkspace'), every: const Duration(days: 1));
+      await addImage();
+      c.setCanvasSize(const Size(900, 900));
+      await c.autosaveNow();
+      expect(c.pendingRecovery(), isNotNull);
+
+      final fresh = newEditor();
+      fresh.recoveryFile = c.recoveryFile;
+      expect(fresh.pendingRecovery(), isNotNull);
+      await fresh.restoreRecovery();
+      expect(fresh.doc.canvasSize, const Size(900, 900));
+      expect(fresh.doc.allObjects.length, 1);
+      expect(fresh.dirty, isTrue, reason: 'restored work still needs saving');
+
+      await c.saveTo('${dir.path}/real.thinkspace');
+      expect(c.pendingRecovery(), isNull, reason: 'saving clears the recovery file');
+    });
+
+    test('undo and redo labels say what they will do', () async {
+      expect(c.undoLabel, isNull);
+      c.setTool(Tool.arrow);
+      drag(ix, const Offset(0, 0), const Offset(100, 0));
+      expect(c.undoLabel, 'draw arrow');
+      c.undo();
+      expect(c.redoLabel, 'draw arrow');
+    });
+  });
+
   group('projects', () {
     test('save and load bring back the editable pieces', () async {
       final img = await addImage(at: const Offset(300, 300), w: 120, h: 80, color: 0xFF336699);

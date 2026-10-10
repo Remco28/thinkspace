@@ -6,6 +6,7 @@ import '../model/scene.dart';
 import 'canvas_painter.dart';
 import 'controller.dart';
 import 'interactor.dart';
+import '../ui/context_menu.dart';
 import 'render.dart';
 
 class CollectionDrag {
@@ -40,6 +41,8 @@ class _CanvasViewState extends State<CanvasView> {
   CanvasInteractor get ix => widget.interactor;
   MouseCursor _cursor = SystemMouseCursors.basic;
   final _key = GlobalKey();
+  Offset? _rightDown;
+  bool _rightMoved = false;
 
   void _hover(PointerHoverEvent e) {
     final cur = ix.cursorAt(e.localPosition, spaceDown: widget.spaceDown.value);
@@ -70,15 +73,30 @@ class _CanvasViewState extends State<CanvasView> {
                     behavior: HitTestBehavior.opaque,
                     onPointerDown: (e) {
                       widget.focusNode?.requestFocus();
-                      final pan = e.buttons == kMiddleMouseButton || widget.spaceDown.value || e.buttons == kSecondaryMouseButton;
+                      final right = e.buttons == kSecondaryMouseButton;
+                      final pan = e.buttons == kMiddleMouseButton || widget.spaceDown.value || right;
+                      _rightDown = right ? e.localPosition : null;
+                      _rightMoved = false;
                       ix.pointerDown(e.localPosition, currentModifiers(), forcePan: pan);
                     },
                     onPointerMove: (e) {
+                      if (_rightDown != null && (e.localPosition - _rightDown!).distance > 4) _rightMoved = true;
                       ix.pointerMove(e.localPosition, currentModifiers());
                       final cur = ix.cursorAt(e.localPosition, spaceDown: widget.spaceDown.value);
                       if (cur != _cursor) setState(() => _cursor = cur);
                     },
-                    onPointerUp: (e) => ix.pointerUp(e.localPosition, currentModifiers()),
+                    onPointerUp: (e) {
+                      ix.pointerUp(e.localPosition, currentModifiers());
+                      final rd = _rightDown;
+                      _rightDown = null;
+                      if (rd != null && !_rightMoved) {
+                        // Right-click without dragging: a menu for what's under the pointer.
+                        final hits = c.objectsAt(c.toScene(rd));
+                        if (hits.isNotEmpty && !c.selection.contains(hits.first.id)) c.select([hits.first.id]);
+                        if (hits.isEmpty) c.clearSelection();
+                        showObjectMenu(context, c, e.position);
+                      }
+                    },
                     onPointerCancel: (e) => ix.cancel(),
                     onPointerSignal: (e) {
                       if (e is PointerScrollEvent) ix.scroll(e.localPosition, e.scrollDelta, currentModifiers());

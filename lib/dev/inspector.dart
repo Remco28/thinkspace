@@ -13,6 +13,10 @@ import '../editor/interactor.dart';
 import '../io/samples.dart';
 import '../model/scene.dart';
 
+/// Wrap the whole app (dialogs and menus included) in a RepaintBoundary with
+/// this key and /screenshot captures exactly what's on screen.
+final GlobalKey appShotKey = GlobalKey(debugLabel: 'app-shot');
+
 /// A localhost-only HTTP door for developers and agents, enabled by setting
 /// THINKSPACE_DEBUG_PORT. It answers "what does the screen look like" and
 /// "what does the app think is happening" without guessing from pixels.
@@ -44,7 +48,7 @@ class Inspector {
           await _json(req, c.stateJson());
         case '/screenshot':
           await WidgetsBinding.instance.endOfFrame;
-          final b = shotKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+          final b = (appShotKey.currentContext ?? shotKey.currentContext)!.findRenderObject() as RenderRepaintBoundary; // ignore: use_build_context_synchronously
           final img = await b.toImage(pixelRatio: 1);
           final data = await img.toByteData(format: ui.ImageByteFormat.png);
           await _bytes(req, data!.buffer.asUint8List());
@@ -105,6 +109,12 @@ class Inspector {
         await loadStorefrontSample(c);
       case 'new':
         c.newDocument();
+      case 'autosave':
+        await c.autosaveNow();
+      case 'merge':
+        await c.flattenSelection();
+      case 'copy':
+        c.copySelection();
       case 'tool':
         c.setTool(Tool.values.byName(cmd['tool'] as String));
       case 'cutoutMode':

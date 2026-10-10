@@ -75,9 +75,9 @@ class PropertiesPanel extends StatelessWidget {
       ],
       const _Caption('Canvas size'),
       Row(children: [
-        NumberField(key: const ValueKey('canvas-w'), value: d.canvasSize.width, suffix: ' w', onSubmitted: (v) => c.setCanvasSize(Size(v, d.canvasSize.height))),
+        NumberField(key: const ValueKey('canvas-w'), value: d.canvasSize.width, suffix: ' wide', width: 100, onSubmitted: (v) => c.setCanvasSize(Size(v, d.canvasSize.height))),
         const Padding(padding: EdgeInsets.symmetric(horizontal: 6), child: Text('×')),
-        NumberField(key: const ValueKey('canvas-h'), value: d.canvasSize.height, suffix: ' h', onSubmitted: (v) => c.setCanvasSize(Size(d.canvasSize.width, v))),
+        NumberField(key: const ValueKey('canvas-h'), value: d.canvasSize.height, suffix: ' high', width: 100, onSubmitted: (v) => c.setCanvasSize(Size(d.canvasSize.width, v))),
       ]),
       const SizedBox(height: 6),
       const Text('Drag the grips on the page edge to resize it. Resizing never touches the objects on it.',
@@ -219,6 +219,16 @@ class PropertiesPanel extends StatelessWidget {
       ],
       const SizedBox(height: 4),
       if (sameKind && one != null) _typeControls(context, one) else if (sameKind) _typeControlsMulti(context, objs),
+      if (objs.length > 1)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: OutlinedButton.icon(
+            key: const ValueKey('merge-button'),
+            onPressed: c.flattenSelection,
+            icon: const Icon(Icons.layers_clear_outlined, size: 16),
+            label: const Text('Merge into one image'),
+          ),
+        ),
       const Divider(height: 22),
       const _Caption('Arrange'),
       Wrap(spacing: 2, children: [

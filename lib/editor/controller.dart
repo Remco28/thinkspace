@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter/services.dart';
 
 import '../io/clipboard.dart';
@@ -116,6 +117,11 @@ class EditorController extends ChangeNotifier {
   String? toastMessage;
   Timer? _toastTimer;
 
+  /// Where unsaved work is kept so a crash doesn't lose it. Null disables it.
+  File? recoveryFile;
+  Timer? _autosaveTimer;
+  bool _needsAutosave = false;
+
   final List<_Snap> _undo = [];
   final List<_Snap> _redo = [];
   EditToken? _textEditToken;
@@ -123,6 +129,8 @@ class EditorController extends ChangeNotifier {
   int _pasteCount = 0;
   int _lastCopySig = 0;
 
+  String? get undoLabel => _undo.isEmpty ? null : _undo.last.label;
+  String? get redoLabel => _redo.isEmpty ? null : _redo.last.label;
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
   int get undoDepth => _undo.length;
@@ -140,7 +148,50 @@ class EditorController extends ChangeNotifier {
   @override
   void dispose() {
     _toastTimer?.cancel();
+    _autosaveTimer?.cancel();
     super.dispose();
+  }
+
+  // ===== recovery ==========================================================
+
+  void startAutosave(File file, {Duration every = const Duration(seconds: 20)}) {
+    recoveryFile = file;
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer.periodic(every, (_) => autosaveNow());
+  }
+
+  Future<void> autosaveNow() async {
+    final f = recoveryFile;
+    if (f == null || !_needsAutosave || !dirty) return;
+    _needsAutosave = false;
+    try {
+      await f.parent.create(recursive: true);
+      await f.writeAsString(projectJson());
+    } catch (_) {}
+  }
+
+  void clearRecovery() {
+    _needsAutosave = false;
+    try {
+      recoveryFile?.deleteSync();
+    } catch (_) {}
+  }
+
+  /// If a previous session left unsaved work behind, load it. Returns when it
+  /// was written, or null if there was nothing to restore.
+  DateTime? pendingRecovery() {
+    final f = recoveryFile;
+    if (f == null || !f.existsSync()) return null;
+    return f.lastModifiedSync();
+  }
+
+  Future<void> restoreRecovery() async {
+    final f = recoveryFile;
+    if (f == null) return;
+    await loadProjectJson(await f.readAsString());
+    dirty = true; // it has never been saved under a real name
+    _needsAutosave = true;
+    notifyListeners();
   }
 
   void notify() => notifyListeners();
@@ -172,6 +223,7 @@ class EditorController extends ChangeNotifier {
     if (_undo.length > 300) _undo.removeAt(0);
     _redo.clear();
     dirty = true;
+    _needsAutosave = true;
     notifyListeners();
   }
 
@@ -324,6 +376,8 @@ class EditorController extends ChangeNotifier {
     if (_fitPending && s.width > 50 && s.height > 50) {
       _fitPending = false;
       fitToView(notify: false);
+      // We're inside a build; tell the zoom label once the frame is done.
+      WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
     }
   }
 
@@ -882,6 +936,53 @@ class EditorController extends ChangeNotifier {
     showToast(ok ? 'Copied the page as an image' : 'Install xclip (X11) or wl-clipboard (Wayland) to copy images');
   }
 
+  /// Merge the selected objects into one picture. The originals are replaced
+  /// (undo brings them back).
+  Future<ImageObject?> flattenSelection() async {
+    final chosen = selection.toSet();
+    final ordered = <SceneObject>[
+      for (final l in doc.layers)
+        for (final o in l.objects)
+          if (chosen.contains(o.id)) o
+    ];
+    if (ordered.isEmpty) return null;
+    final b = unionRects(ordered.map((o) => o.bounds)).inflate(1);
+    var scale = 1.0;
+    for (final o in ordered) {
+      if (o is ImageObject) {
+        final a = assets[o.assetId];
+        if (a != null) scale = math.max(scale, a.width / math.max(1, o.size.width));
+      }
+    }
+    scale = math.min(scale, 4);
+    final rec = ui.PictureRecorder();
+    final canvas = ui.Canvas(rec);
+    canvas.scale(scale);
+    canvas.translate(-b.left, -b.top);
+    for (final o in ordered) {
+      if (o.visible) paintObject(canvas, o, assets);
+    }
+    final img = await rec.endRecording().toImage((b.width * scale).ceil(), (b.height * scale).ceil());
+    final asset = await assets.addImage(img);
+    final topLayer = doc.layerOf(ordered.last.id) ?? currentLayer;
+    final merged = ImageObject(
+      id: doc.newId('o'),
+      name: uniqueName('merged'),
+      assetId: asset.id,
+      center: b.center,
+      size: b.size,
+    );
+    transact('merge into one image', () {
+      for (final l in doc.layers) {
+        l.objects.removeWhere((o) => chosen.contains(o.id));
+      }
+      topLayer.objects.add(merged);
+      selection = [merged.id];
+      currentLayerId = topLayer.id;
+    });
+    return merged;
+  }
+
   // ===== cutouts and background removal ======================================
 
   Offset _toPx(ImageObject o, Asset a, Offset scene) {
@@ -1014,6 +1115,7 @@ class EditorController extends ChangeNotifier {
     await File(path).writeAsString(projectJson());
     filePath = path;
     dirty = false;
+    clearRecovery();
     showToast('Saved ${path.split('/').last}');
   }
 
@@ -1033,6 +1135,7 @@ class EditorController extends ChangeNotifier {
     filePath = null;
     dirty = false;
     pendingPaste = null;
+    clearRecovery();
     fitToView(notify: false);
     notifyListeners();
   }

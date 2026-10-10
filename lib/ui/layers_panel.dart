@@ -4,6 +4,7 @@ import '../editor/canvas_painter.dart';
 import '../editor/canvas_view.dart';
 import '../editor/controller.dart';
 import '../model/scene.dart';
+import 'context_menu.dart';
 import 'widgets.dart';
 
 Future<String?> promptText(BuildContext context, String title, String initial) {
@@ -194,7 +195,18 @@ class _ObjectRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 12.5, color: dim ? const Color(0xFF9AA0AE) : const Color(0xFF222733), fontWeight: selected ? FontWeight.w600 : FontWeight.w400)),
         ),
-        if (object.locked) const Icon(Icons.lock_outline, size: 12, color: Color(0xFF8A90A0)),
+        if (object.locked)
+          SmallIconButton(
+            key: ValueKey('object-lock-${object.id}'),
+            icon: Icons.lock_outline,
+            tooltip: 'Locked — click to unlock',
+            size: 14,
+            color: const Color(0xFF8A90A0),
+            onPressed: () {
+              c.select([object.id]);
+              c.editSelected('unlock', (o) => o.locked = false);
+            },
+          ),
         SmallIconButton(
           key: ValueKey('object-eye-${object.id}'),
           icon: object.visible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -217,6 +229,10 @@ class _ObjectRow extends StatelessWidget {
         ),
       ),
       child: QuickTap(
+        onSecondaryTapDown: (d) {
+          if (!c.selection.contains(object.id)) c.select([object.id]);
+          showObjectMenu(context, c, d.globalPosition);
+        },
         onTap: () {
           final kb = currentModifiers();
           if (!layer.visible || !object.visible) {

@@ -1,3 +1,4 @@
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
 import '../editor/canvas_painter.dart';
@@ -301,5 +302,51 @@ class _QuickTapState extends State<QuickTap> {
           }
         },
         child: widget.child,
+      );
+}
+
+
+const _imageExts = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'];
+
+bool isImagePath(String p) => _imageExts.contains(p.split('.').last.toLowerCase());
+
+/// Accepts files dragged in from the desktop.
+class FileDropZone extends StatefulWidget {
+  const FileDropZone({super.key, required this.child, required this.onFiles});
+  final Widget child;
+  final void Function(List<String> paths, Offset local) onFiles;
+
+  @override
+  State<FileDropZone> createState() => _FileDropZoneState();
+}
+
+class _FileDropZoneState extends State<FileDropZone> {
+  bool _over = false;
+
+  @override
+  Widget build(BuildContext context) => DropTarget(
+        onDragEntered: (_) => setState(() => _over = true),
+        onDragExited: (_) => setState(() => _over = false),
+        onDragDone: (d) {
+          setState(() => _over = false);
+          widget.onFiles([for (final f in d.files) f.path], d.localPosition);
+        },
+        child: Stack(children: [
+          Positioned.fill(child: widget.child),
+          if (_over)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: kAccent.withValues(alpha: 0.08),
+                    border: Border.all(color: kAccent, width: 2),
+                  ),
+                  child: const Center(
+                    child: Text('Drop to add', style: TextStyle(color: kAccent, fontWeight: FontWeight.w700, fontSize: 16)),
+                  ),
+                ),
+              ),
+            ),
+        ]),
       );
 }

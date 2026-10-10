@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,9 +18,13 @@ import 'top_bar.dart';
 import 'widgets.dart';
 
 class EditorShell extends StatefulWidget {
-  const EditorShell({super.key, this.controller, this.startInspector = true});
+  const EditorShell({super.key, this.controller, this.startInspector = true, this.enableRecovery = false, this.recoveryFile});
   final EditorController? controller;
   final bool startInspector;
+
+  /// Keep unsaved work in a recovery file and offer it back after a crash.
+  final bool enableRecovery;
+  final File? recoveryFile;
 
   @override
   State<EditorShell> createState() => _EditorShellState();
@@ -34,18 +39,86 @@ class _EditorShellState extends State<EditorShell> {
   double collectionWidth = 270;
   bool collectionOpen = true;
   Inspector? _inspector;
+  AppLifecycleListener? _lifecycle;
 
   @override
   void initState() {
     super.initState();
+    if (widget.enableRecovery) {
+      final data = Platform.environment['THINKSPACE_DATA_DIR'] ??
+          '${Platform.environment['XDG_DATA_HOME'] ?? '${Platform.environment['HOME']}/.local/share'}/thinkspace';
+      c.recoveryFile = widget.recoveryFile ?? File('$data/recovery.thinkspace');
+      c.startAutosave(c.recoveryFile!);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _offerRecovery());
+      _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
+    }
     final port = int.tryParse(Platform.environment['THINKSPACE_DEBUG_PORT'] ?? '');
     if (widget.startInspector && port != null) {
       _inspector = Inspector(c: c, ix: ix, shotKey: shotKey, port: port)..start();
     }
   }
 
+  Future<void> _offerRecovery() async {
+    final when = c.pendingRecovery();
+    if (when == null || !mounted) return;
+    final ago = DateTime.now().difference(when);
+    final label = ago.inMinutes < 1 ? 'a moment ago' : ago.inHours < 1 ? '${ago.inMinutes} minutes ago' : ago.inDays < 1 ? '${ago.inHours} hours ago' : '${ago.inDays} days ago';
+    final restore = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Pick up where you left off?'),
+        content: Text('Thinkspace found work that was never saved (last changed $label).'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Start fresh')),
+          FilledButton(key: const ValueKey('restore'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Restore it')),
+        ],
+      ),
+    );
+    if (restore == true) {
+      try {
+        await c.restoreRecovery();
+        c.showToast('Restored your unsaved work — save it to keep it');
+      } catch (_) {
+        c.showToast('That recovery file could not be read');
+        c.clearRecovery();
+      }
+    } else {
+      c.clearRecovery();
+    }
+  }
+
+  Future<ui.AppExitResponse> _onExitRequested() async {
+    if (!c.dirty) {
+      c.clearRecovery();
+      return ui.AppExitResponse.exit;
+    }
+    final r = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Close with unsaved changes?'),
+        content: const Text('Save this project first, or close and lose the changes.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, 'cancel'), child: const Text('Keep working')),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'discard'), child: const Text('Close without saving')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, 'save'), child: const Text('Save…')),
+        ],
+      ),
+    );
+    if (r == 'discard') {
+      c.clearRecovery();
+      return ui.AppExitResponse.exit;
+    }
+    if (r == 'save') {
+      await _save();
+      if (!c.dirty) return ui.AppExitResponse.exit;
+    }
+    return ui.AppExitResponse.cancel;
+  }
+
   @override
   void dispose() {
+    _lifecycle?.dispose();
     _inspector?.stop();
     _focus.dispose();
     super.dispose();
@@ -245,6 +318,26 @@ class _EditorShellState extends State<EditorShell> {
     c.showToast('Exported ${p.split('/').last}');
   }
 
+  /// Files dragged in from the desktop: pictures go to the page (or the
+  /// collection), a project file opens.
+  Future<void> _dropped(List<String> paths, {Offset? at, bool toCollection = false}) async {
+    final projects = paths.where((p) => p.endsWith('.thinkspace')).toList();
+    final images = paths.where(isImagePath).toList();
+    if (projects.isNotEmpty && await _confirmDiscard()) {
+      try {
+        await c.openFrom(projects.first);
+      } catch (_) {
+        c.showToast('Could not open that project');
+      }
+      return;
+    }
+    if (images.isEmpty) {
+      c.showToast('Drop pictures (PNG, JPG, WebP, GIF, BMP) or a .thinkspace project');
+      return;
+    }
+    await c.importFiles(images, at: at, toCollection: toCollection);
+  }
+
   Future<void> _importImages() async {
     final paths = await pickImages();
     if (paths.isNotEmpty) await c.importFiles(paths);
@@ -347,10 +440,21 @@ class _EditorShellState extends State<EditorShell> {
             Expanded(
               child: Row(children: [
                 if (collectionOpen) ...[
-                  SizedBox(width: collectionWidth, child: Material(color: kPanel, child: CollectionPanel(controller: c))),
+                  SizedBox(
+                    width: collectionWidth,
+                    child: FileDropZone(
+                      onFiles: (paths, _) => _dropped(paths, toCollection: true),
+                      child: Material(color: kPanel, child: CollectionPanel(controller: c)),
+                    ),
+                  ),
                   _Divider(onDrag: (dx) => setState(() => collectionWidth = (collectionWidth + dx).clamp(170, 560))),
                 ],
-                Expanded(child: _canvasArea()),
+                Expanded(
+                  child: FileDropZone(
+                    onFiles: (paths, local) => _dropped(paths, at: c.toScene(local)),
+                    child: _canvasArea(),
+                  ),
+                ),
                 Container(
                   width: 292,
                   decoration: const BoxDecoration(border: Border(left: BorderSide(color: kBorder))),
@@ -393,7 +497,7 @@ class _EditorShellState extends State<EditorShell> {
             ),
           ),
         ),
-        if (c.tool == Tool.cutout) Positioned(top: 8, left: 0, right: 0, child: Center(child: _CutoutBar(c: c))),
+        if (c.tool == Tool.cutout) Positioned(top: 8, left: 52, right: 8, child: Align(alignment: Alignment.topCenter, child: _CutoutBar(c: c))),
         if (c.pendingPaste != null) Positioned(bottom: 56, left: 0, right: 0, child: Center(child: _PasteChooser(c: c))),
         Positioned(left: 8, bottom: 8, child: _ZoomBar(c: c)),
         if (c.toastMessage != null)
@@ -546,9 +650,8 @@ class _CutoutBar extends StatelessWidget {
       color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
+        child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 4, children: [
           const Icon(Icons.content_cut, size: 16, color: Color(0xFFFF6D00)),
-          const SizedBox(width: 8),
           SegmentedButton<CutoutMode>(
             showSelectedIcon: false,
             style: const ButtonStyle(visualDensity: VisualDensity.compact),
@@ -563,7 +666,6 @@ class _CutoutBar extends StatelessWidget {
               c.notify();
             },
           ),
-          const SizedBox(width: 12),
           if (c.cutoutMode == CutoutMode.wand) ...[
             const Text('Match', style: TextStyle(fontSize: 12)),
             SizedBox(
@@ -584,7 +686,6 @@ class _CutoutBar extends StatelessWidget {
             ),
           ] else ...[
             Text(sel is ImageObject ? 'Drag around the part to keep' : 'Drag across an image', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7385))),
-            const SizedBox(width: 10),
             FilterChip(
               label: const Text('Also remove it from the original'),
               selected: c.cutoutLeavesHole,
@@ -595,7 +696,6 @@ class _CutoutBar extends StatelessWidget {
               },
             ),
           ],
-          const SizedBox(width: 6),
           SmallIconButton(icon: Icons.close, tooltip: 'Done  Esc', onPressed: () => c.setTool(Tool.select)),
         ]),
       ),
