@@ -444,6 +444,7 @@ class CanvasInteractor {
     final corner = h.hx != 0 && h.hy != 0;
 
     if (live is TextObject && start is TextObject) {
+      nw = math.max(nw, 40.0);
       if (corner) {
         final k = math.max(nw / w0, 0.1);
         live.fontSize = (start.fontSize * k).clamp(6, 600).toDouble();

@@ -82,7 +82,8 @@ Future<ColorRemoval?> removeColorFrom(
   bool contiguous = true,
 }) async {
   final w = src.width, h = src.height;
-  final px = Uint8List.fromList(src.rgba);
+  final source = await src.rgbaBytes();
+  final px = Uint8List.fromList(source);
   final limit = tolerance * 441.67;
   final done = Uint8List(w * h);
   int removed = 0;
@@ -97,13 +98,13 @@ Future<ColorRemoval?> removeColorFrom(
   for (final (sx, sy) in seeds) {
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
     final si = (sy * w + sx) * 4;
-    if (src.rgba[si + 3] < 8) continue;
-    final r = src.rgba[si], g = src.rgba[si + 1], b = src.rgba[si + 2];
+    if (source[si + 3] < 8) continue;
+    final r = source[si], g = source[si + 1], b = source[si + 2];
     if (!contiguous) {
       for (int p = 0; p < w * h; p++) {
         if (done[p] == 0 &&
-            src.rgba[p * 4 + 3] > 0 &&
-            _dist(src.rgba, p * 4, r, g, b) <= limit) {
+            source[p * 4 + 3] > 0 &&
+            _dist(source, p * 4, r, g, b) <= limit) {
           clear(p);
         }
       }
@@ -115,7 +116,7 @@ Future<ColorRemoval?> removeColorFrom(
     while (stack.isNotEmpty) {
       final p = stack.removeLast();
       final x = p % w, y = p ~/ w;
-      if (src.rgba[p * 4 + 3] < 8 || _dist(src.rgba, p * 4, r, g, b) > limit) {
+      if (source[p * 4 + 3] < 8 || _dist(source, p * 4, r, g, b) > limit) {
         done[p] = 3; // visited, kept
         continue;
       }

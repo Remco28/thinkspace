@@ -182,15 +182,15 @@ Future<Asset> _plant(AssetStore assets) => _make(assets, 220, 300, (c, s) {
 /// A small shop-front scene: one photo, two overlapping awnings on their own
 /// layers, a note and an arrow. Used for demos and for testing by agents.
 Future<void> loadStorefrontSample(EditorController c) async {
-  c.assets.clear();
-  final photo = await _storefront(c.assets);
+  final store = AssetStore();
+  final photo = await _storefront(store);
   final striped =
-      await _awning(c.assets, const Color(0xFFC62828), const Color(0xFFFFFFFF));
+      await _awning(store, const Color(0xFFC62828), const Color(0xFFFFFFFF));
   final navy =
-      await _awning(c.assets, const Color(0xFF1B3A6B), const Color(0xFFF3EBDD));
+      await _awning(store, const Color(0xFF1B3A6B), const Color(0xFFF3EBDD));
   final green =
-      await _awning(c.assets, const Color(0xFF2E7D4F), const Color(0xFFF4F1E4));
-  final plant = await _plant(c.assets);
+      await _awning(store, const Color(0xFF2E7D4F), const Color(0xFFF4F1E4));
+  final plant = await _plant(store);
 
   final d = Document(canvasSize: const Size(1200, 800), gridSize: 40);
   Layer layer(String name) => Layer(id: d.newId('l'), name: name);
@@ -245,6 +245,8 @@ Future<void> loadStorefrontSample(EditorController c) async {
     CollectionItem(id: d.newId('c'), name: 'green awning', assetId: green.id),
     CollectionItem(id: d.newId('c'), name: 'plant', assetId: plant.id),
   ]);
+  c.assets.replaceWith(store);
+  c.assets.replaceWith(store);
   await c.replaceDocument(d);
   c.showToast('Loaded the storefront sample');
 }

@@ -990,7 +990,14 @@ class EditorController extends ChangeNotifier {
     });
   }
 
+  /// The largest side an exported image may have (GPU texture limit).
+  static const double maxExportSide = 16000;
+
   Future<Uint8List> exportPng({double scale = 1}) async {
+    final longest = math.max(doc.canvasSize.width, doc.canvasSize.height);
+    if (longest * scale > maxExportSide) {
+      scale = maxExportSide / longest;
+    }
     final img = await renderDocument(doc, assets, scale: scale);
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
     img.dispose();
@@ -1174,11 +1181,14 @@ class EditorController extends ChangeNotifier {
       throw const FormatException('Not a Thinkspace project');
     }
     final newDoc = Document.fromJson(Map<String, dynamic>.from(j['document']));
-    assets.clear();
+    // Decode into a scratch store first, so a bad file leaves the current
+    // project untouched and a good one swaps in all at once.
+    final fresh = AssetStore();
     final encoded = Map<String, dynamic>.from(j['assets'] ?? {});
     for (final e in encoded.entries) {
-      await assets.addEncoded(base64Decode(e.value as String), id: e.key);
+      await fresh.addEncoded(base64Decode(e.value as String), id: e.key);
     }
+    assets.replaceWith(fresh);
     doc = newDoc;
     if (doc.layers.isEmpty) {
       doc.layers.add(Layer(id: doc.newId('l'), name: 'Layer 1'));

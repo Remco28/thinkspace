@@ -581,7 +581,7 @@ void main() {
       expect(a.width, 100);
       // The piece is the yellow middle.
       final i = (25 * a.width + 50) * 4;
-      expect(a.rgba.sublist(i, i + 3), [255, 255, 0]);
+      expect((await a.rgbaBytes()).sublist(i, i + 3), [255, 255, 0]);
       expect(c.assets[img.assetId]!.width, 200,
           reason: 'the original asset is untouched');
       expect(c.selection, [piece.id]);
@@ -672,6 +672,31 @@ void main() {
     });
   });
 
+  group('large images', () {
+    test('big images keep a coarse alpha mask that still finds thin parts',
+        () async {
+      final rec = PictureRecorder();
+      final canvas = Canvas(rec);
+      // 4000x3000, transparent except a 6px-wide vertical bar.
+      canvas.drawRect(const Rect.fromLTWH(2000, 0, 6, 3000),
+          Paint()..color = const Color(0xFF00FF00));
+      final img = await rec.endRecording().toImage(4000, 3000);
+      final a = await c.assets.addImage(img);
+      expect(a.alphaAt(2003, 1500), 255);
+      expect(a.alphaAt(100, 100), 0);
+      expect(a.alphaAt(-5, 10), 0);
+      expect((await a.rgbaBytes()).length, 4000 * 3000 * 4);
+    });
+
+    test('exports are limited to something a GPU can make', () async {
+      c.setCanvasSize(const Size(12000, 12000));
+      final png = await c.exportPng(scale: 4);
+      final codec = await instantiateImageCodec(png);
+      final frame = await codec.getNextFrame();
+      expect(frame.image.width, lessThanOrEqualTo(16000));
+    });
+  });
+
   group('merge and recovery', () {
     test('merging pieces makes one image and undo brings the pieces back',
         () async {
@@ -687,7 +712,8 @@ void main() {
       expect(merged.size.height, closeTo(102, 2));
       final asset = c.assets[merged.assetId]!;
       // Red on the left half, blue on the right.
-      int px(int x, int y) => asset.rgba[(y * asset.width + x) * 4];
+      final rgba = await asset.rgbaBytes();
+      int px(int x, int y) => rgba[(y * asset.width + x) * 4];
       expect(px(10, 50), 255, reason: 'red channel on the red side');
       expect(px(asset.width - 10, 50), 0, reason: 'no red on the blue side');
       c.undo();

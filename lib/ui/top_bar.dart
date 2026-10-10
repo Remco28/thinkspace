@@ -45,6 +45,31 @@ class TopBar extends StatelessWidget {
     (Tool.cutout, Icons.content_cut, 'Cut out', 'C'),
   ];
 
+  static PopupMenuEntry<MenuAction> _item(
+          MenuAction a, String label, String keys) =>
+      PopupMenuItem(
+        value: a,
+        height: 34,
+        child: SizedBox(
+          width: 250,
+          child: Row(children: [
+            Expanded(
+                child: Text(label, style: const TextStyle(fontSize: 13.5))),
+            Text(keys,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF8A90A0))),
+          ]),
+        ),
+      );
+
+  static PopupMenuEntry<MenuAction> _check(
+          MenuAction a, String label, bool on) =>
+      CheckedPopupMenuItem(
+        value: a,
+        checked: on,
+        height: 34,
+        child: Text(label, style: const TextStyle(fontSize: 13.5)),
+      );
+
   /// A second click on the same tool within a moment keeps it active.
   void _toolTap(Tool t) {
     final now = DateTime.now();
@@ -72,59 +97,36 @@ class TopBar extends StatelessWidget {
             icon: const Icon(Icons.menu, size: 20),
             onSelected: onMenu,
             itemBuilder: (_) => [
-              const PopupMenuItem(value: MenuAction.newDoc, child: Text('New')),
+              _item(MenuAction.newDoc, 'New', 'Ctrl+N'),
+              _item(MenuAction.open, 'Open…', 'Ctrl+O'),
+              _item(MenuAction.save, 'Save', 'Ctrl+S'),
+              _item(MenuAction.saveAs, 'Save as…', 'Ctrl+Shift+S'),
+              const PopupMenuDivider(height: 8),
+              _item(MenuAction.importImage, 'Add image…', 'Ctrl+I'),
+              _item(MenuAction.sample, 'Open the storefront sample', ''),
+              const PopupMenuDivider(height: 8),
+              _item(MenuAction.exportPng, 'Export PNG…', 'Ctrl+E'),
+              _item(MenuAction.exportPng2x, 'Export PNG at 2×…', ''),
+              _item(MenuAction.copyPage, 'Copy page as image', 'Ctrl+Shift+C'),
+              const PopupMenuDivider(height: 8),
               const PopupMenuItem(
-                  value: MenuAction.open,
-                  child: Text('Open…            Ctrl+O')),
-              const PopupMenuItem(
-                  value: MenuAction.save,
-                  child: Text('Save              Ctrl+S')),
-              const PopupMenuItem(
-                  value: MenuAction.saveAs,
-                  child: Text('Save as…   Ctrl+Shift+S')),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                  value: MenuAction.importImage,
-                  child: Text('Add image…       Ctrl+I')),
-              const PopupMenuItem(
-                  value: MenuAction.sample,
-                  child: Text('Open the storefront sample')),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                  value: MenuAction.exportPng,
-                  child: Text('Export PNG…       Ctrl+E')),
-              const PopupMenuItem(
-                  value: MenuAction.exportPng2x,
-                  child: Text('Export PNG at 2×…')),
-              const PopupMenuItem(
-                  value: MenuAction.copyPage,
-                  child: Text('Copy page as image   Ctrl+Shift+C')),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                  enabled: false,
-                  height: 28,
-                  child: Text('When I paste an image…',
-                      style: TextStyle(fontSize: 11.5))),
-              CheckedPopupMenuItem(
-                  value: MenuAction.pasteAsk,
-                  checked: c.pasteMode == PasteMode.ask,
-                  child: const Text('Ask me')),
-              CheckedPopupMenuItem(
-                  value: MenuAction.pasteLayer,
-                  checked: c.pasteMode == PasteMode.layer,
-                  child: const Text('Add to the current layer')),
-              CheckedPopupMenuItem(
-                  value: MenuAction.pasteCollection,
-                  checked: c.pasteMode == PasteMode.collection,
-                  child: const Text('Add to the collection')),
-              const PopupMenuDivider(),
-              CheckedPopupMenuItem(
-                  value: MenuAction.autoGrow,
-                  checked: c.autoGrow,
-                  child: const Text('Grow the page as I add things')),
-              const PopupMenuItem(
-                  value: MenuAction.shortcuts,
-                  child: Text('Keyboard shortcuts')),
+                enabled: false,
+                height: 26,
+                child: Text(
+                  'When I paste an image…',
+                  style: TextStyle(fontSize: 11.5),
+                ),
+              ),
+              _check(
+                  MenuAction.pasteAsk, 'Ask me', c.pasteMode == PasteMode.ask),
+              _check(MenuAction.pasteLayer, 'Add to the current layer',
+                  c.pasteMode == PasteMode.layer),
+              _check(MenuAction.pasteCollection, 'Add to the collection',
+                  c.pasteMode == PasteMode.collection),
+              const PopupMenuDivider(height: 8),
+              _check(MenuAction.autoGrow, 'Grow the page as I add things',
+                  c.autoGrow),
+              _item(MenuAction.shortcuts, 'Keyboard shortcuts', ''),
             ],
           ),
           const SizedBox(width: 4),
