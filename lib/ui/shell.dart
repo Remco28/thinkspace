@@ -1,0 +1,592 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../dev/inspector.dart';
+import '../editor/canvas_view.dart';
+import '../editor/controller.dart';
+import '../editor/interactor.dart';
+import '../io/files.dart';
+import '../io/samples.dart';
+import '../model/scene.dart';
+import 'collection_panel.dart';
+import 'layers_panel.dart';
+import 'properties_panel.dart';
+import 'top_bar.dart';
+import 'widgets.dart';
+
+class EditorShell extends StatefulWidget {
+  const EditorShell({super.key, this.controller, this.startInspector = true});
+  final EditorController? controller;
+  final bool startInspector;
+
+  @override
+  State<EditorShell> createState() => _EditorShellState();
+}
+
+class _EditorShellState extends State<EditorShell> {
+  late final EditorController c = widget.controller ?? EditorController();
+  late final CanvasInteractor ix = CanvasInteractor(c);
+  final ValueNotifier<bool> spaceDown = ValueNotifier(false);
+  final GlobalKey shotKey = GlobalKey();
+  final FocusNode _focus = FocusNode(debugLabel: 'shell');
+  double collectionWidth = 270;
+  bool collectionOpen = true;
+  Inspector? _inspector;
+
+  @override
+  void initState() {
+    super.initState();
+    final port = int.tryParse(Platform.environment['THINKSPACE_DEBUG_PORT'] ?? '');
+    if (widget.startInspector && port != null) {
+      _inspector = Inspector(c: c, ix: ix, shotKey: shotKey, port: port)..start();
+    }
+  }
+
+  @override
+  void dispose() {
+    _inspector?.stop();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  bool get _typing {
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    if (ctx == null) return false;
+    return ctx.widget is EditableText || ctx.findAncestorWidgetOfExactType<EditableText>() != null;
+  }
+
+  // ---- keyboard ------------------------------------------------------------
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent e) {
+    if (_typing) return KeyEventResult.ignored;
+    final k = e.logicalKey;
+    if (k == LogicalKeyboardKey.space) {
+      spaceDown.value = e is! KeyUpEvent;
+      return KeyEventResult.handled;
+    }
+    if (e is KeyUpEvent) return KeyEventResult.ignored;
+    final hw = HardwareKeyboard.instance;
+    final ctrl = hw.isControlPressed || hw.isMetaPressed;
+    final shift = hw.isShiftPressed;
+
+    if (c.pendingPaste != null) {
+      if (k == LogicalKeyboardKey.enter) {
+        c.resolvePaste(toCollection: false);
+        return KeyEventResult.handled;
+      }
+      if (k == LogicalKeyboardKey.keyC && !ctrl) {
+        c.resolvePaste(toCollection: true);
+        return KeyEventResult.handled;
+      }
+      if (k == LogicalKeyboardKey.escape) {
+        c.cancelPendingPaste();
+        return KeyEventResult.handled;
+      }
+    }
+
+    if (ctrl) {
+      switch (k) {
+        case LogicalKeyboardKey.keyZ:
+          shift ? c.redo() : c.undo();
+        case LogicalKeyboardKey.keyY:
+          c.redo();
+        case LogicalKeyboardKey.keyC:
+          shift ? c.copyPageToClipboard() : c.copySelection();
+        case LogicalKeyboardKey.keyX:
+          c.cutSelection();
+        case LogicalKeyboardKey.keyV:
+          shift ? c.pasteToCollection() : c.paste();
+        case LogicalKeyboardKey.keyD:
+          c.duplicateSelection();
+        case LogicalKeyboardKey.keyA:
+          c.selectAll();
+        case LogicalKeyboardKey.keyS:
+          shift ? _saveAs() : _save();
+        case LogicalKeyboardKey.keyO:
+          _open();
+        case LogicalKeyboardKey.keyE:
+          _export(1);
+        case LogicalKeyboardKey.keyI:
+          _importImages();
+        case LogicalKeyboardKey.keyN:
+          _new();
+        case LogicalKeyboardKey.digit0:
+          c.fitToView();
+        case LogicalKeyboardKey.digit1:
+          c.zoomTo(1);
+        case LogicalKeyboardKey.equal:
+        case LogicalKeyboardKey.numpadAdd:
+          c.zoomTo(c.zoom * 1.25);
+        case LogicalKeyboardKey.minus:
+        case LogicalKeyboardKey.numpadSubtract:
+          c.zoomTo(c.zoom / 1.25);
+        case LogicalKeyboardKey.bracketRight:
+          c.reorderSelection('front');
+        case LogicalKeyboardKey.bracketLeft:
+          c.reorderSelection('back');
+        default:
+          return KeyEventResult.ignored;
+      }
+      return KeyEventResult.handled;
+    }
+
+    final step = c.snapOn ? c.doc.gridSize : (shift ? 10.0 : 1.0);
+    switch (k) {
+      case LogicalKeyboardKey.escape:
+        if (ix.active) {
+          ix.cancel();
+        } else if (c.tool != Tool.select) {
+          c.setTool(Tool.select);
+        } else {
+          c.clearSelection();
+        }
+      case LogicalKeyboardKey.delete:
+      case LogicalKeyboardKey.backspace:
+        c.deleteSelection();
+      case LogicalKeyboardKey.arrowLeft:
+        c.nudge(Offset(-step, 0));
+      case LogicalKeyboardKey.arrowRight:
+        c.nudge(Offset(step, 0));
+      case LogicalKeyboardKey.arrowUp:
+        c.nudge(Offset(0, -step));
+      case LogicalKeyboardKey.arrowDown:
+        c.nudge(Offset(0, step));
+      case LogicalKeyboardKey.enter:
+      case LogicalKeyboardKey.f2:
+        final one = c.single;
+        if (one != null && one is TextObject) c.beginTextEdit(one.id);
+      case LogicalKeyboardKey.keyV:
+        c.setTool(Tool.select);
+      case LogicalKeyboardKey.keyL:
+        c.setTool(Tool.line);
+      case LogicalKeyboardKey.keyA:
+        c.setTool(Tool.arrow);
+      case LogicalKeyboardKey.keyR:
+        c.setTool(Tool.rect);
+      case LogicalKeyboardKey.keyE:
+        c.setTool(Tool.ellipse);
+      case LogicalKeyboardKey.keyT:
+        c.setTool(Tool.text);
+      case LogicalKeyboardKey.keyP:
+        c.setTool(Tool.pen);
+      case LogicalKeyboardKey.keyC:
+        c.setTool(Tool.cutout);
+      case LogicalKeyboardKey.keyG:
+        shift ? c.toggleSnap() : c.toggleGrid();
+      case LogicalKeyboardKey.keyF:
+        c.fitToView();
+      case LogicalKeyboardKey.bracketRight:
+        c.reorderSelection('forward');
+      case LogicalKeyboardKey.bracketLeft:
+        c.reorderSelection('backward');
+      case LogicalKeyboardKey.equal:
+      case LogicalKeyboardKey.add:
+        c.zoomTo(c.zoom * 1.25);
+      case LogicalKeyboardKey.minus:
+        c.zoomTo(c.zoom / 1.25);
+      default:
+        return KeyEventResult.ignored;
+    }
+    return KeyEventResult.handled;
+  }
+
+  // ---- file operations -----------------------------------------------------
+
+  String get _fileLabel => '${c.filePath == null ? 'Untitled' : baseName(c.filePath!)}${c.dirty ? ' •' : ''}';
+
+  Future<bool> _confirmDiscard() async {
+    if (!c.dirty) return true;
+    final r = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard unsaved changes?'),
+        content: const Text('This project has changes that haven’t been saved.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep working')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard')),
+        ],
+      ),
+    );
+    return r == true;
+  }
+
+  Future<void> _new() async {
+    if (await _confirmDiscard()) c.newDocument();
+  }
+
+  Future<void> _open() async {
+    if (!await _confirmDiscard()) return;
+    final p = await pickProject();
+    if (p == null) return;
+    try {
+      await c.openFrom(p);
+    } catch (e) {
+      c.showToast('Could not open that project');
+    }
+  }
+
+  Future<void> _save() async {
+    if (c.filePath == null) return _saveAs();
+    await c.saveTo(c.filePath!);
+  }
+
+  Future<void> _saveAs() async {
+    final p = await chooseProjectPath(c.filePath == null ? 'untitled.thinkspace' : '${baseName(c.filePath!)}.thinkspace');
+    if (p != null) await c.saveTo(p);
+  }
+
+  Future<void> _export(double scale) async {
+    final name = c.filePath == null ? 'thinkspace' : baseName(c.filePath!);
+    final p = await choosePngPath('$name${scale == 1 ? '' : '@${scale.round()}x'}.png');
+    if (p == null) return;
+    await File(p).writeAsBytes(await c.exportPng(scale: scale));
+    c.showToast('Exported ${p.split('/').last}');
+  }
+
+  Future<void> _importImages() async {
+    final paths = await pickImages();
+    if (paths.isNotEmpty) await c.importFiles(paths);
+  }
+
+  void _menu(MenuAction a) {
+    switch (a) {
+      case MenuAction.newDoc:
+        _new();
+      case MenuAction.open:
+        _open();
+      case MenuAction.save:
+        _save();
+      case MenuAction.saveAs:
+        _saveAs();
+      case MenuAction.importImage:
+        _importImages();
+      case MenuAction.sample:
+        _confirmDiscard().then((ok) {
+          if (ok) loadStorefrontSample(c);
+        });
+      case MenuAction.exportPng:
+        _export(1);
+      case MenuAction.exportPng2x:
+        _export(2);
+      case MenuAction.copyPage:
+        c.copyPageToClipboard();
+      case MenuAction.pasteAsk:
+        c.pasteMode = PasteMode.ask;
+        c.notify();
+      case MenuAction.pasteLayer:
+        c.pasteMode = PasteMode.layer;
+        c.notify();
+      case MenuAction.pasteCollection:
+        c.pasteMode = PasteMode.collection;
+        c.notify();
+      case MenuAction.autoGrow:
+        c.autoGrow = !c.autoGrow;
+        c.notify();
+      case MenuAction.shortcuts:
+        _showShortcuts();
+    }
+  }
+
+  void _showShortcuts() {
+    const rows = [
+      ('V  L  A  R  E  T  P  C', 'Select, line, arrow, rectangle, ellipse, text, pen, cut out'),
+      ('Shift (drawing)', 'Straight angles / perfect square'),
+      ('Click again', 'Reach the object underneath the selected one'),
+      ('Ctrl (moving)', 'Ignore snapping'),
+      ('Space + drag', 'Pan (or middle / right mouse drag)'),
+      ('Scroll wheel', 'Zoom at the pointer  ·  Shift+scroll pans'),
+      ('Ctrl+0 / Ctrl+1', 'Fit page / actual size'),
+      ('Ctrl+V', 'Paste an image (asks where it goes)'),
+      ('Ctrl+Shift+V', 'Paste an image straight into the collection'),
+      ('Ctrl+C / X / D', 'Copy, cut, duplicate'),
+      ('Ctrl+Z / Shift+Z', 'Undo / redo'),
+      ('[  ]', 'Send backward / bring forward'),
+      ('Arrow keys', 'Nudge (Shift = 10 px)'),
+      ('G / Shift+G', 'Show grid / snap to grid'),
+      ('Ctrl+S / O / E', 'Save, open, export PNG'),
+      ('Ctrl+Shift+C', 'Copy the whole page as an image'),
+    ];
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Keyboard shortcuts'),
+        content: SizedBox(
+          width: 520,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            for (final r in rows)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  SizedBox(width: 170, child: Text(r.$1, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                  Expanded(child: Text(r.$2, style: const TextStyle(fontSize: 13))),
+                ]),
+              ),
+          ]),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+      ),
+    );
+  }
+
+  // ---- layout --------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      key: shotKey,
+      child: Focus(
+        focusNode: _focus,
+        autofocus: true,
+        onKeyEvent: _onKey,
+        child: Scaffold(
+          backgroundColor: kPanel,
+          body: Column(children: [
+            TopBar(c: c, onMenu: _menu, fileLabel: _fileLabelListenable()),
+            Expanded(
+              child: Row(children: [
+                if (collectionOpen) ...[
+                  SizedBox(width: collectionWidth, child: ColoredBox(color: kPanel, child: CollectionPanel(controller: c))),
+                  _Divider(onDrag: (dx) => setState(() => collectionWidth = (collectionWidth + dx).clamp(170, 560))),
+                ],
+                Expanded(child: _canvasArea()),
+                Container(
+                  width: 292,
+                  decoration: const BoxDecoration(color: kPanel, border: Border(left: BorderSide(color: kBorder))),
+                  child: Column(children: [
+                    Expanded(flex: 5, child: LayersPanel(controller: c)),
+                    const Divider(height: 1, color: kBorder),
+                    Expanded(flex: 6, child: PropertiesPanel(controller: c)),
+                  ]),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  String _fileLabelListenable() => _fileLabel;
+
+  Widget _canvasArea() {
+    return ListenableBuilder(
+      listenable: c,
+      builder: (context, _) => Stack(children: [
+        Positioned.fill(child: CanvasView(controller: c, interactor: ix, spaceDown: spaceDown)),
+        Positioned(
+          left: 8,
+          top: 8,
+          child: Material(
+            color: Colors.white,
+            elevation: 1,
+            borderRadius: BorderRadius.circular(8),
+            child: SmallIconButton(
+              key: const ValueKey('toggle-collection'),
+              icon: collectionOpen ? Icons.keyboard_double_arrow_left : Icons.collections_outlined,
+              tooltip: collectionOpen ? 'Hide the collection' : 'Show the collection',
+              onPressed: () => setState(() => collectionOpen = !collectionOpen),
+            ),
+          ),
+        ),
+        if (c.tool == Tool.cutout) Positioned(top: 8, left: 0, right: 0, child: Center(child: _CutoutBar(c: c))),
+        if (c.pendingPaste != null) Positioned(bottom: 56, left: 0, right: 0, child: Center(child: _PasteChooser(c: c))),
+        Positioned(left: 8, bottom: 8, child: _ZoomBar(c: c)),
+        if (c.toastMessage != null)
+          Positioned(
+            bottom: 14,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(color: const Color(0xE6222733), borderRadius: BorderRadius.circular(8)),
+                  child: Text(c.toastMessage!, key: const ValueKey('toast'), style: const TextStyle(color: Colors.white, fontSize: 12.5)),
+                ),
+              ),
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  const _Divider({required this.onDrag});
+  final void Function(double dx) onDrag;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+        cursor: SystemMouseCursors.resizeColumn,
+        child: GestureDetector(
+          key: const ValueKey('collection-divider'),
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: (d) => onDrag(d.delta.dx),
+          child: Container(width: 7, color: kPanel, child: const Center(child: VerticalDivider(width: 1, color: kBorder))),
+        ),
+      );
+}
+
+class _ZoomBar extends StatelessWidget {
+  const _ZoomBar({required this.c});
+  final EditorController c;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.white,
+        elevation: 1,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            SmallIconButton(icon: Icons.remove, tooltip: 'Zoom out', onPressed: () => c.zoomTo(c.zoom / 1.25)),
+            SizedBox(
+              width: 48,
+              child: Text('${(c.zoom * 100).round()}%', key: const ValueKey('zoom-label'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+            ),
+            SmallIconButton(icon: Icons.add, tooltip: 'Zoom in', onPressed: () => c.zoomTo(c.zoom * 1.25)),
+            SmallIconButton(icon: Icons.fit_screen_outlined, tooltip: 'Fit the page  Ctrl+0', onPressed: c.fitToView),
+            const SizedBox(width: 4),
+            Text('${c.doc.canvasSize.width.round()} × ${c.doc.canvasSize.height.round()}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7385))),
+            const SizedBox(width: 8),
+          ]),
+        ),
+      );
+}
+
+class _PasteChooser extends StatefulWidget {
+  const _PasteChooser({required this.c});
+  final EditorController c;
+
+  @override
+  State<_PasteChooser> createState() => _PasteChooserState();
+}
+
+class _PasteChooserState extends State<_PasteChooser> {
+  bool remember = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c;
+    final a = c.pendingPaste == null ? null : c.assets[c.pendingPaste!.assetId];
+    return Material(
+      key: const ValueKey('paste-chooser'),
+      elevation: 6,
+      borderRadius: BorderRadius.circular(12),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (a != null)
+            Container(
+              width: 64,
+              height: 48,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(border: Border.all(color: kBorder), borderRadius: BorderRadius.circular(6)),
+              padding: const EdgeInsets.all(2),
+              child: RawImage(image: a.image, fit: BoxFit.contain),
+            ),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text('Pasted an image${a == null ? '' : ' (${a.width} × ${a.height})'}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 2),
+            const Text('Where should it go?', style: TextStyle(fontSize: 12, color: Color(0xFF6B7385))),
+            SizedBox(
+              height: 26,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Checkbox(value: remember, visualDensity: VisualDensity.compact, onChanged: (v) => setState(() => remember = v ?? false)),
+                const Text('Always do this', style: TextStyle(fontSize: 12)),
+              ]),
+            ),
+          ]),
+          const SizedBox(width: 16),
+          FilledButton(
+            key: const ValueKey('paste-to-layer'),
+            onPressed: () => c.resolvePaste(toCollection: false, remember: remember),
+            child: Text('Add to “${c.currentLayer.name}”   ⏎'),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            key: const ValueKey('paste-to-collection'),
+            onPressed: () => c.resolvePaste(toCollection: true, remember: remember),
+            child: const Text('Collection   C'),
+          ),
+          const SizedBox(width: 4),
+          SmallIconButton(icon: Icons.close, tooltip: 'Discard  Esc', onPressed: c.cancelPendingPaste),
+        ]),
+      ),
+    );
+  }
+}
+
+class _CutoutBar extends StatelessWidget {
+  const _CutoutBar({required this.c});
+  final EditorController c;
+
+  @override
+  Widget build(BuildContext context) {
+    final sel = c.single;
+    return Material(
+      key: const ValueKey('cutout-bar'),
+      elevation: 3,
+      borderRadius: BorderRadius.circular(10),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.content_cut, size: 16, color: Color(0xFFFF6D00)),
+          const SizedBox(width: 8),
+          SegmentedButton<CutoutMode>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            segments: const [
+              ButtonSegment(value: CutoutMode.lasso, label: Text('Freehand')),
+              ButtonSegment(value: CutoutMode.box, label: Text('Box')),
+              ButtonSegment(value: CutoutMode.wand, label: Text('Remove colour')),
+            ],
+            selected: {c.cutoutMode},
+            onSelectionChanged: (s) {
+              c.cutoutMode = s.first;
+              c.notify();
+            },
+          ),
+          const SizedBox(width: 12),
+          if (c.cutoutMode == CutoutMode.wand) ...[
+            const Text('Match', style: TextStyle(fontSize: 12)),
+            SizedBox(
+              width: 120,
+              child: Slider(value: c.wandTolerance, min: 0.02, max: 0.5, onChanged: (v) {
+                c.wandTolerance = v;
+                c.notify();
+              }),
+            ),
+            FilterChip(
+              label: const Text('Only touching'),
+              selected: c.wandContiguous,
+              visualDensity: VisualDensity.compact,
+              onSelected: (v) {
+                c.wandContiguous = v;
+                c.notify();
+              },
+            ),
+          ] else ...[
+            Text(sel is ImageObject ? 'Drag around the part to keep' : 'Drag across an image', style: const TextStyle(fontSize: 12, color: Color(0xFF6B7385))),
+            const SizedBox(width: 10),
+            FilterChip(
+              label: const Text('Also remove it from the original'),
+              selected: c.cutoutLeavesHole,
+              visualDensity: VisualDensity.compact,
+              onSelected: (v) {
+                c.cutoutLeavesHole = v;
+                c.notify();
+              },
+            ),
+          ],
+          const SizedBox(width: 6),
+          SmallIconButton(icon: Icons.close, tooltip: 'Done  Esc', onPressed: () => c.setTool(Tool.select)),
+        ]),
+      ),
+    );
+  }
+}
