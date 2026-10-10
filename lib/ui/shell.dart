@@ -331,6 +331,10 @@ class _EditorShellState extends State<EditorShell> {
         shift ? c.toggleSnap() : c.toggleGrid();
       case LogicalKeyboardKey.keyF:
         c.fitToView();
+      case LogicalKeyboardKey.keyM:
+        if (c.canMerge) c.flattenSelection();
+      case LogicalKeyboardKey.keyU:
+        if (c.canUnmerge) c.unmerge();
       case LogicalKeyboardKey.bracketRight:
         c.reorderSelection('forward');
       case LogicalKeyboardKey.bracketLeft:

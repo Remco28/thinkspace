@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import 'canvas_painter.dart';
 import 'controller.dart';
 import 'interactor.dart';
 import '../ui/context_menu.dart';
+import '../ui/widgets.dart' show KeyCap;
 import 'render.dart';
 
 class CollectionDrag {
@@ -56,6 +59,16 @@ class _CanvasViewState extends State<CanvasView> {
     final cur = ix.cursorAt(e.localPosition, spaceDown: widget.spaceDown.value);
     if (cur != _cursor) setState(() => _cursor = cur);
   }
+
+  /// The merge / unmerge pill appears beside a resting selection, never in
+  /// the middle of a drag, a text edit or a paste decision.
+  bool get _showActions =>
+      c.tool == Tool.select &&
+      !ix.active &&
+      c.editingTextId == null &&
+      c.pendingPaste == null &&
+      c.selection.isNotEmpty &&
+      ((c.selection.length > 1 && c.canMerge) || c.canUnmerge);
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +163,12 @@ class _CanvasViewState extends State<CanvasView> {
                     ),
                   ),
                 ),
+                if (_showActions)
+                  _SelectionActions(
+                    c: c,
+                    area: box.biggest,
+                    refocus: () => widget.focusNode?.requestFocus(),
+                  ),
                 if (c.editingTextId != null)
                   _TextEditorOverlay(c: c, key: ValueKey(c.editingTextId)),
                 if (candidate.isNotEmpty)
@@ -243,6 +262,92 @@ class _TextEditorOverlayState extends State<_TextEditorOverlay> {
                 contentPadding: const EdgeInsets.all(TextObject.pad),
               ),
               onChanged: c.updateEditingText,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small pill just under the selection with the one thing you most likely
+/// want to do with it: merge several things into one picture, or take a
+/// merged picture apart again. It carries its shortcut key, like the toolbar.
+class _SelectionActions extends StatelessWidget {
+  const _SelectionActions({
+    required this.c,
+    required this.area,
+    required this.refocus,
+  });
+  final EditorController c;
+  final Size area;
+  final VoidCallback refocus;
+
+  static const double _w = 188, _h = 30;
+
+  @override
+  Widget build(BuildContext context) {
+    final merge = !c.canUnmerge;
+    final b = c.selectionBounds;
+    final bottom = c.toScreen(b.bottomCenter);
+    // Below the selection and its handles; pulled inside the view if the
+    // selection runs off the bottom or the sides.
+    final w = merge ? _w : 128.0;
+    final left = (bottom.dx - w / 2)
+        .clamp(8.0, math.max(8.0, area.width - w - 8))
+        .toDouble();
+    final top = (bottom.dy + 18)
+        .clamp(8.0, math.max(8.0, area.height - _h - 12))
+        .toDouble();
+    return Positioned(
+      left: left,
+      top: top,
+      child: Material(
+        key: const ValueKey('selection-actions'),
+        color: Colors.white,
+        elevation: 3,
+        shadowColor: const Color(0x55000000),
+        borderRadius: BorderRadius.circular(_h / 2),
+        child: InkWell(
+          key: ValueKey(merge ? 'quick-merge' : 'quick-unmerge'),
+          canRequestFocus: false,
+          borderRadius: BorderRadius.circular(_h / 2),
+          onTap: () {
+            if (merge) {
+              c.flattenSelection();
+            } else {
+              c.unmerge();
+            }
+            refocus();
+          },
+          child: Container(
+            width: w,
+            height: _h,
+            padding: const EdgeInsets.only(left: 12, right: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(_h / 2),
+              border: Border.all(color: const Color(0xFFD8DBE3)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  merge ? Icons.layers_clear_outlined : Icons.call_split,
+                  size: 15,
+                  color: kAccent,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    merge ? 'Merge into one image' : 'Unmerge',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2B3140),
+                    ),
+                  ),
+                ),
+                KeyCap(merge ? 'M' : 'U', compact: true),
+              ],
             ),
           ),
         ),

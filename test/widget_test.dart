@@ -272,6 +272,103 @@ void main() {
     expect(find.byKey(const ValueKey('unmerge-button')), findsNothing);
   });
 
+  appTest('a selection of several things offers Merge beside it', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    for (final (n, x) in [('left', 200.0), ('right', 400.0)]) {
+      c.addObject(
+        ShapeObject(
+          id: c.doc.newId('o'),
+          name: n,
+          ellipse: false,
+          center: Offset(x, 200),
+          size: const Size(100, 60),
+          fill: 0xFF3366FF,
+        ),
+      );
+    }
+    const pill = ValueKey('selection-actions');
+    c.select([c.doc.allObjects.first.id]);
+    await tester.pump();
+    expect(
+      find.byKey(pill),
+      findsNothing,
+      reason: 'one shape: nothing to merge',
+    );
+    c.selectAll();
+    await tester.pump();
+    expect(find.byKey(pill), findsOneWidget);
+    expect(find.text('Merge into one image'), findsWidgets);
+    // It sits below the selection, inside the canvas.
+    final at = tester.getTopLeft(find.byKey(pill));
+    expect(at.dy, greaterThan(canvasRect(tester).top));
+
+    // Clicking it merges, and the same spot then offers Unmerge.
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('quick-merge')));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pump();
+    expect(c.doc.allObjects.length, 1);
+    expect(find.byKey(const ValueKey('quick-unmerge')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('quick-unmerge')));
+    await tester.pump();
+    expect(c.doc.allObjects.length, 2);
+    expect(find.byKey(const ValueKey('quick-unmerge')), findsNothing);
+  });
+
+  appTest('M merges the selection and U takes it apart', (tester) async {
+    final c = await pumpApp(tester);
+    for (final x in [200.0, 400.0]) {
+      c.addObject(
+        ShapeObject(
+          id: c.doc.newId('o'),
+          name: 's$x',
+          ellipse: false,
+          center: Offset(x, 200),
+          size: const Size(100, 60),
+          fill: 0xFF3366FF,
+        ),
+      );
+    }
+    c.selectAll();
+    await tester.pump();
+    await tester.runAsync(() async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pump();
+    expect(c.doc.allObjects.length, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyU);
+    await tester.pump();
+    expect(c.doc.allObjects.length, 2);
+  });
+
+  appTest('the Merge pill stays out of the way while drawing or typing', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    for (final x in [200.0, 400.0]) {
+      c.addObject(
+        ShapeObject(
+          id: c.doc.newId('o'),
+          name: 's$x',
+          ellipse: false,
+          center: Offset(x, 200),
+          size: const Size(100, 60),
+          fill: 0xFF3366FF,
+        ),
+      );
+    }
+    c.selectAll();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('selection-actions')), findsOneWidget);
+    c.setTool(Tool.arrow);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('selection-actions')), findsNothing);
+  });
+
   appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {

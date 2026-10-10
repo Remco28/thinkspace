@@ -61,6 +61,13 @@ const _sections = <(String, List<_Row>)>[
       ),
       (
         [
+          ['M'],
+          ['U'],
+        ],
+        'Merge the selection into one image / take a merged image apart',
+      ),
+      (
+        [
           ['Esc'],
         ],
         'Back to Select, or clear the selection',

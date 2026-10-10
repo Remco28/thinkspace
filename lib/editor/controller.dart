@@ -1249,6 +1249,18 @@ class EditorController extends ChangeNotifier {
   /// Merge the selected objects into one picture. The originals are replaced
   /// (undo brings them back).
   Future<ImageObject?> flattenSelection() async {
+    if (_flattening) return null; // a second press while one is under way
+    _flattening = true;
+    try {
+      return await _flattenSelection();
+    } finally {
+      _flattening = false;
+    }
+  }
+
+  bool _flattening = false;
+
+  Future<ImageObject?> _flattenSelection() async {
     final chosen = selection.toSet();
     final ordered = <SceneObject>[
       for (final l in doc.layers)
@@ -1305,6 +1317,13 @@ class EditorController extends ChangeNotifier {
   }
 
   /// The selected picture, if it is a merge that can be taken apart again.
+  /// Merging needs two or more things, or one thing that is not already a
+  /// picture.
+  bool get canMerge {
+    final sel = selectedObjects;
+    return sel.length > 1 || (sel.length == 1 && sel.first is! ImageObject);
+  }
+
   bool get canUnmerge {
     final o = single;
     return o is ImageObject && o.canUnmerge;

@@ -69,6 +69,7 @@ The menu (☰) has **Open the storefront sample**, a small scene with two overla
 | click a row in Layers, then `↑` `↓` | walk the list (`Shift` extends it; `Shift`+click selects a run) |
 | `G` / `Shift+G` | show grid / snap to grid |
 | `Ctrl+S` `O` `E` `I` | save · open · export PNG · add image |
+| `M` / `U` | merge the selection into one image / take a merged image apart (a small button under the selection does the same) |
 | `Ctrl+Shift+C` | copy the page as an image |
 | right-click | context menu for what is under the pointer |
 
