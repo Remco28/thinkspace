@@ -39,13 +39,13 @@ abstract class SceneObject {
   Map<String, dynamic> toJson();
 
   Map<String, dynamic> baseJson(String type) => {
-        'type': type,
-        'id': id,
-        'name': name,
-        'opacity': opacity,
-        'visible': visible,
-        'locked': locked,
-      };
+    'type': type,
+    'id': id,
+    'name': name,
+    'opacity': opacity,
+    'visible': visible,
+    'locked': locked,
+  };
 
   static SceneObject fromJson(Map<String, dynamic> j) {
     switch (j['type']) {
@@ -113,17 +113,19 @@ abstract class BoxObject extends SceneObject {
   void translate(Offset d) => center += d;
 
   Map<String, dynamic> boxJson(String type) => {
-        ...baseJson(type),
-        'center': _offJson(center),
-        'size': [size.width, size.height],
-        'rotation': rotation,
-        'flipX': flipX,
-      };
+    ...baseJson(type),
+    'center': _offJson(center),
+    'size': [size.width, size.height],
+    'rotation': rotation,
+    'flipX': flipX,
+  };
 
   void readBox(Map<String, dynamic> j) {
     center = _off(j['center']);
     size = Size(
-        (j['size'][0] as num).toDouble(), (j['size'][1] as num).toDouble());
+      (j['size'][0] as num).toDouble(),
+      (j['size'][1] as num).toDouble(),
+    );
     rotation = (j['rotation'] as num?)?.toDouble() ?? 0;
     flipX = j['flipX'] as bool? ?? false;
   }
@@ -160,8 +162,10 @@ class ImageObject extends BoxObject {
     final v = (l.dy / size.height + 0.5);
     final px = (u * a.width).floor(), py = (v * a.height).floor();
     // Look at a small neighbourhood so thin cutout edges stay easy to grab.
-    final r =
-        math.max(1, (tolerance * a.width / math.max(1, size.width)).ceil());
+    final r = math.max(
+      1,
+      (tolerance * a.width / math.max(1, size.width)).ceil(),
+    );
     for (int dy = -r; dy <= r; dy += r) {
       for (int dx = -r; dx <= r; dx += r) {
         if (a.alphaAt(px + dx, py + dy) > 24) return true;
@@ -172,17 +176,17 @@ class ImageObject extends BoxObject {
 
   @override
   ImageObject copyWith({String? id, String? name}) => ImageObject(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        assetId: assetId,
-        center: center,
-        size: size,
-        rotation: rotation,
-        flipX: flipX,
-        opacity: opacity,
-        visible: visible,
-        locked: locked,
-      );
+    id: id ?? this.id,
+    name: name ?? this.name,
+    assetId: assetId,
+    center: center,
+    size: size,
+    rotation: rotation,
+    flipX: flipX,
+    opacity: opacity,
+    visible: visible,
+    locked: locked,
+  );
 
   @override
   Map<String, dynamic> toJson() => {...boxJson('image'), 'asset': assetId};
@@ -239,34 +243,34 @@ class TextObject extends BoxObject {
 
   @override
   TextObject copyWith({String? id, String? name}) => TextObject(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        text: text,
-        center: center,
-        size: size,
-        fontSize: fontSize,
-        color: color,
-        bold: bold,
-        italic: italic,
-        background: background,
-        align: align,
-        rotation: rotation,
-        opacity: opacity,
-        visible: visible,
-        locked: locked,
-      );
+    id: id ?? this.id,
+    name: name ?? this.name,
+    text: text,
+    center: center,
+    size: size,
+    fontSize: fontSize,
+    color: color,
+    bold: bold,
+    italic: italic,
+    background: background,
+    align: align,
+    rotation: rotation,
+    opacity: opacity,
+    visible: visible,
+    locked: locked,
+  );
 
   @override
   Map<String, dynamic> toJson() => {
-        ...boxJson('text'),
-        'text': text,
-        'fontSize': fontSize,
-        'color': color,
-        'bold': bold,
-        'italic': italic,
-        'background': background,
-        'align': align.index,
-      };
+    ...boxJson('text'),
+    'text': text,
+    'fontSize': fontSize,
+    'color': color,
+    'bold': bold,
+    'italic': italic,
+    'background': background,
+    'align': align.index,
+  };
 
   factory TextObject.fromJson(Map<String, dynamic> j) {
     final o = TextObject(
@@ -341,27 +345,27 @@ class ShapeObject extends BoxObject {
 
   @override
   ShapeObject copyWith({String? id, String? name}) => ShapeObject(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        ellipse: ellipse,
-        center: center,
-        size: size,
-        stroke: stroke,
-        fill: fill,
-        strokeWidth: strokeWidth,
-        rotation: rotation,
-        opacity: opacity,
-        visible: visible,
-        locked: locked,
-      );
+    id: id ?? this.id,
+    name: name ?? this.name,
+    ellipse: ellipse,
+    center: center,
+    size: size,
+    stroke: stroke,
+    fill: fill,
+    strokeWidth: strokeWidth,
+    rotation: rotation,
+    opacity: opacity,
+    visible: visible,
+    locked: locked,
+  );
 
   @override
   Map<String, dynamic> toJson() => {
-        ...boxJson(ellipse ? 'ellipse' : 'rect'),
-        'stroke': stroke,
-        'fill': fill,
-        'strokeWidth': strokeWidth,
-      };
+    ...boxJson(ellipse ? 'ellipse' : 'rect'),
+    'stroke': stroke,
+    'fill': fill,
+    'strokeWidth': strokeWidth,
+  };
 
   factory ShapeObject.fromJson(Map<String, dynamic> j) {
     final o = ShapeObject(
@@ -413,24 +417,24 @@ class BadgeObject extends BoxObject {
 
   @override
   BadgeObject copyWith({String? id, String? name}) => BadgeObject(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        number: number,
-        center: center,
-        size: size,
-        color: color,
-        rotation: rotation,
-        opacity: opacity,
-        visible: visible,
-        locked: locked,
-      );
+    id: id ?? this.id,
+    name: name ?? this.name,
+    number: number,
+    center: center,
+    size: size,
+    color: color,
+    rotation: rotation,
+    opacity: opacity,
+    visible: visible,
+    locked: locked,
+  );
 
   @override
   Map<String, dynamic> toJson() => {
-        ...boxJson('badge'),
-        'number': number,
-        'color': color,
-      };
+    ...boxJson('badge'),
+    'number': number,
+    'color': color,
+  };
 
   factory BadgeObject.fromJson(Map<String, dynamic> j) {
     final o = BadgeObject(
@@ -478,8 +482,10 @@ class LineObject extends SceneObject {
   double get length => (p2 - p1).distance;
 
   @override
-  Rect get bounds => rectFromPoints([p1, p2])
-      .inflate(width / 2 + ((headEnd || headStart) ? headSize / 2 : 0));
+  Rect get bounds => rectFromPoints([
+    p1,
+    p2,
+  ]).inflate(width / 2 + ((headEnd || headStart) ? headSize / 2 : 0));
 
   @override
   bool hitTest(Offset p, double tolerance, AssetStore assets) =>
@@ -493,46 +499,46 @@ class LineObject extends SceneObject {
 
   @override
   LineObject copyWith({String? id, String? name}) => LineObject(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        p1: p1,
-        p2: p2,
-        color: color,
-        width: width,
-        headEnd: headEnd,
-        headStart: headStart,
-        dashed: dashed,
-        opacity: opacity,
-        visible: visible,
-        locked: locked,
-      );
+    id: id ?? this.id,
+    name: name ?? this.name,
+    p1: p1,
+    p2: p2,
+    color: color,
+    width: width,
+    headEnd: headEnd,
+    headStart: headStart,
+    dashed: dashed,
+    opacity: opacity,
+    visible: visible,
+    locked: locked,
+  );
 
   @override
   Map<String, dynamic> toJson() => {
-        ...baseJson('line'),
-        'p1': _offJson(p1),
-        'p2': _offJson(p2),
-        'color': color,
-        'width': width,
-        'headEnd': headEnd,
-        'headStart': headStart,
-        'dashed': dashed,
-      };
+    ...baseJson('line'),
+    'p1': _offJson(p1),
+    'p2': _offJson(p2),
+    'color': color,
+    'width': width,
+    'headEnd': headEnd,
+    'headStart': headStart,
+    'dashed': dashed,
+  };
 
   factory LineObject.fromJson(Map<String, dynamic> j) => LineObject(
-        id: j['id'],
-        name: j['name'],
-        p1: _off(j['p1']),
-        p2: _off(j['p2']),
-        color: j['color'],
-        width: (j['width'] as num).toDouble(),
-        headEnd: j['headEnd'] ?? false,
-        headStart: j['headStart'] ?? false,
-        dashed: j['dashed'] ?? false,
-        opacity: (j['opacity'] as num).toDouble(),
-        visible: j['visible'] ?? true,
-        locked: j['locked'] ?? false,
-      );
+    id: j['id'],
+    name: j['name'],
+    p1: _off(j['p1']),
+    p2: _off(j['p2']),
+    color: j['color'],
+    width: (j['width'] as num).toDouble(),
+    headEnd: j['headEnd'] ?? false,
+    headStart: j['headStart'] ?? false,
+    dashed: j['dashed'] ?? false,
+    opacity: (j['opacity'] as num).toDouble(),
+    visible: j['visible'] ?? true,
+    locked: j['locked'] ?? false,
+  );
 }
 
 /// A freehand mark. Points are page coordinates.
@@ -576,34 +582,34 @@ class StrokeObject extends SceneObject {
 
   @override
   StrokeObject copyWith({String? id, String? name}) => StrokeObject(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        points: List.of(points),
-        color: color,
-        width: width,
-        opacity: opacity,
-        visible: visible,
-        locked: locked,
-      );
+    id: id ?? this.id,
+    name: name ?? this.name,
+    points: List.of(points),
+    color: color,
+    width: width,
+    opacity: opacity,
+    visible: visible,
+    locked: locked,
+  );
 
   @override
   Map<String, dynamic> toJson() => {
-        ...baseJson('stroke'),
-        'points': [for (final p in points) _offJson(p)],
-        'color': color,
-        'width': width,
-      };
+    ...baseJson('stroke'),
+    'points': [for (final p in points) _offJson(p)],
+    'color': color,
+    'width': width,
+  };
 
   factory StrokeObject.fromJson(Map<String, dynamic> j) => StrokeObject(
-        id: j['id'],
-        name: j['name'],
-        points: [for (final p in j['points']) _off(p)],
-        color: j['color'],
-        width: (j['width'] as num).toDouble(),
-        opacity: (j['opacity'] as num).toDouble(),
-        visible: j['visible'] ?? true,
-        locked: j['locked'] ?? false,
-      );
+    id: j['id'],
+    name: j['name'],
+    points: [for (final p in j['points']) _off(p)],
+    color: j['color'],
+    width: (j['width'] as num).toDouble(),
+    opacity: (j['opacity'] as num).toDouble(),
+    visible: j['visible'] ?? true,
+    locked: j['locked'] ?? false,
+  );
 }
 
 /// A named, ordered group of objects. Objects are listed bottom to top.
@@ -623,23 +629,23 @@ class Layer {
   final List<SceneObject> objects;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'visible': visible,
-        'locked': locked,
-        'objects': [for (final o in objects) o.toJson()],
-      };
+    'id': id,
+    'name': name,
+    'visible': visible,
+    'locked': locked,
+    'objects': [for (final o in objects) o.toJson()],
+  };
 
   factory Layer.fromJson(Map<String, dynamic> j) => Layer(
-        id: j['id'],
-        name: j['name'],
-        visible: j['visible'] ?? true,
-        locked: j['locked'] ?? false,
-        objects: [
-          for (final o in j['objects'])
-            SceneObject.fromJson(Map<String, dynamic>.from(o)),
-        ],
-      );
+    id: j['id'],
+    name: j['name'],
+    visible: j['visible'] ?? true,
+    locked: j['locked'] ?? false,
+    objects: [
+      for (final o in j['objects'])
+        SceneObject.fromJson(Map<String, dynamic>.from(o)),
+    ],
+  );
 }
 
 /// A source image kept around for repeated use. Distinct from the objects
@@ -665,8 +671,8 @@ class Document {
     List<Layer>? layers,
     List<CollectionItem>? collection,
     this.nextId = 1,
-  })  : layers = layers ?? [],
-        collection = collection ?? [];
+  }) : layers = layers ?? [],
+       collection = collection ?? [];
 
   Size canvasSize;
 
@@ -709,19 +715,19 @@ class Document {
   }
 
   Set<String> get usedAssets => {
-        for (final o in allObjects)
-          if (o is ImageObject) o.assetId,
-        for (final c in collection) c.assetId,
-      };
+    for (final o in allObjects)
+      if (o is ImageObject) o.assetId,
+    for (final c in collection) c.assetId,
+  };
 
   Map<String, dynamic> toJson() => {
-        'canvas': [canvasSize.width, canvasSize.height],
-        'background': background,
-        'gridSize': gridSize,
-        'nextId': nextId,
-        'layers': [for (final l in layers) l.toJson()],
-        'collection': [for (final c in collection) c.toJson()],
-      };
+    'canvas': [canvasSize.width, canvasSize.height],
+    'background': background,
+    'gridSize': gridSize,
+    'nextId': nextId,
+    'layers': [for (final l in layers) l.toJson()],
+    'collection': [for (final c in collection) c.toJson()],
+  };
 
   String encode() => jsonEncode(toJson());
 
@@ -733,20 +739,21 @@ class Document {
   }
 
   factory Document.fromJson(Map<String, dynamic> j) => Document(
-        canvasSize: Size((j['canvas'][0] as num).toDouble(),
-            (j['canvas'][1] as num).toDouble()),
-        background: j['background'] ?? kDefaultBackground,
-        gridSize: (j['gridSize'] as num?)?.toDouble() ?? 40,
-        nextId: j['nextId'] ?? 1,
-        layers: [
-          for (final l in j['layers'])
-            Layer.fromJson(Map<String, dynamic>.from(l))
-        ],
-        collection: [
-          for (final c in j['collection'] ?? const [])
-            CollectionItem.fromJson(Map<String, dynamic>.from(c)),
-        ],
-      );
+    canvasSize: Size(
+      (j['canvas'][0] as num).toDouble(),
+      (j['canvas'][1] as num).toDouble(),
+    ),
+    background: j['background'] ?? kDefaultBackground,
+    gridSize: (j['gridSize'] as num?)?.toDouble() ?? 40,
+    nextId: j['nextId'] ?? 1,
+    layers: [
+      for (final l in j['layers']) Layer.fromJson(Map<String, dynamic>.from(l)),
+    ],
+    collection: [
+      for (final c in j['collection'] ?? const [])
+        CollectionItem.fromJson(Map<String, dynamic>.from(c)),
+    ],
+  );
 
   factory Document.decode(String s) =>
       Document.fromJson(jsonDecode(s) as Map<String, dynamic>);

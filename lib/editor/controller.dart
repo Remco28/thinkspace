@@ -139,9 +139,9 @@ class EditorController extends ChangeNotifier {
   Layer get currentLayer => doc.layerById(currentLayerId) ?? doc.layers.last;
 
   List<SceneObject> get selectedObjects => [
-        for (final id in selection)
-          if (doc.objectById(id) != null) doc.objectById(id)!
-      ];
+    for (final id in selection)
+      if (doc.objectById(id) != null) doc.objectById(id)!,
+  ];
 
   SceneObject? get single =>
       selection.length == 1 ? doc.objectById(selection.first) : null;
@@ -157,8 +157,10 @@ class EditorController extends ChangeNotifier {
 
   // ===== recovery ==========================================================
 
-  void startAutosave(File file,
-      {Duration every = const Duration(seconds: 20)}) {
+  void startAutosave(
+    File file, {
+    Duration every = const Duration(seconds: 20),
+  }) {
     recoveryFile = file;
     _autosaveTimer?.cancel();
     _autosaveTimer = Timer.periodic(every, (_) => autosaveNow());
@@ -213,7 +215,12 @@ class EditorController extends ChangeNotifier {
   // ===== history ===========================================================
 
   _Snap _capture(String label) => _Snap(
-      doc.encode(), doc.signature(), List.of(selection), currentLayerId, label);
+    doc.encode(),
+    doc.signature(),
+    List.of(selection),
+    currentLayerId,
+    label,
+  );
 
   EditToken beginEdit(String label) => EditToken._(_capture(label));
 
@@ -254,8 +261,9 @@ class EditorController extends ChangeNotifier {
   void _restore(_Snap s) {
     doc = Document.decode(s.json);
     selection = s.selection.where((id) => doc.objectById(id) != null).toList();
-    currentLayerId =
-        doc.layerById(s.layerId) != null ? s.layerId : doc.layers.last.id;
+    currentLayerId = doc.layerById(s.layerId) != null
+        ? s.layerId
+        : doc.layers.last.id;
     editingTextId = null;
     dirty = true;
   }
@@ -302,11 +310,11 @@ class EditorController extends ChangeNotifier {
   }
 
   void selectAll() => select([
-        for (final l in doc.layers)
-          if (l.visible && !l.locked)
-            for (final o in l.objects)
-              if (o.visible && !o.locked) o.id
-      ]);
+    for (final l in doc.layers)
+      if (l.visible && !l.locked)
+        for (final o in l.objects)
+          if (o.visible && !o.locked) o.id,
+  ]);
 
   void selectLayerContents(String layerId) {
     final l = doc.layerById(layerId);
@@ -314,7 +322,7 @@ class EditorController extends ChangeNotifier {
     currentLayerId = layerId;
     selection = [
       for (final o in l.objects)
-        if (o.visible && !o.locked) o.id
+        if (o.visible && !o.locked) o.id,
     ];
     notifyListeners();
   }
@@ -352,7 +360,7 @@ class EditorController extends ChangeNotifier {
     if (o is LineObject) {
       return [
         HandleSpot(HandleKind.lineStart, o.p1),
-        HandleSpot(HandleKind.lineEnd, o.p2)
+        HandleSpot(HandleKind.lineEnd, o.p2),
       ];
     }
     if (o is BoxObject) {
@@ -368,25 +376,29 @@ class EditorController extends ChangeNotifier {
           if (o is BadgeObject && (hx == 0 || hy == 0)) {
             continue; // a marker stays round
           }
-          out.add(HandleSpot(
-              HandleKind.resize, o.toScene(Offset(hx * hw, hy * hh)),
-              hx: hx, hy: hy));
+          out.add(
+            HandleSpot(
+              HandleKind.resize,
+              o.toScene(Offset(hx * hw, hy * hh)),
+              hx: hx,
+              hy: hy,
+            ),
+          );
         }
       }
       out.add(
-          HandleSpot(HandleKind.rotate, o.toScene(Offset(0, -hh - 30 / zoom))));
+        HandleSpot(HandleKind.rotate, o.toScene(Offset(0, -hh - 30 / zoom))),
+      );
       return out;
     }
     return const [];
   }
 
   Map<CanvasGrip, Offset> get gripPositions => {
-        CanvasGrip.right:
-            Offset(doc.canvasSize.width, doc.canvasSize.height / 2),
-        CanvasGrip.bottom:
-            Offset(doc.canvasSize.width / 2, doc.canvasSize.height),
-        CanvasGrip.corner: Offset(doc.canvasSize.width, doc.canvasSize.height),
-      };
+    CanvasGrip.right: Offset(doc.canvasSize.width, doc.canvasSize.height / 2),
+    CanvasGrip.bottom: Offset(doc.canvasSize.width / 2, doc.canvasSize.height),
+    CanvasGrip.corner: Offset(doc.canvasSize.width, doc.canvasSize.height),
+  };
 
   // ===== view ==============================================================
 
@@ -415,11 +427,15 @@ class EditorController extends ChangeNotifier {
     const margin = 56.0;
     final cw = doc.canvasSize.width, ch = doc.canvasSize.height;
     zoom = math
-        .min((viewport.width - margin * 2) / cw,
-            (viewport.height - margin * 2) / ch)
+        .min(
+          (viewport.width - margin * 2) / cw,
+          (viewport.height - margin * 2) / ch,
+        )
         .clamp(0.02, 8.0);
     pan = Offset(
-        (viewport.width - cw * zoom) / 2, (viewport.height - ch * zoom) / 2);
+      (viewport.width - cw * zoom) / 2,
+      (viewport.height - ch * zoom) / 2,
+    );
     if (notify) notifyListeners();
   }
 
@@ -474,12 +490,12 @@ class EditorController extends ChangeNotifier {
   // ===== layers ============================================================
 
   void addLayer() => transact('add layer', () {
-        final idx = doc.layers.indexWhere((l) => l.id == currentLayerId);
-        final n = doc.layers.length + 1;
-        final layer = Layer(id: doc.newId('l'), name: 'Layer $n');
-        doc.layers.insert(idx < 0 ? doc.layers.length : idx + 1, layer);
-        currentLayerId = layer.id;
-      });
+    final idx = doc.layers.indexWhere((l) => l.id == currentLayerId);
+    final n = doc.layers.length + 1;
+    final layer = Layer(id: doc.newId('l'), name: 'Layer $n');
+    doc.layers.insert(idx < 0 ? doc.layers.length : idx + 1, layer);
+    currentLayerId = layer.id;
+  });
 
   void deleteLayer(String id) {
     if (doc.layers.length <= 1) {
@@ -497,9 +513,9 @@ class EditorController extends ChangeNotifier {
   }
 
   void renameLayer(String id, String name) => transact('rename layer', () {
-        final l = doc.layerById(id);
-        if (l != null && name.trim().isNotEmpty) l.name = name.trim();
-      });
+    final l = doc.layerById(id);
+    if (l != null && name.trim().isNotEmpty) l.name = name.trim();
+  });
 
   void setLayerVisible(String id, bool v) =>
       transact(v ? 'show layer' : 'hide layer', () {
@@ -603,9 +619,9 @@ class EditorController extends ChangeNotifier {
   }
 
   void setObjectVisible(String id, bool v) => transact(v ? 'show' : 'hide', () {
-        doc.objectById(id)?.visible = v;
-        if (!v) selection = selection.where((s) => s != id).toList();
-      });
+    doc.objectById(id)?.visible = v;
+    if (!v) selection = selection.where((s) => s != id).toList();
+  });
 
   // ===== editing selection =================================================
 
@@ -669,8 +685,8 @@ class EditorController extends ChangeNotifier {
   }
 
   void renameObject(String id, String name) => transact('rename', () {
-        if (name.trim().isNotEmpty) doc.objectById(id)?.name = name.trim();
-      });
+    if (name.trim().isNotEmpty) doc.objectById(id)?.name = name.trim();
+  });
 
   void reorderSelection(String how) {
     final objs = selectedObjects;
@@ -771,8 +787,10 @@ class EditorController extends ChangeNotifier {
   // ===== canvas ==============================================================
 
   void setCanvasSize(Size s, {String label = 'resize canvas'}) {
-    final c = Size(s.width.clamp(64, 12000).toDouble(),
-        s.height.clamp(64, 12000).toDouble());
+    final c = Size(
+      s.width.clamp(64, 12000).toDouble(),
+      s.height.clamp(64, 12000).toDouble(),
+    );
     transact(label, () => doc.canvasSize = c);
   }
 
@@ -819,8 +837,12 @@ class EditorController extends ChangeNotifier {
   Future<Asset> importBytes(Uint8List bytes) => assets.addEncoded(bytes);
 
   /// Put an image on the page as a new object in the current layer.
-  ImageObject placeAsset(Asset a,
-      {String? name, Offset? at, bool select = true}) {
+  ImageObject placeAsset(
+    Asset a, {
+    String? name,
+    Offset? at,
+    bool select = true,
+  }) {
     var natural = Size(a.width.toDouble(), a.height.toDouble());
     Offset center = at ?? viewCenterScene;
     final t = beginEdit('add image');
@@ -828,14 +850,18 @@ class EditorController extends ChangeNotifier {
         natural.width >= 300 &&
         natural.height >= 300 &&
         at == null) {
-      doc.canvasSize =
-          Size(math.min(natural.width, 12000), math.min(natural.height, 12000));
+      doc.canvasSize = Size(
+        math.min(natural.width, 12000),
+        math.min(natural.height, 12000),
+      );
       center = Offset(doc.canvasSize.width / 2, doc.canvasSize.height / 2);
       _fitPending = true;
     } else if (!viewport.isEmpty) {
       final visW = viewport.width / zoom, visH = viewport.height / zoom;
-      final k = math.min(1.0,
-          math.min(0.7 * visW / natural.width, 0.7 * visH / natural.height));
+      final k = math.min(
+        1.0,
+        math.min(0.7 * visW / natural.width, 0.7 * visH / natural.height),
+      );
       natural = Size(natural.width * k, natural.height * k);
     }
     final o = ImageObject(
@@ -855,15 +881,18 @@ class EditorController extends ChangeNotifier {
 
   CollectionItem addToCollection(Asset a, {String? name}) {
     final item = CollectionItem(
-        id: doc.newId('c'),
-        name: name ?? 'item ${doc.collection.length + 1}',
-        assetId: a.id);
+      id: doc.newId('c'),
+      name: name ?? 'item ${doc.collection.length + 1}',
+      assetId: a.id,
+    );
     transact('add to collection', () => doc.collection.add(item));
     return item;
   }
 
-  void removeFromCollection(String id) => transact('remove from collection',
-      () => doc.collection.removeWhere((c) => c.id == id));
+  void removeFromCollection(String id) => transact(
+    'remove from collection',
+    () => doc.collection.removeWhere((c) => c.id == id),
+  );
 
   void renameCollectionItem(String id, String name) =>
       transact('rename item', () {
@@ -886,8 +915,9 @@ class EditorController extends ChangeNotifier {
     if (imgs.isEmpty) return;
     transact('add to collection', () {
       for (final o in imgs) {
-        doc.collection.add(CollectionItem(
-            id: doc.newId('c'), name: o.name, assetId: o.assetId));
+        doc.collection.add(
+          CollectionItem(id: doc.newId('c'), name: o.name, assetId: o.assetId),
+        );
       }
     });
     showToast('Added to collection');
@@ -982,8 +1012,11 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Import image files (dropped or chosen) straight to the right place.
-  Future<void> importFiles(List<String> paths,
-      {Offset? at, bool toCollection = false}) async {
+  Future<void> importFiles(
+    List<String> paths, {
+    Offset? at,
+    bool toCollection = false,
+  }) async {
     for (final path in paths) {
       try {
         final bytes = await File(path).readAsBytes();
@@ -1018,8 +1051,10 @@ class EditorController extends ChangeNotifier {
       for (final o in objs) {
         paintObject(c, o, assets);
       }
-      final img =
-          await rec.endRecording().toImage(b.width.ceil(), b.height.ceil());
+      final img = await rec.endRecording().toImage(
+        b.width.ceil(),
+        b.height.ceil(),
+      );
       final data = await img.toByteData(format: ui.ImageByteFormat.png);
       img.dispose();
       final png = data!.buffer.asUint8List();
@@ -1066,9 +1101,11 @@ class EditorController extends ChangeNotifier {
     final png = await exportPng();
     _lastCopySig = _sig(png);
     final ok = await SystemClipboard.writeImage(png);
-    showToast(ok
-        ? 'Copied the page as an image'
-        : 'Install xclip (X11) or wl-clipboard (Wayland) to copy images');
+    showToast(
+      ok
+          ? 'Copied the page as an image'
+          : 'Install xclip (X11) or wl-clipboard (Wayland) to copy images',
+    );
   }
 
   /// Merge the selected objects into one picture. The originals are replaced
@@ -1078,7 +1115,7 @@ class EditorController extends ChangeNotifier {
     final ordered = <SceneObject>[
       for (final l in doc.layers)
         for (final o in l.objects)
-          if (chosen.contains(o.id)) o
+          if (chosen.contains(o.id)) o,
     ];
     if (ordered.isEmpty) return null;
     final b = unionRects(ordered.map((o) => o.bounds)).inflate(1);
@@ -1099,9 +1136,10 @@ class EditorController extends ChangeNotifier {
     for (final o in ordered) {
       if (o.visible) paintObject(canvas, o, assets);
     }
-    final img = await rec
-        .endRecording()
-        .toImage((b.width * scale).ceil(), (b.height * scale).ceil());
+    final img = await rec.endRecording().toImage(
+      (b.width * scale).ceil(),
+      (b.height * scale).ceil(),
+    );
     final asset = await assets.addImage(img);
     final topLayer = doc.layerOf(ordered.last.id) ?? currentLayer;
     final merged = ImageObject(
@@ -1141,8 +1179,11 @@ class EditorController extends ChangeNotifier {
 
   /// Make a new object from the part of [src] inside [scenePolygon]. The
   /// original is untouched unless a hole is requested.
-  Future<ImageObject?> cutout(ImageObject src, List<Offset> scenePolygon,
-      {bool? leaveHole}) async {
+  Future<ImageObject?> cutout(
+    ImageObject src,
+    List<Offset> scenePolygon, {
+    bool? leaveHole,
+  }) async {
     final a = assets[src.assetId];
     if (a == null) return null;
     final poly = [for (final p in scenePolygon) _toPx(src, a, p)];
@@ -1158,8 +1199,10 @@ class EditorController extends ChangeNotifier {
     final sx = src.size.width / a.width, sy = src.size.height / a.height;
     var u = res.rectPx.center.dx / a.width;
     if (src.flipX) u = 1 - u;
-    final local = Offset((u - 0.5) * src.size.width,
-        (res.rectPx.center.dy / a.height - 0.5) * src.size.height);
+    final local = Offset(
+      (u - 0.5) * src.size.width,
+      (res.rectPx.center.dy / a.height - 0.5) * src.size.height,
+    );
     final obj = ImageObject(
       id: '',
       name: '${src.name} cut',
@@ -1202,8 +1245,10 @@ class EditorController extends ChangeNotifier {
       return false;
     }
     final na = await assets.addImage(r.image);
-    transact('remove background',
-        () => (doc.objectById(o.id) as ImageObject?)?.assetId = na.id);
+    transact(
+      'remove background',
+      () => (doc.objectById(o.id) as ImageObject?)?.assetId = na.id,
+    );
     return true;
   }
 
@@ -1212,26 +1257,31 @@ class EditorController extends ChangeNotifier {
     if (a == null) return false;
     final px = _toPx(o, a, scene);
     final r = await removeColorFrom(
-        a, [(px.dx.floor(), px.dy.floor())], wandTolerance,
-        contiguous: wandContiguous);
+      a,
+      [(px.dx.floor(), px.dy.floor())],
+      wandTolerance,
+      contiguous: wandContiguous,
+    );
     if (r == null) {
       showToast('Nothing to remove there');
       return false;
     }
     final na = await assets.addImage(r.image);
-    transact('remove colour',
-        () => (doc.objectById(o.id) as ImageObject?)?.assetId = na.id);
+    transact(
+      'remove colour',
+      () => (doc.objectById(o.id) as ImageObject?)?.assetId = na.id,
+    );
     return true;
   }
 
   // ===== projects ============================================================
 
   String projectJson() => jsonEncode({
-        'format': 'thinkspace',
-        'version': 1,
-        'document': doc.toJson(),
-        'assets': assets.encode(doc.usedAssets),
-      });
+    'format': 'thinkspace',
+    'version': 1,
+    'document': doc.toJson(),
+    'assets': assets.encode(doc.usedAssets),
+  });
 
   Future<void> loadProjectJson(String s, {String? path}) async {
     final j = jsonDecode(s) as Map<String, dynamic>;
@@ -1309,52 +1359,52 @@ class EditorController extends ChangeNotifier {
   // ===== inspection ==========================================================
 
   Map<String, dynamic> stateJson() => {
-        'tool': tool.name,
-        'zoom': zoom,
-        'pan': [pan.dx, pan.dy],
-        'viewport': [viewport.width, viewport.height],
-        'canvas': {
-          'width': doc.canvasSize.width,
-          'height': doc.canvasSize.height,
-          'background': doc.background
+    'tool': tool.name,
+    'zoom': zoom,
+    'pan': [pan.dx, pan.dy],
+    'viewport': [viewport.width, viewport.height],
+    'canvas': {
+      'width': doc.canvasSize.width,
+      'height': doc.canvasSize.height,
+      'background': doc.background,
+    },
+    'grid': {'show': showGrid, 'snap': snapOn, 'size': doc.gridSize},
+    'currentLayer': currentLayerId,
+    'selection': selection,
+    'editingText': editingTextId,
+    'history': {'undo': _undo.length, 'redo': _redo.length},
+    'dirty': dirty,
+    'file': filePath,
+    'pendingPaste': pendingPaste?.name,
+    'pasteMode': pasteMode.name,
+    'layers': [
+      for (final l in doc.layers)
+        {
+          'id': l.id,
+          'name': l.name,
+          'visible': l.visible,
+          'locked': l.locked,
+          'objects': [
+            for (final o in l.objects)
+              {
+                ...o.toJson(),
+                'selected': selection.contains(o.id),
+                'bounds': [
+                  o.bounds.left,
+                  o.bounds.top,
+                  o.bounds.right,
+                  o.bounds.bottom,
+                ],
+              },
+          ],
         },
-        'grid': {'show': showGrid, 'snap': snapOn, 'size': doc.gridSize},
-        'currentLayer': currentLayerId,
-        'selection': selection,
-        'editingText': editingTextId,
-        'history': {'undo': _undo.length, 'redo': _redo.length},
-        'dirty': dirty,
-        'file': filePath,
-        'pendingPaste': pendingPaste?.name,
-        'pasteMode': pasteMode.name,
-        'layers': [
-          for (final l in doc.layers)
-            {
-              'id': l.id,
-              'name': l.name,
-              'visible': l.visible,
-              'locked': l.locked,
-              'objects': [
-                for (final o in l.objects)
-                  {
-                    ...o.toJson(),
-                    'selected': selection.contains(o.id),
-                    'bounds': [
-                      o.bounds.left,
-                      o.bounds.top,
-                      o.bounds.right,
-                      o.bounds.bottom
-                    ],
-                  }
-              ],
-            }
-        ],
-        'collection': [
-          for (final c in doc.collection)
-            {...c.toJson(), 'size': _assetSize(c.assetId)}
-        ],
-        'assets': assets.length,
-      };
+    ],
+    'collection': [
+      for (final c in doc.collection)
+        {...c.toJson(), 'size': _assetSize(c.assetId)},
+    ],
+    'assets': assets.length,
+  };
 
   List<int>? _assetSize(String id) {
     final a = assets[id];

@@ -20,7 +20,7 @@ enum _Mode {
   lasso,
   cutBox,
   gripResize,
-  textBox
+  textBox,
 }
 
 class Modifiers {
@@ -120,8 +120,10 @@ class CanvasInteractor {
     }
 
     return delta +
-        Offset(best([r.left, r.center.dx, r.right], _pageXs),
-            best([r.top, r.center.dy, r.bottom], _pageYs));
+        Offset(
+          best([r.left, r.center.dx, r.right], _pageXs),
+          best([r.top, r.center.dy, r.bottom], _pageYs),
+        );
   }
 
   // ---- hover ---------------------------------------------------------------
@@ -145,8 +147,8 @@ class CanvasInteractor {
       return g == CanvasGrip.right
           ? SystemMouseCursors.resizeLeftRight
           : g == CanvasGrip.bottom
-              ? SystemMouseCursors.resizeUpDown
-              : SystemMouseCursors.resizeUpLeftDownRight;
+          ? SystemMouseCursors.resizeUpDown
+          : SystemMouseCursors.resizeUpLeftDownRight;
     }
     if (c.objectsAt(p).isNotEmpty) return SystemMouseCursors.move;
     return SystemMouseCursors.basic;
@@ -183,7 +185,8 @@ class CanvasInteractor {
     _startScene = c.toScene(screen);
     _moved = false;
     final now = DateTime.now();
-    final isDouble = now.difference(_lastDown).inMilliseconds < 350 &&
+    final isDouble =
+        now.difference(_lastDown).inMilliseconds < 350 &&
         (screen - _lastDownScreen).distance < 6;
     _lastDown = now;
     _lastDownScreen = screen;
@@ -222,8 +225,9 @@ class CanvasInteractor {
       final obj = c.single!;
       _handle = handle;
       _startObj = obj.copyWith();
-      _token =
-          c.beginEdit(handle.kind == HandleKind.rotate ? 'rotate' : 'resize');
+      _token = c.beginEdit(
+        handle.kind == HandleKind.rotate ? 'rotate' : 'resize',
+      );
       _mode = switch (handle.kind) {
         HandleKind.rotate => _Mode.rotate,
         HandleKind.resize => _Mode.resize,
@@ -320,8 +324,9 @@ class CanvasInteractor {
   }
 
   void _downShape(Offset p, Modifiers m) {
-    _token =
-        c.beginEdit(c.tool == Tool.ellipse ? 'draw ellipse' : 'draw rectangle');
+    _token = c.beginEdit(
+      c.tool == Tool.ellipse ? 'draw ellipse' : 'draw rectangle',
+    );
     final a = _snapPoint(p, m);
     final s = ShapeObject(
       id: c.doc.newId('o'),
@@ -524,7 +529,8 @@ class CanvasInteractor {
     final start = _startObj as BoxObject;
     final live = c.doc.objectById(start.id) as BoxObject?;
     if (live == null) return;
-    var a = math.atan2(p.dy - start.center.dy, p.dx - start.center.dx) +
+    var a =
+        math.atan2(p.dy - start.center.dy, p.dx - start.center.dx) +
         math.pi / 2;
     const step = math.pi / 12;
     final nearest = (a / step).roundToDouble() * step;
@@ -612,8 +618,10 @@ class CanvasInteractor {
       w = _startCanvas.width * k;
       h = _startCanvas.height * k;
     }
-    c.doc.canvasSize =
-        Size(w.clamp(64, 12000).toDouble(), h.clamp(64, 12000).toDouble());
+    c.doc.canvasSize = Size(
+      w.clamp(64, 12000).toDouble(),
+      h.clamp(64, 12000).toDouble(),
+    );
     c.notify();
   }
 
@@ -687,7 +695,7 @@ class CanvasInteractor {
       for (final layer in c.doc.layers)
         if (layer.visible && !layer.locked)
           for (final o in layer.objects)
-            if (o.visible && !o.locked && o.bounds.overlaps(r)) o.id
+            if (o.visible && !o.locked && o.bounds.overlaps(r)) o.id,
     ];
     if (_additive) {
       c.select({...c.selection, ...ids}.toList());

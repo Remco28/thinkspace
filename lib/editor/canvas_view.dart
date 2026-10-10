@@ -20,19 +20,21 @@ class ObjectDrag {
 }
 
 Modifiers currentModifiers() => Modifiers(
-      shift: HardwareKeyboard.instance.isShiftPressed,
-      ctrl: HardwareKeyboard.instance.isControlPressed ||
-          HardwareKeyboard.instance.isMetaPressed,
-      alt: HardwareKeyboard.instance.isAltPressed,
-    );
+  shift: HardwareKeyboard.instance.isShiftPressed,
+  ctrl:
+      HardwareKeyboard.instance.isControlPressed ||
+      HardwareKeyboard.instance.isMetaPressed,
+  alt: HardwareKeyboard.instance.isAltPressed,
+);
 
 class CanvasView extends StatefulWidget {
-  const CanvasView(
-      {super.key,
-      required this.controller,
-      required this.interactor,
-      required this.spaceDown,
-      this.focusNode});
+  const CanvasView({
+    super.key,
+    required this.controller,
+    required this.interactor,
+    required this.spaceDown,
+    this.focusNode,
+  });
   final FocusNode? focusNode;
   final EditorController controller;
   final CanvasInteractor interactor;
@@ -72,74 +74,90 @@ class _CanvasViewState extends State<CanvasView> {
         builder: (context, box) {
           c.setViewport(box.biggest);
           return ClipRect(
-            child: Stack(children: [
-              Positioned.fill(
-                child: MouseRegion(
-                  cursor: _cursor,
-                  onHover: _hover,
-                  child: Listener(
-                    behavior: HitTestBehavior.opaque,
-                    onPointerDown: (e) {
-                      widget.focusNode?.requestFocus();
-                      final right = e.buttons == kSecondaryMouseButton;
-                      final pan = e.buttons == kMiddleMouseButton ||
-                          widget.spaceDown.value ||
-                          right;
-                      _rightDown = right ? e.localPosition : null;
-                      _rightMoved = false;
-                      ix.pointerDown(e.localPosition, currentModifiers(),
-                          forcePan: pan);
-                    },
-                    onPointerMove: (e) {
-                      if (_rightDown != null &&
-                          (e.localPosition - _rightDown!).distance > 4) {
-                        _rightMoved = true;
-                      }
-                      ix.pointerMove(e.localPosition, currentModifiers());
-                      final cur = ix.cursorAt(e.localPosition,
-                          spaceDown: widget.spaceDown.value);
-                      if (cur != _cursor) setState(() => _cursor = cur);
-                    },
-                    onPointerUp: (e) {
-                      ix.pointerUp(e.localPosition, currentModifiers());
-                      final rd = _rightDown;
-                      _rightDown = null;
-                      if (rd != null && !_rightMoved) {
-                        // Right-click without dragging: a menu for what's under the pointer.
-                        final hits = c.objectsAt(c.toScene(rd));
-                        if (hits.isNotEmpty &&
-                            !c.selection.contains(hits.first.id)) {
-                          c.select([hits.first.id]);
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: MouseRegion(
+                    cursor: _cursor,
+                    onHover: _hover,
+                    child: Listener(
+                      behavior: HitTestBehavior.opaque,
+                      onPointerDown: (e) {
+                        widget.focusNode?.requestFocus();
+                        final right = e.buttons == kSecondaryMouseButton;
+                        final pan =
+                            e.buttons == kMiddleMouseButton ||
+                            widget.spaceDown.value ||
+                            right;
+                        _rightDown = right ? e.localPosition : null;
+                        _rightMoved = false;
+                        ix.pointerDown(
+                          e.localPosition,
+                          currentModifiers(),
+                          forcePan: pan,
+                        );
+                      },
+                      onPointerMove: (e) {
+                        if (_rightDown != null &&
+                            (e.localPosition - _rightDown!).distance > 4) {
+                          _rightMoved = true;
                         }
-                        if (hits.isEmpty) c.clearSelection();
-                        showObjectMenu(context, c, e.position);
-                      }
-                    },
-                    onPointerCancel: (e) => ix.cancel(),
-                    onPointerSignal: (e) {
-                      if (e is PointerScrollEvent) {
-                        ix.scroll(
-                            e.localPosition, e.scrollDelta, currentModifiers());
-                      }
-                    },
-                    onPointerPanZoomUpdate: (e) {
-                      if (e.scale != 1) {
-                        c.zoomTo(c.zoom * (1 + (e.scale - 1) * 0.05),
-                            anchorScreen: e.localPosition);
-                      }
-                      c.panBy(e.panDelta);
-                    },
-                    child: CustomPaint(
-                        painter: CanvasPainter(c), size: Size.infinite),
+                        ix.pointerMove(e.localPosition, currentModifiers());
+                        final cur = ix.cursorAt(
+                          e.localPosition,
+                          spaceDown: widget.spaceDown.value,
+                        );
+                        if (cur != _cursor) setState(() => _cursor = cur);
+                      },
+                      onPointerUp: (e) {
+                        ix.pointerUp(e.localPosition, currentModifiers());
+                        final rd = _rightDown;
+                        _rightDown = null;
+                        if (rd != null && !_rightMoved) {
+                          // Right-click without dragging: a menu for what's under the pointer.
+                          final hits = c.objectsAt(c.toScene(rd));
+                          if (hits.isNotEmpty &&
+                              !c.selection.contains(hits.first.id)) {
+                            c.select([hits.first.id]);
+                          }
+                          if (hits.isEmpty) c.clearSelection();
+                          showObjectMenu(context, c, e.position);
+                        }
+                      },
+                      onPointerCancel: (e) => ix.cancel(),
+                      onPointerSignal: (e) {
+                        if (e is PointerScrollEvent) {
+                          ix.scroll(
+                            e.localPosition,
+                            e.scrollDelta,
+                            currentModifiers(),
+                          );
+                        }
+                      },
+                      onPointerPanZoomUpdate: (e) {
+                        if (e.scale != 1) {
+                          c.zoomTo(
+                            c.zoom * (1 + (e.scale - 1) * 0.05),
+                            anchorScreen: e.localPosition,
+                          );
+                        }
+                        c.panBy(e.panDelta);
+                      },
+                      child: CustomPaint(
+                        painter: CanvasPainter(c),
+                        size: Size.infinite,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              if (c.editingTextId != null)
-                _TextEditorOverlay(c: c, key: ValueKey(c.editingTextId)),
-              if (candidate.isNotEmpty)
-                IgnorePointer(
-                    child: Container(color: kAccent.withValues(alpha: 0.06))),
-            ]),
+                if (c.editingTextId != null)
+                  _TextEditorOverlay(c: c, key: ValueKey(c.editingTextId)),
+                if (candidate.isNotEmpty)
+                  IgnorePointer(
+                    child: Container(color: kAccent.withValues(alpha: 0.06)),
+                  ),
+              ],
+            ),
           );
         },
       ),

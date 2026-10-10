@@ -9,32 +9,34 @@ import '../model/scene.dart';
 
 TextPainter textPainterFor(TextObject t, {double? width}) {
   final tp = TextPainter(
-    text: TextSpan(
-      text: t.text.isEmpty ? ' ' : t.text,
-      style: textStyleFor(t),
-    ),
+    text: TextSpan(text: t.text.isEmpty ? ' ' : t.text, style: textStyleFor(t)),
     textAlign: t.align,
     textDirection: TextDirection.ltr,
   );
   tp.layout(
-      maxWidth: math.max(10, (width ?? t.size.width) - TextObject.pad * 2));
+    maxWidth: math.max(10, (width ?? t.size.width) - TextObject.pad * 2),
+  );
   return tp;
 }
 
 TextStyle textStyleFor(TextObject t) => TextStyle(
-      fontSize: t.fontSize,
-      color: Color(t.color),
-      fontWeight: t.bold ? FontWeight.w700 : FontWeight.w400,
-      fontStyle: t.italic ? FontStyle.italic : FontStyle.normal,
-      height: 1.2,
-    );
+  fontSize: t.fontSize,
+  color: Color(t.color),
+  fontWeight: t.bold ? FontWeight.w700 : FontWeight.w400,
+  fontStyle: t.italic ? FontStyle.italic : FontStyle.normal,
+  height: 1.2,
+);
 
 /// Height a text object needs at its current width.
 double measureTextHeight(TextObject t) =>
     textPainterFor(t).height + TextObject.pad * 2;
 
-void paintDocumentObjects(ui.Canvas canvas, Document doc, AssetStore assets,
-    {Set<String> hidden = const {}}) {
+void paintDocumentObjects(
+  ui.Canvas canvas,
+  Document doc,
+  AssetStore assets, {
+  Set<String> hidden = const {},
+}) {
   for (final layer in doc.layers) {
     if (!layer.visible) continue;
     for (final o in layer.objects) {
@@ -77,7 +79,10 @@ void _boxTransform(ui.Canvas canvas, BoxObject b) {
 void _paintImage(ui.Canvas canvas, ImageObject o, AssetStore assets) {
   final a = assets[o.assetId];
   final dst = Rect.fromCenter(
-      center: Offset.zero, width: o.size.width, height: o.size.height);
+    center: Offset.zero,
+    width: o.size.width,
+    height: o.size.height,
+  );
   _boxTransform(canvas, o);
   if (a == null) {
     canvas.drawRect(dst, Paint()..color = const Color(0xFFCCCCCC));
@@ -96,10 +101,15 @@ void _paintImage(ui.Canvas canvas, ImageObject o, AssetStore assets) {
 void _paintText(ui.Canvas canvas, TextObject t) {
   _boxTransform(canvas, t);
   final rect = Rect.fromCenter(
-      center: Offset.zero, width: t.size.width, height: t.size.height);
+    center: Offset.zero,
+    width: t.size.width,
+    height: t.size.height,
+  );
   if (t.background != 0) {
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(6)),
-        Paint()..color = Color(t.background));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(6)),
+      Paint()..color = Color(t.background),
+    );
   }
   final tp = textPainterFor(t);
   tp.paint(canvas, rect.topLeft + const Offset(TextObject.pad, TextObject.pad));
@@ -110,7 +120,10 @@ void _paintText(ui.Canvas canvas, TextObject t) {
 void _paintShape(ui.Canvas canvas, ShapeObject s) {
   _boxTransform(canvas, s);
   final rect = Rect.fromCenter(
-      center: Offset.zero, width: s.size.width, height: s.size.height);
+    center: Offset.zero,
+    width: s.size.width,
+    height: s.size.height,
+  );
   if (s.fill != 0) {
     final p = Paint()..color = Color(s.fill);
     s.ellipse ? canvas.drawOval(rect, p) : canvas.drawRect(rect, p);
@@ -129,7 +142,10 @@ void _paintShape(ui.Canvas canvas, ShapeObject s) {
 void _paintBadge(ui.Canvas canvas, BadgeObject b) {
   _boxTransform(canvas, b);
   final r = Rect.fromCenter(
-      center: Offset.zero, width: b.size.width, height: b.size.height);
+    center: Offset.zero,
+    width: b.size.width,
+    height: b.size.height,
+  );
   canvas.drawOval(r, Paint()..color = Color(b.color));
   canvas.drawOval(
     r.deflate(b.size.shortestSide * 0.04),
@@ -183,7 +199,12 @@ void paintLine(ui.Canvas canvas, LineObject l) {
 }
 
 void _arrowHead(
-    ui.Canvas canvas, Offset tip, Offset dir, double len, Paint paint) {
+  ui.Canvas canvas,
+  Offset tip,
+  Offset dir,
+  double len,
+  Paint paint,
+) {
   final n = Offset(-dir.dy, dir.dx);
   final base = tip - dir * len;
   final path = Path()
@@ -194,8 +215,14 @@ void _arrowHead(
   canvas.drawPath(path, paint);
 }
 
-void _dashedLine(ui.Canvas canvas, Offset a, Offset b, Paint paint, double dash,
-    double gap) {
+void _dashedLine(
+  ui.Canvas canvas,
+  Offset a,
+  Offset b,
+  Paint paint,
+  double dash,
+  double gap,
+) {
   final d = b - a;
   final len = d.distance;
   if (len == 0) return;
@@ -239,8 +266,11 @@ void _paintStroke(ui.Canvas canvas, StrokeObject s) {
 }
 
 /// Render the document as a flat image (page only, clipped to its bounds).
-Future<ui.Image> renderDocument(Document doc, AssetStore assets,
-    {double scale = 1}) {
+Future<ui.Image> renderDocument(
+  Document doc,
+  AssetStore assets, {
+  double scale = 1,
+}) {
   final recorder = ui.PictureRecorder();
   final w = doc.canvasSize.width, h = doc.canvasSize.height;
   final canvas = Canvas(recorder);
@@ -248,7 +278,9 @@ Future<ui.Image> renderDocument(Document doc, AssetStore assets,
   canvas.clipRect(Rect.fromLTWH(0, 0, w, h));
   if (doc.background != 0) {
     canvas.drawRect(
-        Rect.fromLTWH(0, 0, w, h), Paint()..color = Color(doc.background));
+      Rect.fromLTWH(0, 0, w, h),
+      Paint()..color = Color(doc.background),
+    );
   }
   paintDocumentObjects(canvas, doc, assets);
   final pic = recorder.endRecording();

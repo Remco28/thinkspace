@@ -19,14 +19,17 @@ class ThinkspaceApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(
-              seedColor: kAccent, brightness: Brightness.light),
+            seedColor: kAccent,
+            brightness: Brightness.light,
+          ),
           visualDensity: VisualDensity.compact,
           scaffoldBackgroundColor: Colors.white,
           dividerColor: const Color(0xFFD9DCE3),
           tooltipTheme: TooltipThemeData(
             decoration: BoxDecoration(
-                color: const Color(0xE6222733),
-                borderRadius: BorderRadius.circular(6)),
+              color: const Color(0xE6222733),
+              borderRadius: BorderRadius.circular(6),
+            ),
             textStyle: const TextStyle(color: Colors.white, fontSize: 12),
           ),
         ),

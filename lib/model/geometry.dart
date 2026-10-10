@@ -10,8 +10,10 @@ double distToSegment(Offset p, Offset a, Offset b) {
   final ab = b - a;
   final len2 = ab.dx * ab.dx + ab.dy * ab.dy;
   if (len2 == 0) return (p - a).distance;
-  final t =
-      (((p.dx - a.dx) * ab.dx + (p.dy - a.dy) * ab.dy) / len2).clamp(0.0, 1.0);
+  final t = (((p.dx - a.dx) * ab.dx + (p.dy - a.dy) * ab.dy) / len2).clamp(
+    0.0,
+    1.0,
+  );
   return (p - Offset(a.dx + ab.dx * t, a.dy + ab.dy * t)).distance;
 }
 
@@ -60,7 +62,7 @@ List<Offset> simplifyPolyline(List<Offset> pts, double epsilon) {
   rec(0, pts.length - 1);
   return [
     for (int i = 0; i < pts.length; i++)
-      if (keep[i]) pts[i]
+      if (keep[i]) pts[i],
   ];
 }
 

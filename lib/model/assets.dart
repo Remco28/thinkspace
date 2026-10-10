@@ -77,17 +77,20 @@ class AssetStore {
       final n = int.tryParse(id.substring(1));
       if (n != null && n >= _next) _next = n + 1;
     }
-    final (mask, mw, mh) =
-        _buildAlphaMask(raw!.buffer.asUint8List(), image.width, image.height);
+    final (mask, mw, mh) = _buildAlphaMask(
+      raw!.buffer.asUint8List(),
+      image.width,
+      image.height,
+    );
     final asset = Asset(assetId, bytes, image, mask, mw, mh);
     _assets[assetId] = asset;
     return asset;
   }
 
   Map<String, String> encode(Set<String> used) => {
-        for (final id in used)
-          if (_assets[id] != null) id: base64Encode(_assets[id]!.bytes),
-      };
+    for (final id in used)
+      if (_assets[id] != null) id: base64Encode(_assets[id]!.bytes),
+  };
 
   /// Forget everything. Images are left for the garbage collector rather than
   /// disposed, because a widget built a moment ago may still paint one.

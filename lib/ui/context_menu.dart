@@ -17,17 +17,22 @@ enum _Act {
   merge,
   paste,
   selectAll,
-  fit
+  fit,
 }
 
 /// The right-click menu: what you can do with the thing under the pointer.
 Future<void> showObjectMenu(
-    BuildContext context, EditorController c, Offset global) async {
+  BuildContext context,
+  EditorController c,
+  Offset global,
+) async {
   final sel = c.selectedObjects;
   final one = c.single;
   final others = c.doc.layers
-      .where((l) =>
-          sel.isNotEmpty && sel.any((o) => c.doc.layerOf(o.id)?.id != l.id))
+      .where(
+        (l) =>
+            sel.isNotEmpty && sel.any((o) => c.doc.layerOf(o.id)?.id != l.id),
+      )
       .toList()
       .reversed
       .toList();
@@ -46,21 +51,30 @@ Future<void> showObjectMenu(
       if (one is ImageObject) ...[
         const PopupMenuItem(value: _Act.cutout, child: Text('Cut out…')),
         const PopupMenuItem(
-            value: _Act.removeBg, child: Text('Remove background')),
+          value: _Act.removeBg,
+          child: Text('Remove background'),
+        ),
         const PopupMenuItem(
-            value: _Act.keep, child: Text('Keep in collection')),
+          value: _Act.keep,
+          child: Text('Keep in collection'),
+        ),
       ],
       PopupMenuItem(
-          value: _Act.merge,
-          child: Text(
-              sel.length > 1 ? 'Merge into one image' : 'Turn into an image')),
+        value: _Act.merge,
+        child: Text(
+          sel.length > 1 ? 'Merge into one image' : 'Turn into an image',
+        ),
+      ),
       PopupMenuItem(
-          value: _Act.lock,
-          child: Text(sel.every((o) => o.locked) ? 'Unlock' : 'Lock in place')),
+        value: _Act.lock,
+        child: Text(sel.every((o) => o.locked) ? 'Unlock' : 'Lock in place'),
+      ),
     ] else ...[
       const PopupMenuItem(value: _Act.paste, child: Text('Paste')),
       const PopupMenuItem(
-          value: _Act.selectAll, child: Text('Select everything')),
+        value: _Act.selectAll,
+        child: Text('Select everything'),
+      ),
       const PopupMenuItem(value: _Act.fit, child: Text('Fit the page in view')),
     ],
   ];
