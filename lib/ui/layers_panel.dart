@@ -37,6 +37,7 @@ IconData kindIcon(SceneObject o) => switch (o.kind) {
       ObjectKind.line =>
         o is LineObject && o.headEnd ? Icons.north_east : Icons.horizontal_rule,
       ObjectKind.stroke => Icons.draw_outlined,
+      ObjectKind.badge => Icons.looks_one_outlined,
     };
 
 class LayersPanel extends StatefulWidget {
@@ -208,6 +209,8 @@ class _LayerTile extends StatelessWidget {
         if (n != null) c.renameLayer(layer.id, n);
       case 'select':
         c.selectLayerContents(layer.id);
+      case 'duplicate':
+        c.duplicateLayer(layer.id);
       case 'lock':
         c.setLayerLocked(layer.id, !layer.locked);
       case 'delete':

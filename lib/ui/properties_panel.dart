@@ -54,6 +54,7 @@ class PropertiesPanel extends StatelessWidget {
         ObjectKind.ellipse => 'Ellipse',
         ObjectKind.line => o is LineObject && o.headEnd ? 'Arrow' : 'Line',
         ObjectKind.stroke => 'Pen stroke',
+        ObjectKind.badge => 'Marker',
       };
 
   // ---- nothing selected ---------------------------------------------------
@@ -63,7 +64,16 @@ class PropertiesPanel extends StatelessWidget {
     final d = c.doc;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (drawing) ...[
-        if (c.tool != Tool.text) ...[
+        if (c.tool == Tool.badge)
+          LabeledRow(
+              'Colour',
+              ColorRow(
+                  value: c.penColor,
+                  onChanged: (v) {
+                    c.penColor = v;
+                    c.notify();
+                  }))
+        else if (c.tool != Tool.text) ...[
           LabeledRow(
               'Colour',
               ColorRow(
@@ -338,6 +348,37 @@ class PropertiesPanel extends StatelessWidget {
           ),
         ),
       const Divider(height: 22),
+      const _Caption('Align'),
+      Wrap(spacing: 2, children: [
+        SmallIconButton(
+            icon: Icons.align_horizontal_left,
+            tooltip: objs.length > 1
+                ? 'Align left edges'
+                : 'Align to the left of the page',
+            onPressed: () => c.alignSelection('left')),
+        SmallIconButton(
+            icon: Icons.align_horizontal_center,
+            tooltip: 'Centre horizontally',
+            onPressed: () => c.alignSelection('centre')),
+        SmallIconButton(
+            icon: Icons.align_horizontal_right,
+            tooltip: 'Align right edges',
+            onPressed: () => c.alignSelection('right')),
+        const SizedBox(width: 8),
+        SmallIconButton(
+            icon: Icons.align_vertical_top,
+            tooltip: 'Align top edges',
+            onPressed: () => c.alignSelection('top')),
+        SmallIconButton(
+            icon: Icons.align_vertical_center,
+            tooltip: 'Centre vertically',
+            onPressed: () => c.alignSelection('middle')),
+        SmallIconButton(
+            icon: Icons.align_vertical_bottom,
+            tooltip: 'Align bottom edges',
+            onPressed: () => c.alignSelection('bottom')),
+      ]),
+      const SizedBox(height: 6),
       const _Caption('Arrange'),
       Wrap(spacing: 2, children: [
         SmallIconButton(
@@ -408,6 +449,31 @@ class PropertiesPanel extends StatelessWidget {
   }
 
   Widget _typeControls(BuildContext context, SceneObject o) {
+    if (o is BadgeObject) {
+      return Column(children: [
+        LabeledRow(
+          'Number',
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NumberField(
+              key: const ValueKey('badge-number'),
+              value: o.number.toDouble(),
+              width: 70,
+              onSubmitted: (v) => c.editSelected('renumber',
+                  (x) => (x as BadgeObject).number = v.round().clamp(0, 999)),
+            ),
+          ),
+        ),
+        LabeledRow(
+            'Colour',
+            ColorRow(
+                value: o.color,
+                onChanged: (v) {
+                  c.editSelected('colour', (x) => (x as BadgeObject).color = v);
+                  c.penColor = v;
+                })),
+      ]);
+    }
     if (o is LineObject) {
       return Column(children: [
         LabeledRow(

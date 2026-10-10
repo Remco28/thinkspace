@@ -185,6 +185,8 @@ class CanvasInteractor {
         _token = c.beginEdit('add text');
       case Tool.pen:
         _downPen(p);
+      case Tool.badge:
+        _downBadge(p, m);
       case Tool.cutout:
         _downCutout(p);
     }
@@ -310,6 +312,25 @@ class CanvasInteractor {
     _createId = s.id;
     _mode = _Mode.create;
     c.notify();
+  }
+
+  void _downBadge(Offset p, Modifiers m) {
+    final token = c.beginEdit('add marker');
+    final at = _snapPoint(p, m);
+    final n = c.nextBadgeNumber();
+    final b = BadgeObject(
+      id: c.doc.newId('o'),
+      name: 'marker $n',
+      number: n,
+      center: at,
+      size: const Size(44, 44),
+      color: c.penColor,
+    );
+    c.currentLayer.objects.add(b);
+    c.selection = [b.id];
+    c.endEdit(token);
+    _mode = _Mode.none;
+    // The marker stays active so several can be dropped in a row.
   }
 
   void _downPen(Offset p) {
@@ -459,7 +480,8 @@ class CanvasInteractor {
       return;
     }
 
-    final lockAspect = start is ImageObject ? !m.shift : m.shift;
+    final lockAspect =
+        start is BadgeObject || (start is ImageObject ? !m.shift : m.shift);
     if (corner && lockAspect) {
       final k = math.max(nw / w0, nh / h0);
       nw = w0 * k;

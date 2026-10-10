@@ -285,6 +285,8 @@ class _EditorShellState extends State<EditorShell> {
         c.setTool(Tool.text);
       case LogicalKeyboardKey.keyP:
         c.setTool(Tool.pen);
+      case LogicalKeyboardKey.keyN:
+        c.setTool(Tool.badge);
       case LogicalKeyboardKey.keyC:
         c.setTool(Tool.cutout);
       case LogicalKeyboardKey.keyG:
@@ -307,9 +309,6 @@ class _EditorShellState extends State<EditorShell> {
   }
 
   // ---- file operations -----------------------------------------------------
-
-  String get _fileLabel =>
-      '${c.filePath == null ? 'Untitled' : baseName(c.filePath!)}${c.dirty ? ' •' : ''}';
 
   Future<bool> _confirmDiscard() async {
     if (!c.dirty) return true;
@@ -502,7 +501,7 @@ class _EditorShellState extends State<EditorShell> {
         child: Scaffold(
           backgroundColor: kPanel,
           body: Column(children: [
-            TopBar(c: c, onMenu: _menu, fileLabel: _fileLabelListenable()),
+            TopBar(c: c, onMenu: _menu),
             Expanded(
               child: Row(children: [
                 if (collectionOpen) ...[
@@ -547,8 +546,6 @@ class _EditorShellState extends State<EditorShell> {
     );
   }
 
-  String _fileLabelListenable() => _fileLabel;
-
   Widget _canvasArea() {
     return ListenableBuilder(
       listenable: c,
@@ -591,6 +588,10 @@ class _EditorShellState extends State<EditorShell> {
               left: 0,
               right: 0,
               child: Center(child: _PasteChooser(c: c))),
+        if (c.doc.allObjects.isEmpty &&
+            c.pendingPaste == null &&
+            c.tool == Tool.select)
+          const Positioned.fill(child: IgnorePointer(child: _EmptyHint())),
         Positioned(left: 8, bottom: 8, child: _ZoomBar(c: c)),
         if (c.toastMessage != null)
           Positioned(
@@ -616,6 +617,24 @@ class _EditorShellState extends State<EditorShell> {
       ]),
     );
   }
+}
+
+/// Shown over an empty page so a first-time user knows how things get in.
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint();
+
+  @override
+  Widget build(BuildContext context) => const Center(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: 40),
+          child: Text(
+            'Paste a picture (Ctrl+V), drop a file here,\nor press A to draw an arrow',
+            textAlign: TextAlign.center,
+            style:
+                TextStyle(fontSize: 15, height: 1.5, color: Color(0xFFA0A6B5)),
+          ),
+        ),
+      );
 }
 
 class _Divider extends StatelessWidget {

@@ -15,7 +15,7 @@ import '../model/scene.dart';
 import 'image_ops.dart';
 import 'render.dart';
 
-enum Tool { select, line, arrow, rect, ellipse, text, pen, cutout }
+enum Tool { select, line, arrow, rect, ellipse, text, pen, badge, cutout }
 
 enum CutoutMode { lasso, box, wand }
 
@@ -364,7 +364,9 @@ class EditorController extends ChangeNotifier {
           if (isText && hy != 0 && hx == 0) {
             continue; // text height follows its content
           }
-          if (isText && hy == 0 && hx == 0) continue;
+          if (o is BadgeObject && (hx == 0 || hy == 0)) {
+            continue; // a marker stays round
+          }
           out.add(HandleSpot(
               HandleKind.resize, o.toScene(Offset(hx * hw, hy * hh)),
               hx: hx, hy: hy));
@@ -531,6 +533,50 @@ class EditorController extends ChangeNotifier {
     });
   }
 
+  /// A copy of the layer with copies of everything on it, just above it —
+  /// handy for trying a variation without losing the first idea.
+  void duplicateLayer(String id) {
+    final src = doc.layerById(id);
+    if (src == null) return;
+    transact('duplicate layer', () {
+      final copy = Layer(
+        id: doc.newId('l'),
+        name: '${src.name} copy',
+        visible: src.visible,
+        locked: src.locked,
+        objects: [for (final o in src.objects) o.copyWith(id: doc.newId('o'))],
+      );
+      doc.layers.insert(doc.layers.indexOf(src) + 1, copy);
+      currentLayerId = copy.id;
+      selection = [for (final o in copy.objects) o.id];
+    });
+  }
+
+  /// Line objects up. With several selected they align to each other; with
+  /// one, to the page. [how] is left, centre, right, top, middle or bottom.
+  void alignSelection(String how) {
+    final objs = selectedObjects.where((o) => !o.locked).toList();
+    if (objs.isEmpty) return;
+    final frame = objs.length > 1
+        ? unionRects(objs.map((o) => o.bounds))
+        : Offset.zero & doc.canvasSize;
+    transact('align', () {
+      for (final o in objs) {
+        final b = o.bounds;
+        final d = switch (how) {
+          'left' => Offset(frame.left - b.left, 0),
+          'right' => Offset(frame.right - b.right, 0),
+          'centre' => Offset(frame.center.dx - b.center.dx, 0),
+          'top' => Offset(0, frame.top - b.top),
+          'bottom' => Offset(0, frame.bottom - b.bottom),
+          'middle' => Offset(0, frame.center.dy - b.center.dy),
+          _ => Offset.zero,
+        };
+        o.translate(d);
+      }
+    });
+  }
+
   void setCurrentLayer(String id) {
     currentLayerId = id;
     notifyListeners();
@@ -658,6 +704,17 @@ class EditorController extends ChangeNotifier {
         }
       }
     });
+  }
+
+  // ===== badges ===============================================================
+
+  /// The next free step number, so markers placed in a row count 1, 2, 3.
+  int nextBadgeNumber() {
+    var n = 0;
+    for (final o in doc.allObjects) {
+      if (o is BadgeObject && o.number > n) n = o.number;
+    }
+    return n + 1;
   }
 
   // ===== text ================================================================

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../editor/canvas_painter.dart';
 import '../editor/controller.dart';
+import '../io/files.dart';
 import 'widgets.dart';
 
 enum MenuAction {
@@ -25,14 +26,9 @@ DateTime _lastToolTap = DateTime.fromMillisecondsSinceEpoch(0);
 Tool? _lastToolTapped;
 
 class TopBar extends StatelessWidget {
-  const TopBar(
-      {super.key,
-      required this.c,
-      required this.onMenu,
-      required this.fileLabel});
+  const TopBar({super.key, required this.c, required this.onMenu});
   final EditorController c;
   final void Function(MenuAction) onMenu;
-  final String fileLabel;
 
   static const _tools = <(Tool, IconData, String, String)>[
     (Tool.select, Icons.near_me_outlined, 'Select & move', 'V'),
@@ -42,6 +38,7 @@ class TopBar extends StatelessWidget {
     (Tool.ellipse, Icons.circle_outlined, 'Ellipse', 'E'),
     (Tool.text, Icons.title, 'Text', 'T'),
     (Tool.pen, Icons.draw_outlined, 'Pen', 'P'),
+    (Tool.badge, Icons.looks_one_outlined, 'Numbered marker', 'N'),
     (Tool.cutout, Icons.content_cut, 'Cut out', 'C'),
   ];
 
@@ -137,7 +134,8 @@ class TopBar extends StatelessWidget {
                   letterSpacing: -0.2)),
           const SizedBox(width: 10),
           Flexible(
-            child: Text(fileLabel,
+            child: Text(
+                '${c.filePath == null ? 'Untitled' : baseName(c.filePath!)}${c.dirty ? ' •' : ''}',
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 12, color: Color(0xFF6B7385))),
           ),

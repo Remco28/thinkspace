@@ -51,6 +51,13 @@ void main() {
           p2: const Offset(9, 9),
           headEnd: true,
           dashed: true),
+      BadgeObject(
+          id: d.newId('o'),
+          name: 'marker 3',
+          number: 3,
+          center: const Offset(4, 4),
+          size: const Size(44, 44),
+          color: 0xFF00AA00),
       StrokeObject(
           id: d.newId('o'),
           name: 'pen',
@@ -64,7 +71,7 @@ void main() {
     final again = Document.decode(d.encode());
     expect(again.encode(), d.encode());
     expect(again.canvasSize, const Size(800, 2400));
-    expect(again.layers.first.objects.length, 6);
+    expect(again.layers.first.objects.length, 7);
     expect(again.collection.single.assetId, 'a1');
   });
 

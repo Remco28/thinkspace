@@ -5,7 +5,7 @@ import 'dart:ui';
 import 'assets.dart';
 import 'geometry.dart';
 
-enum ObjectKind { image, text, rect, ellipse, line, stroke }
+enum ObjectKind { image, text, rect, ellipse, line, stroke, badge }
 
 Offset _off(dynamic j) =>
     Offset((j[0] as num).toDouble(), (j[1] as num).toDouble());
@@ -60,6 +60,8 @@ abstract class SceneObject {
         return LineObject.fromJson(j);
       case 'stroke':
         return StrokeObject.fromJson(j);
+      case 'badge':
+        return BadgeObject.fromJson(j);
     }
     throw FormatException('Unknown object type ${j['type']}');
   }
@@ -371,6 +373,73 @@ class ShapeObject extends BoxObject {
       stroke: j['stroke'],
       fill: j['fill'] ?? 0,
       strokeWidth: (j['strokeWidth'] as num).toDouble(),
+      opacity: (j['opacity'] as num).toDouble(),
+      visible: j['visible'] ?? true,
+      locked: j['locked'] ?? false,
+    );
+    o.readBox(j);
+    return o;
+  }
+}
+
+/// A numbered circle for pointing out steps: "1", "2", "3"…
+class BadgeObject extends BoxObject {
+  BadgeObject({
+    required super.id,
+    required super.name,
+    required this.number,
+    required super.center,
+    required super.size,
+    this.color = 0xFFE53935,
+    super.rotation,
+    super.opacity,
+    super.visible,
+    super.locked,
+  });
+
+  int number;
+  int color;
+
+  @override
+  ObjectKind get kind => ObjectKind.badge;
+
+  @override
+  bool hitTest(Offset p, double tolerance, AssetStore assets) {
+    final l = toLocal(p);
+    final rx = size.width / 2 + tolerance, ry = size.height / 2 + tolerance;
+    final x = l.dx / rx, y = l.dy / ry;
+    return x * x + y * y <= 1;
+  }
+
+  @override
+  BadgeObject copyWith({String? id, String? name}) => BadgeObject(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        number: number,
+        center: center,
+        size: size,
+        color: color,
+        rotation: rotation,
+        opacity: opacity,
+        visible: visible,
+        locked: locked,
+      );
+
+  @override
+  Map<String, dynamic> toJson() => {
+        ...boxJson('badge'),
+        'number': number,
+        'color': color,
+      };
+
+  factory BadgeObject.fromJson(Map<String, dynamic> j) {
+    final o = BadgeObject(
+      id: j['id'],
+      name: j['name'],
+      number: j['number'],
+      center: Offset.zero,
+      size: Size.zero,
+      color: j['color'],
       opacity: (j['opacity'] as num).toDouble(),
       visible: j['visible'] ?? true,
       locked: j['locked'] ?? false,

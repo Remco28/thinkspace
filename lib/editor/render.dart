@@ -58,6 +58,8 @@ void paintObject(ui.Canvas canvas, SceneObject o, AssetStore assets) {
     _paintText(canvas, o);
   } else if (o is ShapeObject) {
     _paintShape(canvas, o);
+  } else if (o is BadgeObject) {
+    _paintBadge(canvas, o);
   } else if (o is LineObject) {
     paintLine(canvas, o);
   } else if (o is StrokeObject) {
@@ -121,6 +123,35 @@ void _paintShape(ui.Canvas canvas, ShapeObject s) {
       ..strokeJoin = StrokeJoin.round;
     s.ellipse ? canvas.drawOval(rect, p) : canvas.drawRect(rect, p);
   }
+  canvas.restore();
+}
+
+void _paintBadge(ui.Canvas canvas, BadgeObject b) {
+  _boxTransform(canvas, b);
+  final r = Rect.fromCenter(
+      center: Offset.zero, width: b.size.width, height: b.size.height);
+  canvas.drawOval(r, Paint()..color = Color(b.color));
+  canvas.drawOval(
+    r.deflate(b.size.shortestSide * 0.04),
+    Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = b.size.shortestSide * 0.06,
+  );
+  final tp = TextPainter(
+    text: TextSpan(
+      text: '${b.number}',
+      style: TextStyle(
+        fontSize: b.size.shortestSide * (b.number > 9 ? 0.46 : 0.58),
+        fontWeight: FontWeight.w800,
+        color: const Color(0xFFFFFFFF),
+        height: 1,
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+  tp.dispose();
   canvas.restore();
 }
 

@@ -672,6 +672,76 @@ void main() {
     });
   });
 
+  group('markers, alignment, layer copies', () {
+    test('numbered markers count up as they are placed', () {
+      c.setTool(Tool.badge);
+      click(ix, const Offset(100, 100));
+      click(ix, const Offset(200, 100));
+      click(ix, const Offset(300, 100));
+      final badges = c.doc.allObjects.whereType<BadgeObject>().toList();
+      expect(badges.map((b) => b.number), [1, 2, 3]);
+      expect(c.tool, Tool.badge, reason: 'stays active for the next number');
+      expect(c.undoDepth, 3);
+      // Deleting 2 and placing again takes the next free number, not a repeat.
+      c.select([badges[1].id]);
+      c.deleteSelection();
+      c.setTool(Tool.badge);
+      click(ix, const Offset(400, 100));
+      expect(c.doc.allObjects.whereType<BadgeObject>().last.number, 4);
+    });
+
+    test('a marker is round to the touch and resizes as a circle', () {
+      c.setTool(Tool.badge);
+      click(ix, const Offset(300, 300));
+      final b = c.single as BadgeObject;
+      expect(b.hitTest(const Offset(320, 320), 0, c.assets), isFalse,
+          reason: 'the corner of its box is empty');
+      expect(b.hitTest(const Offset(300, 300), 0, c.assets), isTrue);
+      c.setTool(Tool.select);
+      final h = c.handlesFor(b);
+      expect(h.where((x) => x.kind == HandleKind.resize).length, 4,
+          reason: 'corners only');
+      drag(ix, const Offset(322, 322), const Offset(372, 340));
+      expect(b.size.width, closeTo(b.size.height, 1e-6));
+      expect(b.size.width, greaterThan(60));
+    });
+
+    test('align to each other, or to the page when alone', () async {
+      final a = await addImage(at: const Offset(100, 200), w: 100, h: 50);
+      final b = await addImage(at: const Offset(400, 500), w: 200, h: 80);
+      c.select([a.id, b.id]);
+      c.alignSelection('left');
+      expect(a.bounds.left, closeTo(b.bounds.left, 1e-9));
+      expect(a.bounds.left, closeTo(50, 1e-9),
+          reason: 'the leftmost edge of the pair');
+      c.alignSelection('middle');
+      expect(a.center.dy, closeTo(b.center.dy, 1e-9));
+      c.select([b.id]);
+      c.alignSelection('centre');
+      expect(b.center.dx, closeTo(800, 1e-9),
+          reason: 'centre of a 1600 wide page');
+      c.alignSelection('bottom');
+      expect(b.bounds.bottom, closeTo(1000, 1e-9));
+    });
+
+    test('a duplicated layer holds independent copies', () async {
+      final a = await addImage(at: const Offset(100, 100), w: 50, h: 50);
+      a.opacity = 0.4;
+      c.duplicateLayer(c.doc.layers.first.id);
+      expect(c.doc.layers.length, 2);
+      expect(c.doc.layers[1].name, 'Layer 1 copy');
+      final copy = c.doc.layers[1].objects.single as ImageObject;
+      expect(copy.id, isNot(a.id));
+      expect(copy.opacity, 0.4);
+      expect(copy.assetId, a.assetId);
+      copy.translate(const Offset(300, 0));
+      expect(a.center, const Offset(100, 100));
+      expect(c.selection, [copy.id]);
+      c.undo();
+      expect(c.doc.layers.length, 1);
+    });
+  });
+
   group('large images', () {
     test('big images keep a coarse alpha mask that still finds thin parts',
         () async {
