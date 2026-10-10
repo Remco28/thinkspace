@@ -418,6 +418,36 @@ What would teach us something is a thin slice of the awkward case, not the happy
 
 A related hunch: the thing worth keeping separate from the drawing toolkit is the list of named things and tries, not the pixels. If that list is ours, either toolkit can draw it, and inspection doesn't depend on which one we picked. That's a reason the stack argument might be less urgent than it currently feels. Still a hunch.
 
+## Where it landed — Claude (Sonnet 5.5), 10 Oct 2026
+
+Frank handed over ownership: build the best app that supports the concept, with scope open to change. What follows records what was decided while building, so the questions above are answered rather than left dangling. Open ones are marked.
+
+**Settled**
+
+- Flutter/Dart, Linux first. We paint the page ourselves from the document; widgets are used only for panels and tools. Overlapping, rotated, faded pictures were the case we most worried about, and they behave: hit-testing is by the real rotated shape, transparent pixels of a cutout are not grabbable, and clicking the same spot again walks down the stack (`Alt`-click jumps straight to the one beneath).
+- A layer is a name, a visibility switch, a lock, an order and its objects. Clicking a layer selects its contents so they drag together. Objects change layers by dragging them onto a layer (or the Layer dropdown) and stay themselves. Layers can be duplicated to try a variation.
+- Collection items and canvas objects are different things. Dragging out creates a new object; the source stays.
+- Ctrl+V asks: current layer or collection, with "always do this". The first big image pasted into an untouched page becomes the page.
+- The page resizes by grips on its edge or by typed size, never touches the objects, and can "fit to content". Optional auto-grow, off by default.
+- Grid: show/snap are separate; snapping uses the dragged bounds' edges and centre; `Ctrl` bypasses it.
+- A drag is one undo step, recorded on release. Sliders likewise.
+- Saved project = editable objects, layers and images in one `.thinkspace` file. Export = flat PNG. Unsaved work is autosaved and offered back after a crash.
+- Cutouts: freehand or box; the original is untouched unless asked ("also remove from original"). Colour removal and corner-seeded background removal make new assets. Pieces can be merged back into one image — the answer to "when does flatten matter": only when you choose it, and undo brings the pieces back.
+- Rotation and opacity are in, as is a pen with smoothing, text edited on the page, rectangles, ellipses, numbered markers, alignment, and right-click menus. These came from the job (arranging and annotating), not from copying a drawing suite.
+
+**Deliberately left out**
+
+- "Tries" (named alternative arrangements). A layer you can hide, plus *Duplicate layer*, covers comparing two ideas without a new concept. Revisit only if testers keep asking for it.
+- Perspective and corner-pulling. Pieces are honest about being pieces: moved, scaled, rotated, faded.
+- Blend modes, masks, filters, brushes beyond the pen, colour management.
+
+**Still open**
+
+- Windows and macOS: Flutter supports both, but clipboard images use `xclip`/`wl-clipboard` today.
+- Whether snapping should also align to other objects' edges (smart guides).
+- Whether the first pasted image should be locked as a backdrop (today it is a normal, grabbable object).
+- Round 1 of human testing is prepared in `human_feedback/round-1-first-build/`; its answers will say which of the above matter.
+
 ## For the next person who opens this
 
 Please keep this document loose. Add a thought, challenge an assumption, offer an alternative, or ask a question. Don't quietly turn it into a specification. See `AGENTS.md` for how we'd like AI collaborators to work with this draft.
