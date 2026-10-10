@@ -25,9 +25,21 @@ class PropertiesPanel extends StatelessWidget {
         return Column(children: [
           PanelHeader(title),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-              child: objs.isEmpty ? _page(context) : _selection(context, objs),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                outlinedButtonTheme: OutlinedButtonThemeData(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    textStyle: const TextStyle(fontSize: 12.5),
+                  ),
+                ),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                child:
+                    objs.isEmpty ? _page(context) : _selection(context, objs),
+              ),
             ),
           ),
         ]);
@@ -254,7 +266,7 @@ class PropertiesPanel extends StatelessWidget {
             ),
           ),
           SizedBox(
-              width: 38,
+              width: 46,
               child: Text('${(first.opacity * 100).round()}%',
                   style: const TextStyle(fontSize: 12))),
         ]),
