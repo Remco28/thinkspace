@@ -145,7 +145,7 @@ Future<ColorRemoval?> removeColorFrom(
     contiguous: contiguous,
   );
   // Same rule as the gap fill: a big photo goes to another isolate.
-  final res = w * h > 1500000
+  final res = w * h > 400000
       ? await compute(_removeColor, job)
       : _removeColor(job);
   if (res.removed == 0) return null;
@@ -240,7 +240,7 @@ Future<ColorRemoval?> removeBackground(
     limit: tolerance * 441.67,
     inside: inside,
   );
-  final res = w * h > 1500000 ? await compute(_removeBg, job) : _removeBg(job);
+  final res = w * h > 400000 ? await compute(_removeBg, job) : _removeBg(job);
   if (res.removed == 0) return null;
   return ColorRemoval(await imageFromRgba(res.px, w, h), res.removed);
 }
@@ -477,9 +477,9 @@ Future<Image> _fillHole(Asset src, Path path, HoleFill fill, int color) async {
     colour: fill == HoleFill.color,
     rgb: color,
   );
-  // Screenshots are quick; a big photo would freeze the window, so the pixel
-  // work moves to another isolate once the picture is large.
-  final px = w * h > 1500000
+  // Small pictures are quick; anything bigger would hitch the window, so the
+  // pixel work moves to another isolate.
+  final px = w * h > 400000
       ? await compute(_fillPixels, job)
       : _fillPixels(job);
   return imageFromRgba(px, w, h);

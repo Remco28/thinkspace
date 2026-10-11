@@ -415,7 +415,7 @@ class PropertiesPanel extends StatelessWidget {
           _typeControls(context, one)
         else if (sameKind)
           _typeControlsMulti(context, objs),
-        if (objs.length > 1)
+        if (c.mergeable.length > 1)
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: OutlinedButton.icon(

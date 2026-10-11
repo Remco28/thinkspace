@@ -2103,4 +2103,62 @@ void main() {
       },
     );
   });
+
+  group('round seven', () {
+    test('placing from the shelf leaves the page object, not the shelf item, '
+        'as the thing the keys act on', () async {
+      final item = c.addToCollection(await makeAsset(c, w: 40, h: 40));
+      c.selectCollectionItem(item.id);
+      final placed = c.placeCollectionItem(item.id)!;
+      expect(c.selection, [placed.id]);
+      expect(c.selectedCollectionId, isNull);
+      c.deleteSelection();
+      expect(c.doc.collection.length, 1, reason: 'the shelf item is safe');
+      expect(c.doc.allObjects, isEmpty);
+    });
+
+    test(
+      'drawing something, or selecting a layer, also lets go of the shelf',
+      () async {
+        final item = c.addToCollection(await makeAsset(c, w: 40, h: 40));
+        c.selectCollectionItem(item.id);
+        c.setTool(Tool.rect);
+        drag(ix, const Offset(100, 100), const Offset(200, 160));
+        expect(c.selectedCollectionId, isNull);
+        c.selectCollectionItem(item.id);
+        c.selectLayerContents(c.doc.layers.first.id);
+        expect(c.selectedCollectionId, isNull);
+      },
+    );
+
+    test('colour removal over a dark page shows the page, like background '
+        'removal', () async {
+      final a = await makeAsset(
+        c,
+        w: 40,
+        h: 40,
+        color: 0xFFFFFFFF,
+        centerColor: 0xFFCC0000,
+      );
+      final r = (await removeColorFrom(a, [(1, 1)], 0.1))!;
+      final rec = PictureRecorder();
+      final canvas = Canvas(rec);
+      canvas.drawRect(
+        const Rect.fromLTWH(0, 0, 40, 40),
+        Paint()..color = const Color(0xFF222222),
+      );
+      canvas.drawImage(r.image, Offset.zero, Paint());
+      final px = (await (await rec.endRecording().toImage(
+        40,
+        40,
+      )).toByteData())!.buffer.asUint8List();
+      expect(px.sublist(0, 3), [0x22, 0x22, 0x22]);
+    });
+
+    test('removing a shelf item that is gone does nothing', () async {
+      final item = c.addToCollection(await makeAsset(c, w: 10, h: 10));
+      c.removeFromCollection('nope');
+      expect(c.doc.collection.single.id, item.id);
+    });
+  });
 }

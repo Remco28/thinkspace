@@ -86,7 +86,16 @@ class EditorController extends ChangeNotifier {
   final AssetStore assets = AssetStore();
 
   // --- selection & tools -------------------------------------------------
-  List<String> selection = [];
+  List<String> _selection = [];
+  List<String> get selection => _selection;
+
+  /// Whatever sets the selection, the collection shelf lets go when something
+  /// on the page is picked: the keys never act on two things at once.
+  set selection(List<String> ids) {
+    _selection = ids;
+    if (ids.isNotEmpty) _collectionSel = null;
+  }
+
   late String currentLayerId;
   Tool tool = Tool.select;
   bool toolLocked = false;
@@ -352,7 +361,7 @@ class EditorController extends ChangeNotifier {
       finishTextEdit();
     }
     selection = ids;
-    if (ids.isNotEmpty) _collectionSel = null;
+    _listSel = null;
     if (ids.length == 1) {
       final l = doc.layerOf(ids.first);
       if (l != null) currentLayerId = l.id;
@@ -1053,6 +1062,7 @@ class EditorController extends ChangeNotifier {
 
   void removeFromCollection(String id) {
     final i = doc.collection.indexWhere((c) => c.id == id);
+    if (i < 0) return;
     transact(
       'remove from collection',
       () => doc.collection.removeWhere((c) => c.id == id),
@@ -1062,6 +1072,7 @@ class EditorController extends ChangeNotifier {
       _collectionSel = doc.collection.isEmpty
           ? null
           : doc.collection[i.clamp(0, doc.collection.length - 1)].id;
+      notifyListeners();
     }
   }
 
@@ -1123,6 +1134,7 @@ class EditorController extends ChangeNotifier {
   void beginCollectionRename([String? id]) {
     final target = id ?? selectedCollectionId;
     if (target == null) return;
+    if (editingTextId != null) finishTextEdit();
     _collectionSel = target;
     selection = [];
     renamingCollectionId = target;

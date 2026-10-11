@@ -47,8 +47,6 @@ sudo apt install xclip wl-clipboard
 5. Add a layer (`+` in the Layers panel), drag the second picture onto it from the object list, and click the eye to flip between the two.
 6. `Ctrl+E` exports a PNG. `Ctrl+Shift+C` copies the page so you can paste it into chat or email.
 
-The menu (☰) has **Open the storefront sample**, a small scene with two overlapping awnings, a note and an arrow, if you would like something to poke at.
-
 ## Keyboard
 
 | Key | Does |

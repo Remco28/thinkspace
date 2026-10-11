@@ -10,7 +10,6 @@ import '../editor/controller.dart';
 import '../editor/image_ops.dart' show HoleFill;
 import '../editor/interactor.dart';
 import '../io/files.dart';
-import '../io/samples.dart';
 import '../model/scene.dart';
 import 'collection_panel.dart';
 import 'layers_panel.dart';
@@ -489,10 +488,6 @@ class _EditorShellState extends State<EditorShell> {
         _saveAs();
       case MenuAction.importImage:
         _importImages();
-      case MenuAction.sample:
-        _confirmDiscard().then((ok) {
-          if (ok) loadStorefrontSample(c);
-        });
       case MenuAction.exportPng:
         _export(1);
       case MenuAction.exportPng2x:
