@@ -57,7 +57,8 @@ void paintObject(ui.Canvas canvas, SceneObject o, AssetStore assets) {
   // already there, so writing underneath stays dark.
   final multiply =
       (o is StrokeObject && o.highlight == HighlightStyle.multiply) ||
-      (o is ShapeObject && o.highlight == HighlightStyle.multiply);
+      (o is ShapeObject && o.highlight == HighlightStyle.multiply) ||
+      (o is ImageObject && o.multiply);
   final grouped = o.opacity < 0.999 || multiply;
   if (grouped) {
     canvas.saveLayer(

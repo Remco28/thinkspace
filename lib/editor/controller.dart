@@ -1520,6 +1520,14 @@ class EditorController extends ChangeNotifier {
         size: b.size,
         parts: [for (final o in ordered) o.toJson()],
       ),
+      // Marks made with the highlighter multiply onto the page. Merged into a
+      // picture they would turn into solid colour and hide what they were
+      // marking, so a merge of nothing but such marks multiplies as one.
+      multiply: ordered.every(
+        (o) =>
+            (o is StrokeObject && o.highlight == HighlightStyle.multiply) ||
+            (o is ShapeObject && o.highlight == HighlightStyle.multiply),
+      ),
     );
     transact('merge into one image', () {
       for (final l in doc.layers) {
@@ -1694,6 +1702,7 @@ class EditorController extends ChangeNotifier {
       rotation: src.rotation,
       flipX: src.flipX,
       opacity: src.opacity,
+      multiply: src.multiply,
     );
     transact('cut out', () {
       final layer = doc.layerOf(src.id) ?? currentLayer;
@@ -1706,6 +1715,7 @@ class EditorController extends ChangeNotifier {
         rotation: obj.rotation,
         flipX: obj.flipX,
         opacity: obj.opacity,
+        multiply: obj.multiply,
       );
       final idx = layer.objects.indexWhere((o) => o.id == src.id);
       layer.objects.insert(idx < 0 ? layer.objects.length : idx + 1, placed);

@@ -208,9 +208,15 @@ class ImageObject extends BoxObject {
     super.visible,
     super.locked,
     this.merged,
+    this.multiply = false,
   });
 
   String assetId;
+
+  /// Drawn multiplied onto what is under it instead of laid over it. Set on
+  /// a picture made by merging highlighter marks, so the merged highlights
+  /// stay see-through and keep writing readable, as the marks were.
+  bool multiply;
 
   /// Set on a picture made by merging; see [canUnmerge].
   MergeRecord? merged;
@@ -264,6 +270,7 @@ class ImageObject extends BoxObject {
     visible: visible,
     locked: locked,
     merged: merged,
+    multiply: multiply,
   );
 
   @override
@@ -271,6 +278,7 @@ class ImageObject extends BoxObject {
     ...boxJson('image'),
     'asset': assetId,
     if (canUnmerge) 'merged': merged!.toJson(),
+    if (multiply) 'multiply': true,
   };
 
   factory ImageObject.fromJson(Map<String, dynamic> j) {
@@ -283,6 +291,7 @@ class ImageObject extends BoxObject {
       opacity: ((j['opacity'] ?? 1) as num).toDouble(),
       visible: j['visible'] ?? true,
       locked: j['locked'] ?? false,
+      multiply: j['multiply'] == true,
     );
     o.readBox(j);
     // The merge record is a convenience: a damaged one must not stop the

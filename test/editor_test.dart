@@ -2481,4 +2481,113 @@ void main() {
       },
     );
   });
+
+  group('merged highlights', () {
+    ShapeObject mark(
+      String id,
+      double x, {
+      HighlightStyle h = HighlightStyle.multiply,
+    }) => ShapeObject(
+      id: id,
+      name: id,
+      ellipse: false,
+      center: Offset(x, 20),
+      size: const Size(40, 20),
+      stroke: 0xFFFFF200,
+      fill: 0xFFFFF200,
+      strokeWidth: 0,
+      highlight: h,
+    );
+
+    test('merging only highlights keeps them see-through', () async {
+      c.doc.layers.first.objects.addAll([mark('a', 40), mark('b', 70)]);
+      c.select(['a', 'b']);
+      final m = (await c.flattenSelection())!;
+      expect(m.multiply, isTrue);
+      // Over black writing on white, the merged picture still tints white
+      // yellow and leaves the black alone.
+      c.doc.canvasSize = const Size(120, 40);
+      c.doc.background = 0xFFFFFFFF;
+      c.doc.layers.first.objects.insert(
+        0,
+        ShapeObject(
+          id: 'ink',
+          name: 'ink',
+          ellipse: false,
+          center: const Offset(55, 20),
+          size: const Size(12, 12),
+          stroke: 0xFF000000,
+          fill: 0xFF000000,
+          strokeWidth: 0,
+        ),
+      );
+      final img = await renderDocument(c.doc, c.assets);
+      final px = (await img.toByteData())!.buffer.asUint8List();
+      int at(int x, int y) => (y * 120 + x) * 4;
+      expect(px.sublist(at(55, 20), at(55, 20) + 3), [
+        0,
+        0,
+        0,
+      ], reason: 'the writing stays dark');
+      expect(px.sublist(at(45, 20), at(45, 20) + 3), [
+        255,
+        242,
+        0,
+      ], reason: 'the page takes the colour');
+      expect(px.sublist(at(5, 5), at(5, 5) + 3), [
+        255,
+        255,
+        255,
+      ], reason: 'outside the marks nothing changes');
+    });
+
+    test(
+      'merging highlights with other things is an ordinary picture',
+      () async {
+        c.doc.layers.first.objects.addAll([
+          mark('a', 40),
+          ShapeObject(
+            id: 'box',
+            name: 'box',
+            ellipse: false,
+            center: const Offset(80, 20),
+            size: const Size(20, 20),
+            fill: 0xFF3366FF,
+          ),
+        ]);
+        c.select(['a', 'box']);
+        expect((await c.flattenSelection())!.multiply, isFalse);
+      },
+    );
+
+    test(
+      'plain highlights merge into an ordinary see-through picture',
+      () async {
+        c.doc.layers.first.objects.addAll([
+          mark('a', 40, h: HighlightStyle.plain)..opacity = 0.45,
+          mark('b', 70, h: HighlightStyle.plain)..opacity = 0.45,
+        ]);
+        c.select(['a', 'b']);
+        expect((await c.flattenSelection())!.multiply, isFalse);
+      },
+    );
+
+    test('the flag survives saving, copying and unmerging', () async {
+      c.doc.layers.first.objects.addAll([mark('a', 40), mark('b', 70)]);
+      c.select(['a', 'b']);
+      final m = (await c.flattenSelection())!;
+      expect(m.copyWith().multiply, isTrue);
+      final c2 = newEditor();
+      await c2.loadProjectJson(c.projectJson());
+      expect((c2.doc.allObjects.single as ImageObject).multiply, isTrue);
+      c.unmerge();
+      expect(c.doc.allObjects.length, 2);
+      expect(
+        c.doc.allObjects.every(
+          (o) => (o as ShapeObject).highlight == HighlightStyle.multiply,
+        ),
+        isTrue,
+      );
+    });
+  });
 }
