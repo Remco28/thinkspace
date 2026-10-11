@@ -41,7 +41,7 @@ IconData kindIcon(SceneObject o) => switch (o.kind) {
   ObjectKind.ellipse => Icons.circle_outlined,
   ObjectKind.line =>
     o is LineObject && o.headEnd ? Icons.north_east : Icons.horizontal_rule,
-  ObjectKind.stroke => Icons.draw_outlined,
+  ObjectKind.stroke => Icons.edit_outlined,
   ObjectKind.badge => Icons.looks_one_outlined,
 };
 

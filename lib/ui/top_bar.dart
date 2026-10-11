@@ -35,12 +35,12 @@ class TopBar extends StatelessWidget {
 
   static const _tools = <(Tool, IconData, String, String)>[
     (Tool.select, Icons.near_me_outlined, 'Select & move', 'V'),
-    (Tool.line, Icons.show_chart, 'Straight line', 'L'),
+    (Tool.line, Icons.horizontal_rule, 'Straight line', 'L'),
     (Tool.arrow, Icons.north_east, 'Arrow', 'A'),
     (Tool.rect, Icons.crop_square, 'Rectangle', 'R'),
     (Tool.ellipse, Icons.circle_outlined, 'Ellipse', 'E'),
     (Tool.text, Icons.title, 'Text', 'T'),
-    (Tool.pen, Icons.draw_outlined, 'Pen', 'P'),
+    (Tool.pen, Icons.edit_outlined, 'Pen', 'P'),
     (Tool.badge, Icons.looks_one_outlined, 'Numbered marker', 'N'),
     (Tool.cutout, Icons.content_cut, 'Cut out', 'C'),
   ];
@@ -198,6 +198,7 @@ class TopBar extends StatelessWidget {
                   SmallIconButton(
                     key: ValueKey('tool-${t.$1.name}'),
                     icon: t.$2,
+                    glyph: t.$1 == Tool.line ? LineGlyph.new : null,
                     tooltip:
                         '${t.$3}  (${t.$4})${t.$1 == Tool.select ? '' : ' — double-click to keep it active'}',
                     active: c.tool == t.$1,

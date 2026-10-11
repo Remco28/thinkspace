@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thinkspace/editor/controller.dart';
+import 'package:thinkspace/editor/image_ops.dart' show HoleFill;
 import 'package:thinkspace/io/samples.dart';
 import 'package:thinkspace/model/scene.dart';
 import 'package:thinkspace/ui/shell.dart';
@@ -637,6 +638,70 @@ void main() {
     expect(find.text('Save as…'), findsOneWidget);
     expect(find.text('WHEN I PASTE AN IMAGE'), findsOneWidget);
     expect(find.text('Keyboard shortcuts'), findsOneWidget);
+  });
+
+  appTest('cut out opens a card that asks its questions in order', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    const card = ValueKey('cutout-card');
+    expect(find.byKey(card), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('tool-cutout')));
+    await tester.pump();
+    expect(find.byKey(card), findsOneWidget);
+    // Cut or copy first; the gap question only exists once it is a cut.
+    expect(find.byKey(const ValueKey('cut-copy')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cut-fill-empty')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('cut-cut')));
+    await tester.pump();
+    expect(c.cutoutLeavesHole, isTrue);
+    expect(find.byKey(const ValueKey('cut-fill-empty')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('cut-fill-colour')));
+    await tester.pump();
+    expect(c.cutoutFill, HoleFill.color);
+    // "Blend in" is gone.
+    expect(find.text('Blend in'), findsNothing);
+    // Picking a colour replaces those questions with the colour ones.
+    await tester.tap(find.byKey(const ValueKey('cut-mode-wand')));
+    await tester.pump();
+    expect(c.cutoutMode, CutoutMode.wand);
+    expect(find.byKey(const ValueKey('cut-copy')), findsNothing);
+    expect(find.byKey(const ValueKey('cut-match')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('cut-mode-box')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('cut-start')));
+    await tester.pump();
+    expect(find.byKey(card), findsNothing);
+    expect(find.byKey(const ValueKey('cutout-bar')), findsOneWidget);
+    // Options can be brought back; Esc leaves the tool.
+    await tester.tap(find.byKey(const ValueKey('cutout-options')));
+    await tester.pump();
+    expect(find.byKey(card), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(c.tool, Tool.select);
+    expect(find.byKey(card), findsNothing);
+  });
+
+  appTest('Enter starts cutting, and so does starting to draw', (tester) async {
+    final c = await pumpApp(tester);
+    c.setTool(Tool.cutout);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(c.cutoutOptionsOpen, isFalse);
+    c.setTool(Tool.select);
+    c.setTool(Tool.cutout);
+    await tester.pump();
+    expect(c.cutoutOptionsOpen, isTrue);
+    final r = canvasRect(tester);
+    final g = await tester.startGesture(
+      r.topLeft + const Offset(40, 40),
+      kind: PointerDeviceKind.mouse,
+    );
+    await g.up();
+    await tester.pump();
+    expect(c.cutoutOptionsOpen, isFalse);
   });
 
   appTest(

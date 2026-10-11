@@ -100,6 +100,9 @@ class EditorController extends ChangeNotifier {
   Tool tool = Tool.select;
   bool toolLocked = false;
   CutoutMode cutoutMode = CutoutMode.lasso;
+
+  /// The options card for the cut-out tool is showing.
+  bool cutoutOptionsOpen = false;
   bool cutoutLeavesHole = false;
 
   /// What to put where a cut-out piece came from (when it leaves a hole).
@@ -478,6 +481,9 @@ class EditorController extends ChangeNotifier {
 
   void setTool(Tool t, {bool lock = false}) {
     finishTextEdit();
+    // Choosing the cut-out tool opens its options first, so the choices
+    // (what shape, cut or copy, what to leave behind) are made before drawing.
+    if (t == Tool.cutout && tool != Tool.cutout) cutoutOptionsOpen = true;
     tool = t;
     toolLocked = lock && t != Tool.select;
     lasso = null;

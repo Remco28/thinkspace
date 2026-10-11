@@ -9,12 +9,12 @@ import '../dev/inspector.dart';
 import '../editor/canvas_view.dart';
 import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/controller.dart';
-import '../editor/image_ops.dart' show HoleFill;
 import '../editor/interactor.dart';
 import '../io/files.dart';
 import '../io/prefs.dart';
 import '../model/scene.dart';
 import 'collection_panel.dart';
+import 'cutout_card.dart';
 import 'kit.dart' show kMuted;
 import 'layers_panel.dart';
 import 'properties_panel.dart';
@@ -229,6 +229,14 @@ class _EditorShellState extends State<EditorShell> {
     final hw = HardwareKeyboard.instance;
     final ctrl = hw.isControlPressed || hw.isMetaPressed;
     final shift = hw.isShiftPressed;
+
+    if (c.tool == Tool.cutout && c.cutoutOptionsOpen) {
+      if (k == LogicalKeyboardKey.enter) {
+        c.cutoutOptionsOpen = false;
+        c.notify();
+        return KeyEventResult.handled;
+      }
+    }
 
     if (c.pendingPaste != null) {
       if (k == LogicalKeyboardKey.enter) {
@@ -689,15 +697,19 @@ class _EditorShellState extends State<EditorShell> {
               ),
             ),
           ),
-          if (c.tool == Tool.cutout)
+          if (c.tool == Tool.cutout && !c.cutoutOptionsOpen)
             Positioned(
               top: 8,
               left: 52,
               right: 8,
               child: Align(
                 alignment: Alignment.topCenter,
-                child: _CutoutBar(c: c),
+                child: CutoutPill(c: c),
               ),
+            ),
+          if (c.tool == Tool.cutout && c.cutoutOptionsOpen)
+            Positioned.fill(
+              child: Center(child: CutoutCard(c: c)),
             ),
           if (c.bgSessionObject != null && c.tool == Tool.select)
             Positioned(
@@ -1142,127 +1154,4 @@ class _BackgroundBar extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _CutoutBar extends StatelessWidget {
-  const _CutoutBar({required this.c});
-  final EditorController c;
-
-  @override
-  Widget build(BuildContext context) {
-    final sel = c.single;
-    return Material(
-      key: const ValueKey('cutout-bar'),
-      elevation: 3,
-      borderRadius: BorderRadius.circular(10),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            const Icon(Icons.content_cut, size: 16, color: Color(0xFFFF6D00)),
-            SegmentedButton<CutoutMode>(
-              showSelectedIcon: false,
-              style: const ButtonStyle(visualDensity: VisualDensity.compact),
-              segments: const [
-                ButtonSegment(value: CutoutMode.lasso, label: Text('Freehand')),
-                ButtonSegment(value: CutoutMode.box, label: Text('Box')),
-                ButtonSegment(
-                  value: CutoutMode.wand,
-                  label: Text('Remove colour'),
-                ),
-              ],
-              selected: {c.cutoutMode},
-              onSelectionChanged: (s) {
-                c.cutoutMode = s.first;
-                c.notify();
-              },
-            ),
-            if (c.cutoutMode == CutoutMode.wand) ...[
-              const Text('Match', style: TextStyle(fontSize: 12)),
-              SizedBox(
-                width: 120,
-                child: Slider(
-                  value: c.wandTolerance,
-                  min: 0.02,
-                  max: 0.5,
-                  onChanged: (v) {
-                    c.wandTolerance = v;
-                    c.notify();
-                  },
-                ),
-              ),
-              FilterChip(
-                label: const Text('Only touching'),
-                selected: c.wandContiguous,
-                visualDensity: VisualDensity.compact,
-                onSelected: (v) {
-                  c.wandContiguous = v;
-                  c.notify();
-                },
-              ),
-            ] else ...[
-              Text(
-                sel is ImageObject
-                    ? 'Drag around the part to keep'
-                    : 'Drag across an image',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7385)),
-              ),
-              FilterChip(
-                label: const Text('Also remove it from the original'),
-                selected: c.cutoutLeavesHole,
-                visualDensity: VisualDensity.compact,
-                onSelected: (v) {
-                  c.cutoutLeavesHole = v;
-                  c.notify();
-                },
-              ),
-              if (c.cutoutLeavesHole) ...[
-                const Text('Fill the gap', style: TextStyle(fontSize: 12)),
-                SegmentedButton<HoleFill>(
-                  key: const ValueKey('hole-fill'),
-                  showSelectedIcon: false,
-                  style: const ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  segments: const [
-                    ButtonSegment(value: HoleFill.empty, label: Text('Empty')),
-                    ButtonSegment(
-                      value: HoleFill.blend,
-                      label: Text('Blend in'),
-                    ),
-                    ButtonSegment(value: HoleFill.color, label: Text('Colour')),
-                  ],
-                  selected: {c.cutoutFill},
-                  onSelectionChanged: (s) {
-                    c.cutoutFill = s.first;
-                    c.notify();
-                  },
-                ),
-                if (c.cutoutFill == HoleFill.color)
-                  SizedBox(
-                    width: 190,
-                    child: ColorRow(
-                      value: c.cutoutFillColor,
-                      onChanged: (v) {
-                        c.cutoutFillColor = v;
-                        c.notify();
-                      },
-                    ),
-                  ),
-              ],
-            ],
-            SmallIconButton(
-              icon: Icons.close,
-              tooltip: 'Done  Esc',
-              onPressed: () => c.setTool(Tool.select),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

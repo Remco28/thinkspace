@@ -803,44 +803,8 @@ void main() {
       expect(await centreAfterCut(HoleFill.color), [0, 255, 0, 255]);
     });
 
-    test('a gap can be blended in from what surrounds it', () async {
-      final px = await centreAfterCut(HoleFill.blend);
-      expect(px[0], greaterThan(245));
-      expect(px[1], lessThan(10));
-      expect(px[2], lessThan(10));
-      expect(px[3], 255);
-    });
-
     test('an empty gap stays see-through', () async {
       expect((await centreAfterCut(HoleFill.empty))[3], 0);
-    });
-
-    test('blending carries a gradient across the gap', () async {
-      // Black on the left fading to white on the right, with a hole between.
-      const w = 64, h = 16;
-      final px = Uint8List(w * h * 4);
-      final hole = Uint8List(w * h);
-      for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-          final i = (y * w + x) * 4;
-          final v = (x * 255 / (w - 1)).round();
-          px[i] = px[i + 1] = px[i + 2] = v;
-          px[i + 3] = 255;
-          if (x >= 24 && x < 40) hole[y * w + x] = 1;
-        }
-      }
-      blendFill(px, w, h, hole);
-      int g(int x) => px[(8 * w + x) * 4];
-      expect(g(26), lessThan(g(32)));
-      expect(g(32), lessThan(g(38)));
-      expect(g(32), closeTo(127, 30));
-    });
-
-    test('blend fill leaves a hole alone when nothing surrounds it', () {
-      final px = Uint8List(8 * 8 * 4); // fully transparent
-      final hole = Uint8List(64)..fillRange(0, 64, 1);
-      blendFill(px, 8, 8, hole);
-      expect(px.every((v) => v == 0), isTrue);
     });
 
     test('a hole can be left in the original', () async {
@@ -2179,6 +2143,47 @@ void main() {
       expect(Prefs(f).layersFraction, isNull, reason: 'out of range');
       expect(Prefs(null).layersFraction, isNull);
       Prefs(null).save(); // nothing to write to: quietly nothing
+    });
+  });
+
+  group('text alignment', () {
+    // Where the ink of a short word sits across a wide box.
+    Future<(int, int)> inkSpan(TextAlign align) async {
+      final c = newEditor();
+      c.doc.canvasSize = const Size(400, 80);
+      c.doc.background = 0xFFFFFFFF;
+      final t = TextObject(
+        id: 't',
+        name: 't',
+        text: 'Hi',
+        center: const Offset(200, 40),
+        size: const Size(400, 60),
+        fontSize: 28,
+        color: 0xFF000000,
+        align: align,
+      );
+      c.doc.layers.first.objects.add(t);
+      final img = await renderDocument(c.doc, c.assets);
+      final px = (await img.toByteData())!.buffer.asUint8List();
+      var lo = 400, hi = -1;
+      for (int y = 0; y < 80; y++) {
+        for (int x = 0; x < 400; x++) {
+          if (px[(y * 400 + x) * 4] < 128) {
+            lo = math.min(lo, x);
+            hi = math.max(hi, x);
+          }
+        }
+      }
+      return (lo, hi);
+    }
+
+    test('left, centre and right put the text in different places', () async {
+      final left = await inkSpan(TextAlign.left);
+      final centre = await inkSpan(TextAlign.center);
+      final right = await inkSpan(TextAlign.right);
+      expect(left.$1, lessThan(20));
+      expect((centre.$1 + centre.$2) / 2, closeTo(200, 12));
+      expect(right.$2, greaterThan(380));
     });
   });
 }

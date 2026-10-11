@@ -47,8 +47,13 @@ class SmallIconButton extends StatelessWidget {
     this.active = false,
     this.size = 18,
     this.color,
+    this.glyph,
   });
   final IconData icon;
+
+  /// A drawn icon for when no font icon says it (the straight line). Gets
+  /// the colour and size the font icon would have had.
+  final Widget Function(double size, Color color)? glyph;
   final String tooltip;
   final VoidCallback? onPressed;
   final bool active;
@@ -69,15 +74,16 @@ class SmallIconButton extends StatelessWidget {
           color: active ? kAccent.withValues(alpha: 0.14) : null,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Icon(
-          icon,
-          size: size,
-          color: onPressed == null
+        child: () {
+          final c = onPressed == null
               ? const Color(0xFFB4B8C2)
               : active
               ? kAccent
-              : color ?? const Color(0xFF444B5A),
-        ),
+              : color ?? const Color(0xFF444B5A);
+          return glyph != null
+              ? Center(child: glyph!(size, c))
+              : Icon(icon, size: size, color: c);
+        }(),
       ),
     ),
   );
@@ -490,4 +496,37 @@ class KeyCap extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A straight diagonal line with a dot at each end: the "straight line" tool.
+class LineGlyph extends StatelessWidget {
+  const LineGlyph(this.size, this.color, {super.key});
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size.square(size), painter: _LinePainter(color));
+}
+
+class _LinePainter extends CustomPainter {
+  _LinePainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final p = Paint()
+      ..color = color
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+    final a = Offset(s.width * 0.16, s.height * 0.84);
+    final b = Offset(s.width * 0.84, s.height * 0.16);
+    canvas.drawLine(a, b, p);
+    final dot = Paint()..color = color;
+    canvas.drawCircle(a, 2.1, dot);
+    canvas.drawCircle(b, 2.1, dot);
+  }
+
+  @override
+  bool shouldRepaint(_LinePainter old) => old.color != color;
 }

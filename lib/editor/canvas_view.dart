@@ -98,6 +98,11 @@ class _CanvasViewState extends State<CanvasView> {
                       onPointerDown: (e) {
                         widget.focusNode?.requestFocus();
                         c.endListWalk();
+                        // Starting to draw is also "Start" for the cut-out options.
+                        if (c.cutoutOptionsOpen) {
+                          c.cutoutOptionsOpen = false;
+                          c.notify();
+                        }
                         if (c.selectedCollectionId != null) {
                           c.selectCollectionItem(null);
                         }

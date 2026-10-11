@@ -13,9 +13,10 @@ TextPainter textPainterFor(TextObject t, {double? width}) {
     textAlign: t.align,
     textDirection: TextDirection.ltr,
   );
-  tp.layout(
-    maxWidth: math.max(10, (width ?? t.size.width) - TextObject.pad * 2),
-  );
+  // Laid out at the full width of the box: with only a maximum, the painter
+  // shrinks to its longest line and left, centre and right look the same.
+  final w = math.max(10.0, (width ?? t.size.width) - TextObject.pad * 2);
+  tp.layout(minWidth: w, maxWidth: w);
   return tp;
 }
 

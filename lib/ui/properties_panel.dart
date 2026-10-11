@@ -882,7 +882,7 @@ class PropertiesPanel extends StatelessWidget {
           }, allowNone: true),
           ActionButton(
             label: 'Edit text',
-            icon: Icons.edit_outlined,
+            icon: Icons.text_fields,
             tooltip: 'Type in the text box  (Enter or F2)',
             onPressed: () => c.beginTextEdit(o.id),
           ),
