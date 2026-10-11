@@ -98,6 +98,10 @@ class EditorController extends ChangeNotifier {
   int cutoutFillColor = 0xFFFFFFFF;
   double wandTolerance = 0.14;
   bool wandContiguous = true;
+
+  /// Background removal also clears roomy background-coloured pockets that
+  /// the outside cannot reach (the gaps inside a drawing's outline).
+  bool bgInside = true;
   String? editingTextId;
 
   // --- view ---------------------------------------------------------------
@@ -348,6 +352,7 @@ class EditorController extends ChangeNotifier {
       finishTextEdit();
     }
     selection = ids;
+    if (ids.isNotEmpty) _collectionSel = null;
     if (ids.length == 1) {
       final l = doc.layerOf(ids.first);
       if (l != null) currentLayerId = l.id;
@@ -1030,10 +1035,60 @@ class EditorController extends ChangeNotifier {
     return item;
   }
 
-  void removeFromCollection(String id) => transact(
-    'remove from collection',
-    () => doc.collection.removeWhere((c) => c.id == id),
-  );
+  void removeFromCollection(String id) {
+    final i = doc.collection.indexWhere((c) => c.id == id);
+    transact(
+      'remove from collection',
+      () => doc.collection.removeWhere((c) => c.id == id),
+    );
+    // Keep the highlight on a neighbour, so Delete can carry on down the shelf.
+    if (_collectionSel == id) {
+      _collectionSel = doc.collection.isEmpty
+          ? null
+          : doc.collection[i.clamp(0, doc.collection.length - 1)].id;
+    }
+  }
+
+  // ---- the selected collection item ----------------------------------------
+
+  String? _collectionSel;
+
+  /// The collection item that is selected, if there is one (and it still
+  /// exists: undo can take it away).
+  String? get selectedCollectionId =>
+      doc.collection.any((c) => c.id == _collectionSel) ? _collectionSel : null;
+
+  /// Select a collection item. It replaces any selection on the page: what
+  /// the keys act on is never ambiguous.
+  void selectCollectionItem(String? id) {
+    if (id != null) {
+      selection = [];
+      if (editingTextId != null) finishTextEdit();
+    }
+    _collectionSel = id;
+    notifyListeners();
+  }
+
+  /// Put the item where [targetId] is: it lands before the target when it
+  /// moves back along the shelf, and after it when it moves forward.
+  void moveCollectionItem(String id, String targetId) {
+    final from = doc.collection.indexWhere((c) => c.id == id);
+    final to = doc.collection.indexWhere((c) => c.id == targetId);
+    if (from < 0 || to < 0 || from == to) return;
+    transact('rearrange collection', () {
+      doc.collection.insert(to, doc.collection.removeAt(from));
+    });
+  }
+
+  /// One place earlier (-1) or later (+1).
+  void shiftCollectionItem(int by) {
+    final id = selectedCollectionId;
+    if (id == null) return;
+    final from = doc.collection.indexWhere((c) => c.id == id);
+    final to = from + by;
+    if (to < 0 || to >= doc.collection.length) return;
+    moveCollectionItem(id, doc.collection[to].id);
+  }
 
   void renameCollectionItem(String id, String name) =>
       transact('rename item', () {
@@ -1518,7 +1573,11 @@ class EditorController extends ChangeNotifier {
   Future<bool> removeBackgroundFrom(ImageObject o, {double? tolerance}) async {
     final a = assets[o.assetId];
     if (a == null) return false;
-    final r = await removeBackground(a, tolerance ?? wandTolerance);
+    final r = await removeBackground(
+      a,
+      tolerance ?? wandTolerance,
+      inside: bgInside,
+    );
     if (r == null) {
       showToast('No background found to remove');
       return false;

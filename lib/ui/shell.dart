@@ -290,12 +290,15 @@ class _EditorShellState extends State<EditorShell> {
           ix.cancel();
         } else if (c.tool != Tool.select) {
           c.setTool(Tool.select);
+        } else if (c.selectedCollectionId != null) {
+          c.selectCollectionItem(null);
         } else {
           c.clearSelection();
         }
       case LogicalKeyboardKey.delete:
       case LogicalKeyboardKey.backspace:
-        c.deleteSelection();
+        final item = c.selectedCollectionId;
+        item != null ? c.removeFromCollection(item) : c.deleteSelection();
       case LogicalKeyboardKey.arrowLeft:
         c.nudge(Offset(-step, 0));
       case LogicalKeyboardKey.arrowRight:
@@ -307,6 +310,11 @@ class _EditorShellState extends State<EditorShell> {
         c.listFocus ? c.listStep(1, extend: shift) : c.nudge(Offset(0, step));
       case LogicalKeyboardKey.enter:
       case LogicalKeyboardKey.f2:
+        final item = c.selectedCollectionId;
+        if (item != null && k == LogicalKeyboardKey.enter) {
+          c.placeCollectionItem(item);
+          return KeyEventResult.handled;
+        }
         final one = c.single;
         if (one != null && one is TextObject) c.beginTextEdit(one.id);
       case LogicalKeyboardKey.keyV:
@@ -348,9 +356,13 @@ class _EditorShellState extends State<EditorShell> {
           );
         }
       case LogicalKeyboardKey.bracketRight:
-        c.reorderSelection('forward');
+        c.selectedCollectionId != null
+            ? c.shiftCollectionItem(1)
+            : c.reorderSelection('forward');
       case LogicalKeyboardKey.bracketLeft:
-        c.reorderSelection('backward');
+        c.selectedCollectionId != null
+            ? c.shiftCollectionItem(-1)
+            : c.reorderSelection('backward');
       case LogicalKeyboardKey.equal:
       case LogicalKeyboardKey.add:
         c.zoomTo(c.zoom * 1.25);

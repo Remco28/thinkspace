@@ -9,6 +9,7 @@ import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/editor/image_ops.dart';
 import 'package:thinkspace/editor/interactor.dart';
 import 'package:thinkspace/editor/render.dart';
+import 'package:thinkspace/model/assets.dart';
 import 'package:thinkspace/model/scene.dart';
 
 import 'helpers.dart';
@@ -1866,6 +1867,187 @@ void main() {
       final r = await removeBackground(a, 0.2);
       expect(r, isNotNull);
       expect(r!.removedPixels, 1400 * 1100);
+    });
+  });
+
+  group('round six', () {
+    test('a click or jittery press with the pen leaves no mark', () {
+      c.setTool(Tool.pen);
+      click(ix, const Offset(200, 200));
+      ix.pointerDown(const Offset(300, 300), noMods);
+      ix.pointerMove(const Offset(301, 302), noMods);
+      ix.pointerMove(const Offset(299, 301), noMods);
+      ix.pointerUp(const Offset(300, 300), noMods);
+      expect(c.doc.allObjects, isEmpty);
+      expect(c.undoDepth, 0);
+    });
+
+    test('a real stroke keeps its first point, even a short one', () {
+      c.setTool(Tool.pen);
+      ix.pointerDown(const Offset(100, 100), noMods);
+      for (int i = 1; i <= 10; i++) {
+        ix.pointerMove(Offset(100 + i * 3.0, 100), noMods);
+      }
+      ix.pointerUp(const Offset(130, 100), noMods);
+      final st = c.doc.allObjects.single as StrokeObject;
+      expect(st.points.first, const Offset(100, 100));
+      expect(c.undoDepth, 1);
+    });
+
+    /// A tree as a line drawing on white: an outlined crown with a branch
+    /// inside it, and a trunk. Nothing is filled.
+    Future<Asset> treeDrawing() async {
+      const w = 300, h = 300;
+      final rec = PictureRecorder();
+      final canvas = Canvas(rec);
+      canvas.drawRect(
+        const Rect.fromLTWH(0, 0, 300, 300),
+        Paint()..color = const Color(0xFFFFFFFF),
+      );
+      final line = Paint()
+        ..color = const Color(0xFF1B7A2B)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5
+        ..isAntiAlias = true;
+      canvas.drawCircle(const Offset(150, 110), 80, line);
+      canvas.drawLine(const Offset(150, 190), const Offset(150, 270), line);
+      canvas.drawLine(const Offset(150, 140), const Offset(110, 100), line);
+      canvas.drawLine(const Offset(150, 140), const Offset(190, 100), line);
+      final img = await rec.endRecording().toImage(w, h);
+      return c.assets.addImage(img);
+    }
+
+    Future<Uint8List> alphaOf(ColorRemoval r) async =>
+        (await r.image.toByteData(
+          format: ImageByteFormat.rawStraightRgba,
+        ))!.buffer.asUint8List();
+
+    int a(Uint8List px, int x, int y) => px[(y * 300 + x) * 4 + 3];
+
+    test(
+      'background removal clears the outside and the gaps inside a drawing',
+      () async {
+        final tree = await treeDrawing();
+        final r = (await removeBackground(tree, 0.14))!;
+        final px = await alphaOf(r);
+        expect(a(px, 5, 5), 0, reason: 'outside');
+        expect(
+          a(px, 150, 110) + 0,
+          0,
+          reason: 'inside the crown, between lines',
+        );
+        expect(a(px, 230, 250), 0);
+        expect(
+          a(px, 150, 30),
+          greaterThan(200),
+          reason: 'the crown outline stays',
+        );
+      },
+    );
+
+    test('without "gaps inside" the enclosed white is left alone', () async {
+      final tree = await treeDrawing();
+      final r = (await removeBackground(tree, 0.14, inside: false))!;
+      final px = await alphaOf(r);
+      expect(a(px, 5, 5), 0);
+      expect(a(px, 150, 70), 255, reason: 'enclosed, so kept');
+    });
+
+    test(
+      'the edge keeps no pale halo: it is un-mixed from the white',
+      () async {
+        final tree = await treeDrawing();
+        final r = (await removeBackground(tree, 0.14))!;
+        final px = await alphaOf(r);
+        var worst = 0;
+        for (int i = 0; i < 300 * 300; i++) {
+          if (px[i * 4 + 3] == 0) continue;
+          // Everything left over should be the green of the pen, however faint.
+          final red = px[i * 4], green = px[i * 4 + 1], blue = px[i * 4 + 2];
+          // How wrong the colour is matters in proportion to how visible it is.
+          final dev = math.max((red - 0x1B).abs(), (blue - 0x2B).abs());
+          final wdev = dev * px[i * 4 + 3] ~/ 255;
+          worst = math.max(worst, wdev);
+          expect(green, greaterThan(0));
+        }
+        expect(worst, lessThan(6));
+      },
+    );
+
+    test(
+      'a background that is not white works too, and so does a noisy one',
+      () async {
+        final rec = PictureRecorder();
+        final canvas = Canvas(rec);
+        canvas.drawRect(
+          const Rect.fromLTWH(0, 0, 100, 100),
+          Paint()..color = const Color(0xFFF4EFE0),
+        );
+        canvas.drawRect(
+          const Rect.fromLTWH(30, 30, 40, 40),
+          Paint()..color = const Color(0xFF223344),
+        );
+        final img = await rec.endRecording().toImage(100, 100);
+        final asset = await c.assets.addImage(img);
+        final r = (await removeBackground(asset, 0.14))!;
+        final px = (await r.image.toByteData(
+          format: ImageByteFormat.rawStraightRgba,
+        ))!.buffer.asUint8List();
+        expect(px[3], 0);
+        expect(px[(50 * 100 + 50) * 4 + 3], 255);
+      },
+    );
+
+    test('what was removed really shows the page colour underneath', () async {
+      final tree = await treeDrawing();
+      final r = (await removeBackground(tree, 0.14))!;
+      final rec = PictureRecorder();
+      final canvas = Canvas(rec);
+      canvas.drawRect(
+        const Rect.fromLTWH(0, 0, 300, 300),
+        Paint()..color = const Color(0xFF222222),
+      );
+      canvas.drawImage(r.image, Offset.zero, Paint());
+      final out = await rec.endRecording().toImage(300, 300);
+      final px = (await out.toByteData(
+        format: ImageByteFormat.rawRgba,
+      ))!.buffer.asUint8List();
+      // Outside, and in the gap inside the crown: the dark page, not white.
+      for (final (x, y) in [(5, 5), (150, 70), (280, 280)]) {
+        final i = (y * 300 + x) * 4;
+        expect(px.sublist(i, i + 3), [0x22, 0x22, 0x22], reason: '$x,$y');
+      }
+    });
+
+    test('a half-see-through pixel survives a round trip unchanged', () async {
+      final src = Uint8List.fromList([200, 100, 50, 128, 10, 20, 30, 255]);
+      final img = await imageFromRgba(src, 2, 1);
+      final asset = await c.assets.addImage(img);
+      final back = await asset.rgbaBytes();
+      for (int k = 0; k < 8; k++) {
+        expect(
+          (back[k] - src[k]).abs(),
+          lessThanOrEqualTo(1),
+          reason: 'byte $k',
+        );
+      }
+    });
+
+    test('a picture with nothing like a background says so', () async {
+      final rec = PictureRecorder();
+      final canvas = Canvas(rec);
+      // Every border pixel a different colour: no background to speak of.
+      for (int i = 0; i < 40; i++) {
+        canvas.drawRect(
+          Rect.fromLTWH(i.toDouble(), 0, 1, 40),
+          Paint()
+            ..color = Color.fromARGB(255, i * 6, 255 - i * 6, (i * 37) % 255),
+        );
+      }
+      final asset = await c.assets.addImage(
+        await rec.endRecording().toImage(40, 40),
+      );
+      expect(await removeBackground(asset, 0.02), isNull);
     });
   });
 }

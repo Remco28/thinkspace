@@ -185,29 +185,13 @@ class PropertiesPanel extends StatelessWidget {
             ),
           ],
         ),
-        InkWell(
-          onTap: () {
-            c.autoGrow = !c.autoGrow;
+        CheckboxRow(
+          label: 'Grow the page as I add things',
+          value: c.autoGrow,
+          onChanged: (v) {
+            c.autoGrow = v;
             c.notify();
           },
-          child: Row(
-            children: [
-              Checkbox(
-                value: c.autoGrow,
-                visualDensity: VisualDensity.compact,
-                onChanged: (v) {
-                  c.autoGrow = v ?? false;
-                  c.notify();
-                },
-              ),
-              const Expanded(
-                child: Text(
-                  'Grow the page as I add things',
-                  style: TextStyle(fontSize: 12.5),
-                ),
-              ),
-            ],
-          ),
         ),
         const Divider(height: 20),
         const _Caption('Page colour'),
@@ -927,6 +911,15 @@ class PropertiesPanel extends StatelessWidget {
             c.wandTolerance = v;
             c.notify();
           }),
+          CheckboxRow(
+            key: const ValueKey('bg-inside'),
+            label: 'Also clear gaps inside the picture',
+            value: c.bgInside,
+            onChanged: (v) {
+              c.bgInside = v;
+              c.notify();
+            },
+          ),
         ],
       );
     }
@@ -994,5 +987,33 @@ class _FontPicker extends StatelessWidget {
           ),
         ),
     ],
+  );
+}
+
+/// A checkbox with its label, the whole row clickable.
+class CheckboxRow extends StatelessWidget {
+  const CheckboxRow({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: () => onChanged(!value),
+    child: Row(
+      children: [
+        Checkbox(
+          value: value,
+          visualDensity: VisualDensity.compact,
+          onChanged: (v) => onChanged(v ?? false),
+        ),
+        Expanded(child: Text(label, style: const TextStyle(fontSize: 12.5))),
+      ],
+    ),
   );
 }

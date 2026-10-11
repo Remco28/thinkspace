@@ -98,6 +98,9 @@ class _CanvasViewState extends State<CanvasView> {
                       onPointerDown: (e) {
                         widget.focusNode?.requestFocus();
                         c.endListWalk();
+                        if (c.selectedCollectionId != null) {
+                          c.selectCollectionItem(null);
+                        }
                         final right = e.buttons == kSecondaryMouseButton;
                         final pan =
                             e.buttons == kMiddleMouseButton ||

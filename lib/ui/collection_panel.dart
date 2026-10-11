@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/canvas_view.dart';
 import '../editor/controller.dart';
 import '../io/files.dart';
@@ -91,11 +92,15 @@ class _Thumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = c.assets[item.assetId];
+    final chosen = c.selectedCollectionId == item.id;
     final image = Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: chosen ? kAccent.withValues(alpha: 0.08) : Colors.white,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: kBorder),
+        border: Border.all(
+          color: chosen ? kAccent : kBorder,
+          width: chosen ? 2 : 1,
+        ),
       ),
       padding: const EdgeInsets.all(4),
       child: a == null
@@ -106,9 +111,10 @@ class _Thumb extends StatelessWidget {
               filterQuality: FilterQuality.medium,
             ),
     );
-    return Draggable<CollectionDrag>(
+    final drag = Draggable<CollectionDrag>(
       data: CollectionDrag(item.id),
       dragAnchorStrategy: pointerDragAnchorStrategy,
+      onDragStarted: () => c.selectCollectionItem(item.id),
       feedback: Material(
         color: Colors.transparent,
         child: Opacity(
@@ -119,11 +125,45 @@ class _Thumb extends StatelessWidget {
       childWhenDragging: Opacity(opacity: 0.5, child: _body(context, image)),
       child: _body(context, image),
     );
+    // Dropping another item here rearranges the shelf; a bar on the side it
+    // will land shows where.
+    return DragTarget<CollectionDrag>(
+      onWillAcceptWithDetails: (d) => d.data.itemId != item.id,
+      onAcceptWithDetails: (d) => c.moveCollectionItem(d.data.itemId, item.id),
+      builder: (context, hovering, _) {
+        if (hovering.isEmpty) return drag;
+        final items = c.doc.collection;
+        final from = items.indexWhere((x) => x.id == hovering.first!.itemId);
+        final to = items.indexWhere((x) => x.id == item.id);
+        final after = from >= 0 && from < to;
+        return Stack(
+          children: [
+            Positioned.fill(child: drag),
+            Positioned(
+              left: after ? null : -5,
+              right: after ? -5 : null,
+              top: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: Container(
+                  key: const ValueKey('collection-drop-bar'),
+                  width: 3,
+                  decoration: BoxDecoration(
+                    color: kAccent,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _body(BuildContext context, Widget image) => QuickTap(
     key: ValueKey('collection-${item.id}'),
-    onTap: () {},
+    onTap: () => c.selectCollectionItem(item.id),
     onDoubleTap: () => c.placeCollectionItem(item.id),
     onSecondaryTapDown: (d) async {
       final v = await showMenu<String>(
@@ -152,7 +192,8 @@ class _Thumb extends StatelessWidget {
       }
     },
     child: Tooltip(
-      message: 'Drag onto the page, or double-click to place',
+      message:
+          'Drag onto the page, or double-click to place. Drag onto another to rearrange.',
       waitDuration: const Duration(milliseconds: 700),
       child: Column(
         children: [

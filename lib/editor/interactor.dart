@@ -365,22 +365,16 @@ class CanvasInteractor {
     // The marker stays active so several can be dropped in a row.
   }
 
+  /// Smallest drag, in screen pixels, that counts as a pen stroke. A click, a
+  /// tap or a jittery press makes no mark at all.
+  static const double _penMinDrag = 5;
+
   void _downPen(Offset p) {
     _token = c.beginEdit('draw');
     _penPoints = [p];
     _penStraight = false;
-    final s = StrokeObject(
-      id: c.doc.newId('o'),
-      name: c.uniqueName('pen'),
-      points: [p],
-      color: c.penColor,
-      width: c.penWidth,
-    );
-    c.currentLayer.objects.add(s);
-    c.selection = [s.id];
-    _createId = s.id;
+    _createId = null; // the stroke starts once the pointer really moves
     _mode = _Mode.pen;
-    c.notify();
   }
 
   void _downCutout(Offset p) {
@@ -589,6 +583,19 @@ class CanvasInteractor {
   }
 
   void _doPen(Offset p, Modifiers m) {
+    if (_createId == null) {
+      if ((p - _penPoints.first).distance * c.zoom < _penMinDrag) return;
+      final s = StrokeObject(
+        id: c.doc.newId('o'),
+        name: c.uniqueName('pen'),
+        points: [_penPoints.first],
+        color: c.penColor,
+        width: c.penWidth,
+      );
+      c.currentLayer.objects.add(s);
+      c.selection = [s.id];
+      _createId = s.id;
+    }
     final o = c.doc.objectById(_createId!) as StrokeObject?;
     if (o == null) return;
     // Holding Shift turns the stroke into one straight line from where it
@@ -670,7 +677,7 @@ class CanvasInteractor {
       case _Mode.create:
         _finishCreate(token, p, m);
       case _Mode.pen:
-        _finishPen(token, m);
+        _finishPen(token);
       case _Mode.textBox:
         _finishTextBox(token, p, m);
       case _Mode.lasso:
@@ -736,17 +743,11 @@ class CanvasInteractor {
     if (token != null) c.endEdit(token);
   }
 
-  void _finishPen(EditToken? token, Modifiers m) {
-    final o = c.doc.objectById(_createId!) as StrokeObject?;
+  void _finishPen(EditToken? token) {
+    final id = _createId;
+    final o = id == null ? null : c.doc.objectById(id) as StrokeObject?;
     if (o != null && o.points.length > 2 && !_penStraight) {
       o.points = simplifyPolyline(o.points, 1.2 / c.zoom);
-    }
-    if (o != null &&
-        (_penStraight || (m.shift && o.points.length == 1)) &&
-        (o.points.last - o.points.first).distance < 4) {
-      // A Shift-tap is not a line; a plain tap still leaves a dot.
-      c.doc.layerOf(o.id)?.objects.remove(o);
-      c.selection = [];
     }
     if (token != null) c.endEdit(token);
     // The pen stays active: sketching is usually many strokes.

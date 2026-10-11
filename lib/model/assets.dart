@@ -29,7 +29,9 @@ class Asset {
 
   /// Every pixel as RGBA bytes.
   Future<Uint8List> rgbaBytes() async {
-    final raw = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final raw = await image.toByteData(
+      format: ui.ImageByteFormat.rawStraightRgba,
+    );
     return raw!.buffer.asUint8List();
   }
 }
@@ -72,7 +74,9 @@ class AssetStore {
   }
 
   Future<Asset> _register(Uint8List bytes, ui.Image image, String? id) async {
-    final raw = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final raw = await image.toByteData(
+      format: ui.ImageByteFormat.rawStraightRgba,
+    );
     final assetId = id ?? 'a${_next++}';
     if (id != null) {
       final n = int.tryParse(id.substring(1));

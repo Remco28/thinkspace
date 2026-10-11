@@ -369,6 +369,98 @@ void main() {
     expect(find.byKey(const ValueKey('selection-actions')), findsNothing);
   });
 
+  Future<List<String>> shelf(WidgetTester tester, EditorController c) async {
+    final ids = <String>[];
+    for (final n in ['one', 'two', 'three']) {
+      final a = await tester.runAsync(
+        () => makeAsset(c, w: 40, h: 40, color: 0xFF3366FF),
+      );
+      final item = CollectionItem(
+        id: c.doc.newId('c'),
+        name: n,
+        assetId: a!.id,
+      );
+      c.doc.collection.add(item);
+      ids.add(item.id);
+    }
+    c.notify();
+    await tester.pump();
+    return ids;
+  }
+
+  appTest('clicking a collection item selects it, with a border', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final ids = await shelf(tester, c);
+    c.addObject(
+      ShapeObject(
+        id: c.doc.newId('o'),
+        name: 's',
+        ellipse: false,
+        center: const Offset(300, 300),
+        size: const Size(50, 50),
+      ),
+    );
+    c.select([c.doc.allObjects.single.id]);
+    await tester.tap(find.byKey(ValueKey('collection-${ids[1]}')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.selectedCollectionId, ids[1]);
+    expect(c.selection, isEmpty, reason: 'one thing is selected at a time');
+    // Delete removes it and the highlight moves on to a neighbour.
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    expect(c.doc.collection.map((i) => i.id), [ids[0], ids[2]]);
+    expect(c.selectedCollectionId, ids[2]);
+    expect(c.doc.allObjects.length, 1, reason: 'the page was not touched');
+    // Esc lets go; picking something on the page does too.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(c.selectedCollectionId, isNull);
+    c.selectCollectionItem(ids[0]);
+    c.select([c.doc.allObjects.single.id]);
+    expect(c.selectedCollectionId, isNull);
+  });
+
+  appTest('[ and ] move the selected collection item along the shelf', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final ids = await shelf(tester, c);
+    c.selectCollectionItem(ids[0]);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.bracketRight);
+    await tester.pump();
+    expect(c.doc.collection.map((i) => i.id), [ids[1], ids[0], ids[2]]);
+    await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft);
+    await tester.pump();
+    expect(c.doc.collection.first.id, ids[0], reason: 'stops at the start');
+    c.undo();
+    expect(c.doc.collection.length, 3);
+  });
+
+  appTest('dragging one collection item onto another rearranges the shelf', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final ids = await shelf(tester, c);
+    final from = tester.getCenter(find.byKey(ValueKey('collection-${ids[0]}')));
+    final to = tester.getCenter(find.byKey(ValueKey('collection-${ids[2]}')));
+    final g = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
+    await g.moveBy(const Offset(10, 10));
+    await g.moveTo(to);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('collection-drop-bar')), findsOneWidget);
+    await g.up();
+    await tester.pump();
+    expect(c.doc.collection.map((i) => i.id), [ids[1], ids[2], ids[0]]);
+    expect(c.selectedCollectionId, ids[0]);
+    expect(find.byKey(const ValueKey('collection-drop-bar')), findsNothing);
+    c.undo();
+    expect(c.doc.collection.map((i) => i.id), ids);
+  });
+
   appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {

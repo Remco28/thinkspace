@@ -57,7 +57,14 @@ const _sections = <(String, List<_Row>)>[
           ['['],
           [']'],
         ],
-        'Send backward / bring forward',
+        'Send backward / bring forward (or move a selected collection item)',
+      ),
+      (
+        [
+          ['Enter'],
+          ['Delete'],
+        ],
+        'With a collection item selected: place it on the page / remove it',
       ),
       (
         [
