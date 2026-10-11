@@ -2186,4 +2186,53 @@ void main() {
       expect(right.$2, greaterThan(380));
     });
   });
+
+  group('marker size', () {
+    BadgeObject placed() {
+      c.setTool(Tool.badge);
+      click(ix, Offset(100.0 + c.doc.allObjects.length * 80, 100));
+      return c.doc.allObjects.last as BadgeObject;
+    }
+
+    test('markers start at the default size', () {
+      expect(placed().size, const Size(44, 44));
+    });
+
+    test('resizing a marker sets the size of the next ones', () {
+      final first = placed();
+      c.setTool(Tool.select);
+      c.select([first.id]);
+      // Drag the bottom-right corner handle outwards.
+      final corner =
+          first.center + Offset(first.size.width / 2, first.size.height / 2);
+      drag(ix, corner, corner + const Offset(30, 30));
+      expect(first.size.width, greaterThan(60));
+      expect(c.markerSize, first.size.width);
+      final second = placed();
+      expect(second.size, first.size);
+    });
+
+    test('the size slider and the tool setting agree with each other', () {
+      c.markerSize = 80;
+      expect(placed().size, const Size(80, 80));
+    });
+
+    test('"make all markers this size" matches the rest in one undo step', () {
+      final a = placed();
+      c.markerSize = 70;
+      final b = placed();
+      c.markerSize = 30;
+      final cc = placed();
+      expect(c.markersUnlike(b), 2);
+      final depth = c.undoDepth;
+      c.matchMarkerSizes(b);
+      expect(a.size, const Size(70, 70));
+      expect(cc.size, const Size(70, 70));
+      expect(c.markersUnlike(b), 0);
+      expect(c.undoDepth, depth + 1);
+      expect(c.markerSize, 70);
+      c.undo();
+      expect((c.doc.objectById(a.id) as BadgeObject).size, const Size(44, 44));
+    });
+  });
 }

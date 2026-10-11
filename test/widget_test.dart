@@ -749,6 +749,39 @@ void main() {
   });
 
   appTest(
+    'the marker tool shows a size, and a marker offers to match the rest',
+    (tester) async {
+      final c = await pumpApp(tester);
+      c.setTool(Tool.badge);
+      await tester.pump();
+      expect(find.text('Size'), findsOneWidget);
+      c.setTool(Tool.select);
+      for (final (n, size) in [(1, 44.0), (2, 90.0)]) {
+        c.addObject(
+          BadgeObject(
+            id: c.doc.newId('o'),
+            name: 'm$n',
+            number: n,
+            center: Offset(100.0 * n, 100),
+            size: Size(size, size),
+          ),
+        );
+      }
+      c.select([c.doc.allObjects.last.id]);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('marker-size')), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('match-markers')));
+      await tester.tap(find.byKey(const ValueKey('match-markers')));
+      await tester.pump();
+      expect(
+        c.doc.allObjects.every((o) => (o as BadgeObject).size.width == 90),
+        isTrue,
+      );
+      expect(find.byKey(const ValueKey('match-markers')), findsNothing);
+    },
+  );
+
+  appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {
       final c = await pumpApp(tester);

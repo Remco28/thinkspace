@@ -207,7 +207,17 @@ class PropertiesPanel extends StatelessWidget {
           c.notify();
         }),
       );
-      if (c.tool != Tool.badge) {
+      if (c.tool == Tool.badge) {
+        rows.add(
+          PropRow(
+            'Size',
+            _plainSlider(c.markerSize, 16, 160, (v) {
+              c.markerSize = v.roundToDouble();
+              c.notify();
+            }),
+          ),
+        );
+      } else {
         rows.add(
           PropRow(
             'Width',
@@ -502,7 +512,38 @@ class PropertiesPanel extends StatelessWidget {
   List<Widget> _transform(BoxObject one) {
     final a = one is ImageObject ? c.assets[one.assetId] : null;
     return [
-      if (one is! TextObject)
+      if (one is BadgeObject)
+        PropRow(
+          'Size',
+          Row(
+            children: [
+              Expanded(
+                child: LiveSlider(
+                  key: const ValueKey('marker-size'),
+                  controller: c,
+                  value: math.max(one.size.width, one.size.height),
+                  min: 16,
+                  max: 160,
+                  label: 'marker size',
+                  apply: (v) => c.liveEditSelected((x) {
+                    final n = v.roundToDouble();
+                    (x as BadgeObject).size = Size(n, n);
+                    c.markerSize = n;
+                  }),
+                ),
+              ),
+              SizedBox(
+                width: 34,
+                child: Text(
+                  '${math.max(one.size.width, one.size.height).round()}',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 12, color: kInk),
+                ),
+              ),
+            ],
+          ),
+        )
+      else if (one is! TextObject)
         PropRow(
           'Size',
           Row(
@@ -658,6 +699,15 @@ class PropertiesPanel extends StatelessWidget {
             c.editSelected('colour', (x) => (x as BadgeObject).color = v);
             c.penColor = v;
           }),
+          if (c.markersUnlike(o) > 0)
+            ActionButton(
+              key: const ValueKey('match-markers'),
+              label: 'Make all markers this size',
+              icon: Icons.format_size,
+              tooltip:
+                  'Resize every other marker to match this one (${c.markersUnlike(o)} differ)',
+              onPressed: () => c.matchMarkerSizes(o),
+            ),
         ],
       );
     }

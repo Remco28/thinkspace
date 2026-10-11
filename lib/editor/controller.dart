@@ -884,6 +884,26 @@ class EditorController extends ChangeNotifier {
 
   // ===== badges ===============================================================
 
+  /// The size new markers are placed at: whatever size a marker was last given,
+  /// so a row of markers comes out the same without resizing each one.
+  double markerSize = 44;
+
+  /// Give every marker the size of [like] (one undo step), and remember it.
+  void matchMarkerSizes(BadgeObject like) {
+    final size = like.size;
+    markerSize = math.max(size.width, size.height);
+    transact('match marker sizes', () {
+      for (final o in doc.allObjects) {
+        if (o is BadgeObject && !o.locked) o.size = size;
+      }
+    });
+  }
+
+  /// How many markers differ in size from [like].
+  int markersUnlike(BadgeObject like) => doc.allObjects
+      .where((o) => o is BadgeObject && !o.locked && o.size != like.size)
+      .length;
+
   /// The next free step number, so markers placed in a row count 1, 2, 3.
   int nextBadgeNumber() {
     var n = 0;

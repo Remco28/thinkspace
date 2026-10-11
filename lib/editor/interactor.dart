@@ -359,7 +359,7 @@ class CanvasInteractor {
       name: 'marker $n',
       number: n,
       center: at,
-      size: const Size(44, 44),
+      size: Size(c.markerSize, c.markerSize),
       color: c.penColor,
     );
     c.currentLayer.objects.add(b);
@@ -670,6 +670,12 @@ class CanvasInteractor {
         }
         if (token != null) c.endEdit(token);
       case _Mode.resize:
+        // The next marker comes out this size too.
+        final o = c.single;
+        if (o is BadgeObject) {
+          c.markerSize = math.max(o.size.width, o.size.height);
+        }
+        if (token != null) c.endEdit(token);
       case _Mode.rotate:
       case _Mode.lineEnd:
       case _Mode.gripResize:
