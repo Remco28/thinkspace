@@ -1,6 +1,6 @@
-import 'dart:io';
-
 import 'package:file_selector/file_selector.dart';
+
+import 'paths.dart';
 
 const _images = XTypeGroup(
   label: 'Images',
@@ -38,7 +38,4 @@ Future<String?> choosePngPath(String suggested) async {
   return loc.path.toLowerCase().endsWith('.png') ? loc.path : '${loc.path}.png';
 }
 
-String baseName(String path) {
-  final n = path.split(Platform.pathSeparator).last;
-  return n.replaceAll(RegExp(r'\.[^.]+$'), '');
-}
+String baseName(String path) => baseNameOf(path);

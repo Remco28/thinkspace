@@ -11,6 +11,7 @@ import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/controller.dart';
 import '../editor/interactor.dart';
 import '../io/files.dart';
+import '../io/paths.dart';
 import '../io/prefs.dart';
 import '../model/scene.dart';
 import 'collection_panel.dart';
@@ -79,21 +80,19 @@ class _EditorShellState extends State<EditorShell> {
     super.initState();
     if (widget.enableRecovery) c.addListener(_syncTitle);
     if (widget.enableRecovery) {
-      final env = Platform.environment;
-      final home = env['HOME'];
-      final base =
-          env['XDG_DATA_HOME'] ??
-          (home == null || home.isEmpty ? null : '$home/.local/share');
-      final data =
-          env['THINKSPACE_DATA_DIR'] ??
-          (base == null ? null : '$base/thinkspace');
+      final data = appDataDir(
+        Platform.environment,
+        windows: Platform.isWindows,
+      );
       if (data != null) {
-        _prefs = Prefs(File('$data/prefs.json'));
+        _prefs = Prefs(File('$data${Platform.pathSeparator}prefs.json'));
         layersFraction = _prefs.layersFraction ?? layersFraction;
       }
       c.recoveryFile =
           widget.recoveryFile ??
-          (data == null ? null : File('$data/recovery.thinkspace'));
+          (data == null
+              ? null
+              : File('$data${Platform.pathSeparator}recovery.thinkspace'));
       if (c.recoveryFile != null) c.startAutosave(c.recoveryFile!);
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await _offerRecovery();

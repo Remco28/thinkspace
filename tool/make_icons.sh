@@ -14,3 +14,6 @@ mkdir -p packaging/icons
 for s in 16 32 48 64 128 256 512; do
   convert "$tmp/square.png" -filter Lanczos -resize ${s}x${s} -strip "packaging/icons/thinkspace-$s.png"
 done
+# Windows icon: one .ico holding the usual sizes.
+mkdir -p windows/runner/resources
+convert "$tmp/square.png" -filter Lanczos -define icon:auto-resize=256,128,64,48,32,24,16 -strip windows/runner/resources/app_icon.ico

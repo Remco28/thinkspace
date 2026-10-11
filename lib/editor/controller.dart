@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter/services.dart';
 
 import '../io/clipboard.dart';
+import '../io/paths.dart';
 import '../model/assets.dart';
 import '../model/geometry.dart';
 import '../model/scene.dart';
@@ -1231,6 +1232,14 @@ class EditorController extends ChangeNotifier {
         return;
       }
     }
+    // Pictures copied as files (Ctrl+C in Explorer or a file manager).
+    if (bytes == null) {
+      final files = await SystemClipboard.readPictureFiles();
+      if (files.isNotEmpty) {
+        await _pasteFiles(files);
+        return;
+      }
+    }
     final text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
     if (text != null &&
         text.trim().isNotEmpty &&
@@ -1247,10 +1256,32 @@ class EditorController extends ChangeNotifier {
     showToast('Nothing to paste');
   }
 
+  /// Picture files from the clipboard: one asks where it should go, like any
+  /// pasted picture; several go straight in, to wherever pasting is set to.
+  Future<void> _pasteFiles(List<String> files) async {
+    if (files.length == 1) {
+      try {
+        final a = await assets.addEncoded(
+          await File(files.first).readAsBytes(),
+        );
+        _receiveImage(a, baseNameOf(files.first));
+      } catch (_) {
+        showToast('Could not open ${fileNameOf(files.first)}');
+      }
+      return;
+    }
+    await importFiles(files, toCollection: pasteMode == PasteMode.collection);
+  }
+
   /// Paste an image straight into the collection, skipping the question.
   Future<void> pasteToCollection() async {
     final bytes = await SystemClipboard.readImage();
     if (bytes == null) {
+      final files = await SystemClipboard.readPictureFiles();
+      if (files.isNotEmpty) {
+        await importFiles(files, toCollection: true);
+        return;
+      }
       showToast('There is no image on the clipboard');
       return;
     }
@@ -1305,14 +1336,14 @@ class EditorController extends ChangeNotifier {
       try {
         final bytes = await File(path).readAsBytes();
         final a = await assets.addEncoded(bytes);
-        final base = path.split('/').last.replaceAll(RegExp(r'\.[^.]+$'), '');
+        final base = baseNameOf(path);
         if (toCollection) {
           addToCollection(a, name: base);
         } else {
           placeAsset(a, name: uniqueName(base), at: at);
         }
       } catch (_) {
-        showToast('Could not open ${path.split('/').last}');
+        showToast('Could not open ${fileNameOf(path)}');
       }
     }
   }
@@ -1852,13 +1883,13 @@ class EditorController extends ChangeNotifier {
     try {
       await _writeAtomic(File(path), projectJson());
     } catch (_) {
-      showToast('Could not save ${path.split('/').last} — nothing was changed');
+      showToast('Could not save ${fileNameOf(path)} — nothing was changed');
       return false;
     }
     filePath = path;
     markSaved();
     clearRecovery();
-    showToast('Saved ${path.split('/').last}');
+    showToast('Saved ${fileNameOf(path)}');
     return true;
   }
 
@@ -1872,10 +1903,10 @@ class EditorController extends ChangeNotifier {
       try {
         if (tmp.existsSync()) tmp.deleteSync();
       } catch (_) {}
-      showToast('Could not export ${path.split('/').last}');
+      showToast('Could not export ${fileNameOf(path)}');
       return false;
     }
-    showToast('Exported ${path.split('/').last}');
+    showToast('Exported ${fileNameOf(path)}');
     return true;
   }
 
@@ -1884,7 +1915,7 @@ class EditorController extends ChangeNotifier {
       await File(path).readAsString(),
       path: path,
     );
-    if (bad == 0) showToast('Opened ${path.split('/').last}');
+    if (bad == 0) showToast('Opened ${fileNameOf(path)}');
   }
 
   /// Files the app was started with (double-click in a file manager, or

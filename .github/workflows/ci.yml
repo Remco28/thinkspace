@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, windows-port]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -23,3 +24,23 @@ jobs:
       - run: flutter test
       - name: Build (release)
         run: flutter build linux --release
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build and package (release)
+        shell: pwsh
+        run: tool/package_windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: thinkspace-windows-x64
+          path: dist/thinkspace-windows-x64.zip

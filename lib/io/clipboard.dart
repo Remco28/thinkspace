@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-/// Flutter's clipboard only carries text, so images go through the command
-/// line tools every Linux desktop already has: wl-clipboard on Wayland and
-/// xclip on X11.
+import 'win_clipboard.dart';
+
+/// Flutter's clipboard only carries text, so images need help. On Windows they
+/// go through the system clipboard directly ([WinClipboard]); on Linux through
+/// the command line tools every desktop already has: wl-clipboard on Wayland
+/// and xclip on X11.
 class SystemClipboard {
   static final _png = [0x89, 0x50, 0x4E, 0x47];
 
@@ -12,6 +15,7 @@ class SystemClipboard {
       (Platform.environment['WAYLAND_DISPLAY'] ?? '').isNotEmpty;
 
   static Future<Uint8List?> readImage() async {
+    if (Platform.isWindows) return WinClipboard.readImage();
     final attempts = <List<String>>[
       if (_wayland) ['wl-paste', '--no-newline', '--type', 'image/png'],
       ['xclip', '-selection', 'clipboard', '-t', 'image/png', '-o'],
@@ -58,6 +62,7 @@ class SystemClipboard {
 
   /// Put a PNG on the clipboard. Returns false if no tool is available.
   static Future<bool> writeImage(Uint8List png) async {
+    if (Platform.isWindows) return WinClipboard.writeImage(png);
     final cmds = <List<String>>[
       if (_wayland) ['wl-copy', '--type', 'image/png'],
       ['xclip', '-selection', 'clipboard', '-t', 'image/png', '-i'],
@@ -78,5 +83,55 @@ class SystemClipboard {
       } catch (_) {}
     }
     return false;
+  }
+
+  static const _pictureTypes = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'};
+
+  /// Picture files that were copied in a file manager (Ctrl+C on files), as
+  /// paths. Empty when the clipboard holds something else.
+  static Future<List<String>> readPictureFiles() async {
+    final all = Platform.isWindows
+        ? await WinClipboard.readFiles()
+        : await _linuxFiles();
+    return [
+      for (final f in all)
+        if (_pictureTypes.contains(f.split('.').last.toLowerCase())) f,
+    ];
+  }
+
+  static Future<List<String>> _linuxFiles() async {
+    final attempts = <List<String>>[
+      if (_wayland) ['wl-paste', '--no-newline', '--type', 'text/uri-list'],
+      ['xclip', '-selection', 'clipboard', '-t', 'text/uri-list', '-o'],
+      // GNOME's file manager says "copy" or "cut" on the first line.
+      [
+        'xclip',
+        '-selection',
+        'clipboard',
+        '-t',
+        'x-special/gnome-copied-files',
+        '-o',
+      ],
+    ];
+    for (final cmd in attempts) {
+      final bytes = await _run(cmd);
+      if (bytes == null || bytes.isEmpty) continue;
+      final files = parseFileList(String.fromCharCodes(bytes));
+      if (files.isNotEmpty) return files;
+    }
+    return const [];
+  }
+
+  /// Paths from a text/uri-list style block: one `file://` address a line.
+  static List<String> parseFileList(String text) {
+    final out = <String>[];
+    for (final line in text.split(RegExp(r'[\r\n]+'))) {
+      final t = line.trim();
+      if (!t.startsWith('file://')) continue;
+      try {
+        out.add(Uri.parse(t).toFilePath());
+      } catch (_) {}
+    }
+    return out;
   }
 }
