@@ -171,6 +171,9 @@ class CanvasInteractor {
     return best;
   }
 
+  /// The page-edge handle at a screen position, if any.
+  CanvasGrip? gripAt(Offset screen) => _hitGrip(c.toScene(screen));
+
   CanvasGrip? _hitGrip(Offset p) {
     final r = 14 / c.zoom;
     for (final e in c.gripPositions.entries) {
@@ -244,6 +247,7 @@ class CanvasInteractor {
       _gripGrab = c.gripPositions[grip]! - p;
       _token = c.beginEdit('resize canvas');
       _mode = _Mode.gripResize;
+      c.draggingGrip = grip;
       return;
     }
 
@@ -652,6 +656,7 @@ class CanvasInteractor {
     final p = c.toScene(screen);
     final mode = _mode;
     _mode = _Mode.none;
+    c.draggingGrip = null;
     final token = _token;
     _token = null;
 
@@ -784,6 +789,7 @@ class CanvasInteractor {
   void cancel() {
     final t = _token;
     _mode = _Mode.none;
+    c.draggingGrip = null;
     _token = null;
     c.marquee = null;
     c.lasso = null;

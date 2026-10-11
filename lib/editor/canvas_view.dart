@@ -56,6 +56,11 @@ class _CanvasViewState extends State<CanvasView> {
   bool _rightMoved = false;
 
   void _hover(PointerHoverEvent e) {
+    final g = ix.gripAt(e.localPosition);
+    if (g != c.hoverGrip) {
+      c.hoverGrip = g;
+      c.notify();
+    }
     final cur = ix.cursorAt(e.localPosition, spaceDown: widget.spaceDown.value);
     if (cur != _cursor) setState(() => _cursor = cur);
   }

@@ -664,6 +664,23 @@ class _EditorShellState extends State<EditorShell> {
     _prefs.save();
   }
 
+  /// The hint sits in the middle of the part of the page you can see, so it
+  /// is centred on the page wherever the page is.
+  Widget _emptyHint() {
+    final page = Rect.fromLTWH(
+      c.pan.dx,
+      c.pan.dy,
+      c.doc.canvasSize.width * c.zoom,
+      c.doc.canvasSize.height * c.zoom,
+    );
+    final seen = page.intersect(Offset.zero & c.viewport);
+    if (seen.width < 260 || seen.height < 60) return const SizedBox.shrink();
+    return Positioned.fromRect(
+      rect: seen,
+      child: const IgnorePointer(child: Center(child: _EmptyHint())),
+    );
+  }
+
   Widget _canvasArea() {
     return ListenableBuilder(
       listenable: c,
@@ -731,7 +748,7 @@ class _EditorShellState extends State<EditorShell> {
           if (c.doc.allObjects.isEmpty &&
               c.pendingPaste == null &&
               c.tool == Tool.select)
-            const Positioned.fill(child: IgnorePointer(child: _EmptyHint())),
+            _emptyHint(),
           Positioned(left: 8, bottom: 8, child: _ZoomBar(c: c)),
           if (c.toastMessage != null)
             Positioned(
@@ -772,15 +789,10 @@ class _EmptyHint extends StatelessWidget {
   const _EmptyHint();
 
   @override
-  Widget build(BuildContext context) => const Center(
-    child: Padding(
-      padding: EdgeInsets.only(bottom: 40),
-      child: Text(
-        'Paste a picture (Ctrl+V), drop a file here,\nor press A to draw an arrow',
-        textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 15, height: 1.5, color: Color(0xFFA0A6B5)),
-      ),
-    ),
+  Widget build(BuildContext context) => const Text(
+    'Paste a picture (Ctrl+V), drop a file here,\nor press A to draw an arrow',
+    textAlign: TextAlign.center,
+    style: TextStyle(fontSize: 15, height: 1.5, color: Color(0xFFA0A6B5)),
   );
 }
 

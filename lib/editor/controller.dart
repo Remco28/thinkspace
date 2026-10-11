@@ -101,6 +101,10 @@ class EditorController extends ChangeNotifier {
   bool toolLocked = false;
   CutoutMode cutoutMode = CutoutMode.lasso;
 
+  /// The page-edge handle under the pointer, and the one being dragged, so
+  /// they can be drawn lit.
+  CanvasGrip? hoverGrip, draggingGrip;
+
   /// The options card for the cut-out tool is showing.
   bool cutoutOptionsOpen = false;
   bool cutoutLeavesHole = false;

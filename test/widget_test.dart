@@ -704,6 +704,50 @@ void main() {
     expect(c.cutoutOptionsOpen, isFalse);
   });
 
+  appTest('the empty-page hint is centred on the page, wherever it is', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final hint = find.textContaining('Paste a picture');
+    Offset pageCentre() => c.toScreen(
+      Offset(c.doc.canvasSize.width / 2, c.doc.canvasSize.height / 2),
+    );
+    // The hint lives in the canvas area; compare in the same space.
+    final origin = canvasRect(tester).topLeft;
+    expect((tester.getCenter(hint) - origin).dx, closeTo(pageCentre().dx, 2));
+    expect((tester.getCenter(hint) - origin).dy, closeTo(pageCentre().dy, 2));
+    // Move the page about: the hint follows it.
+    c.panBy(const Offset(-40, 50));
+    await tester.pump();
+    final moved = tester.getCenter(hint) - origin;
+    expect(moved.dx, closeTo(pageCentre().dx, 2));
+    expect(moved.dy, closeTo(pageCentre().dy, 2));
+  });
+
+  appTest('the page-edge handles light up under the pointer and when dragged', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final r = canvasRect(tester);
+    final grip = r.topLeft + c.toScreen(c.gripPositions[CanvasGrip.right]!);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(grip);
+    await tester.pump();
+    expect(c.hoverGrip, CanvasGrip.right);
+    await mouse.moveTo(r.center);
+    await tester.pump();
+    expect(c.hoverGrip, isNull);
+    await mouse.moveTo(grip);
+    await mouse.down(grip);
+    await mouse.moveBy(const Offset(-30, 0));
+    await tester.pump();
+    expect(c.draggingGrip, CanvasGrip.right);
+    await mouse.up();
+    await tester.pump();
+    expect(c.draggingGrip, isNull);
+  });
+
   appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {

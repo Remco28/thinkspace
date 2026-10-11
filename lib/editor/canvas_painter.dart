@@ -196,38 +196,65 @@ class CanvasPainter extends CustomPainter {
     }
   }
 
+  /// The three handles on the page's edge: a white pill on each side and a
+  /// round one at the corner, with a few dots so they read as things to hold.
+  /// They light up under the pointer and while being dragged.
   void _paintGrips(Canvas canvas) {
-    final fill = Paint()..color = const Color(0xFFB8BDC9);
-    final line = Paint()
-      ..color = const Color(0xFF8C93A3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
     for (final e in c.gripPositions.entries) {
       final p = _s(e.value);
-      final Rect r;
+      final hot = c.hoverGrip == e.key || c.draggingGrip == e.key;
+      final edge = hot ? kAccent : const Color(0xFFB4BAC7);
+      final ink = hot ? kAccent : const Color(0xFF8C93A3);
+      final fill = Paint()
+        ..color = hot ? const Color(0xFFEAF0FF) : Colors.white;
+      final line = Paint()
+        ..color = edge
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = hot ? 1.4 : 1;
+      final shadow = Paint()
+        ..color = const Color(0x2E000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+      final dot = Paint()..color = ink;
       switch (e.key) {
-        case CanvasGrip.right:
-          r = Rect.fromCenter(
-            center: p + const Offset(5, 0),
-            width: 8,
-            height: 36,
+        case CanvasGrip.right || CanvasGrip.bottom:
+          final vertical = e.key == CanvasGrip.right;
+          final r = Rect.fromCenter(
+            center: p + (vertical ? const Offset(8, 0) : const Offset(0, 8)),
+            width: vertical ? 10 : 42,
+            height: vertical ? 42 : 10,
           );
-        case CanvasGrip.bottom:
-          r = Rect.fromCenter(
-            center: p + const Offset(0, 5),
-            width: 36,
-            height: 8,
-          );
+          final rr = RRect.fromRectAndRadius(r, const Radius.circular(5));
+          canvas.drawRRect(rr.shift(const Offset(0, 1)), shadow);
+          canvas.drawRRect(rr, fill);
+          canvas.drawRRect(rr, line);
+          for (final d in [-6.0, 0.0, 6.0]) {
+            canvas.drawCircle(
+              r.center + (vertical ? Offset(0, d) : Offset(d, 0)),
+              1.3,
+              dot,
+            );
+          }
         case CanvasGrip.corner:
-          r = Rect.fromCenter(
-            center: p + const Offset(6, 6),
-            width: 12,
-            height: 12,
+          final centre = p + const Offset(9, 9);
+          canvas.drawCircle(centre + const Offset(0, 1), 8.5, shadow);
+          canvas.drawCircle(centre, 8.5, fill);
+          canvas.drawCircle(centre, 8.5, line);
+          // Two short diagonal strokes, the usual "resize" mark.
+          final mark = Paint()
+            ..color = ink
+            ..strokeWidth = 1.2
+            ..strokeCap = StrokeCap.round;
+          canvas.drawLine(
+            centre + const Offset(-3.5, 3.5),
+            centre + const Offset(3.5, -3.5),
+            mark,
+          );
+          canvas.drawLine(
+            centre + const Offset(0.5, 3.5),
+            centre + const Offset(3.5, 0.5),
+            mark,
           );
       }
-      final rr = RRect.fromRectAndRadius(r, const Radius.circular(3));
-      canvas.drawRRect(rr, fill);
-      canvas.drawRRect(rr, line);
     }
   }
 
