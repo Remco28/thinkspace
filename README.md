@@ -6,7 +6,7 @@ Paste a screenshot or a photo, drop in more pictures, draw an arrow at the part 
 
 Thinkspace is **not** a photo editor, a vector studio or a drafting tool. The screen stays sparse: a short toolbar, a layer list, a collection of source images, and a few properties for whatever is selected.
 
-> Status: a working Linux desktop app (Flutter). It is built and tested on Linux; Windows and macOS builds are not attempted yet.
+> Status: a working desktop app (Flutter), built and tested on Linux. A Windows build exists (see Install) and is being tried out; macOS is not attempted.
 
 ## What it does
 
@@ -38,6 +38,14 @@ Pasting images from the clipboard uses `xclip` (X11) or `wl-clipboard` (Wayland)
 ```bash
 sudo apt install xclip wl-clipboard
 ```
+
+### Windows
+
+Download `Thinkspace-Setup.exe` (an installer; no administrator needed, adds a Start-menu entry and opens `.thinkspace` files on double-click) or `thinkspace-windows-x64.zip` (unzip anywhere and run `thinkspace.exe`) from the releases page. Windows 10 or newer, 64-bit. The program is not signed, so the first run may show "Windows protected your PC": choose **More info**, then **Run anyway**.
+
+Nothing else is needed for the clipboard: take a screenshot with `Win+Shift+S` and press `Ctrl+V`, or copy picture files in Explorer and paste them. Unsaved work is kept in `%APPDATA%\Thinkspace`.
+
+Touch and pen work too: one finger does what the mouse does, two fingers move and zoom the page, holding a finger on something opens its menu, and a pen behaves like a mouse (its barrel button is a right click).
 
 ## A first five minutes
 
@@ -85,6 +93,16 @@ flutter run -d linux
 ```bash
 flutter analyze && flutter test        # the whole suite runs without a display
 tool/package_linux.sh                  # dist/thinkspace-linux-x64.tar.gz
+```
+
+### Windows
+
+Build on a Windows machine with Flutter and Visual Studio's C++ tools, or let the `Windows release` workflow do it:
+
+```powershell
+flutter pub get
+flutter run -d windows
+powershell -ExecutionPolicy Bypass -File tool\package_windows.ps1   # zip and installer in dist\
 ```
 
 ## Project map

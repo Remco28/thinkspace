@@ -456,3 +456,14 @@ Frank handed over ownership: build the best app that supports the concept, with 
 ## For the next person who opens this
 
 Please keep this document loose. Add a thought, challenge an assumption, offer an alternative, or ask a question. Don't quietly turn it into a specification. See `AGENTS.md` for how we'd like AI collaborators to work with this draft.
+
+## Windows (decisions)
+
+Frank asked for a Windows version for his kids. One codebase, one Windows-specific layer:
+- The clipboard is the only real platform gap. It talks to the Windows clipboard directly with `dart:ffi` (user32, kernel32, shell32) in `lib/io/win_clipboard.dart`, with the bitmap parsing and writing as pure, tested Dart in `lib/io/dib.dart`. The first plan (`WINDOWS_PORT_PLAN.md`) used `package:win32`; its 6.x API is large and still moving, and the dozen calls needed are stable, so I used plain FFI and dropped that dependency (only `package:ffi`, already a transitive dependency, was added). Reads prefer the exact "PNG" format, then DIBV5 and DIB; writes put both PNG (keeps transparency) and DIBV5 (Paint, Word) on the clipboard. The clipboard needs a real window handle when written to (a null one makes `SetClipboardData` fail), so `GetActiveWindow` is used.
+- Pasting picture files copied in Explorer (and, on Linux, in a file manager) works through the same path as drag-and-drop.
+- The recovery copy and preferences go to `%APPDATA%\Thinkspace`; `THINKSPACE_DATA_DIR` still overrides (a portable copy needs no code).
+- The runner adds the title channel, the 900 x 560 minimum window, the icon (made by `tool/make_icons.sh`) and the app name. The C++ runtime DLLs ship beside the program, so a clean PC needs nothing installed.
+- Builds happen in GitHub Actions (`windows-latest`): CI builds, tests and packages on every push of the port branch, and the `Windows release` workflow attaches the zip and an Inno Setup installer (unsigned, per user) to a published release.
+- Touch: one finger = mouse; a second finger cancels what the first started and pans and zooms; holding a finger still opens the right-click menu; handles and hit areas grow when the last press was a finger. Pen = mouse (barrel button = right click). Not done: pressure, palm rejection beyond what Windows does, and larger toolbar buttons for touch. Whether Windows' on-screen keyboard appears for text editing is unverified.
+
