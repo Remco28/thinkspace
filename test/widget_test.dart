@@ -461,6 +461,42 @@ void main() {
     expect(c.doc.collection.map((i) => i.id), ids);
   });
 
+  appTest('F2 renames the selected collection item in place', (tester) async {
+    final c = await pumpApp(tester);
+    final ids = await shelf(tester, c);
+    await tester.tap(find.byKey(ValueKey('collection-${ids[0]}')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('collection-rename')), findsOneWidget);
+    // The old name is selected, so typing replaces it.
+    await tester.enterText(
+      find.byKey(const ValueKey('collection-rename')),
+      'Hero shot',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(c.doc.collection.first.name, 'Hero shot');
+    expect(find.byKey(const ValueKey('collection-rename')), findsNothing);
+    // Back to one-key shortcuts straight away.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+    await tester.pump();
+    expect(c.tool, Tool.line);
+    // Esc leaves the name alone.
+    c.setTool(Tool.select);
+    c.selectCollectionItem(ids[1]);
+    c.beginCollectionRename();
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('collection-rename')),
+      'Nope',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(c.doc.collection[1].name, 'two');
+    expect(c.renamingCollectionId, isNull);
+  });
+
   appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {

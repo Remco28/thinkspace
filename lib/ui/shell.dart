@@ -311,8 +311,10 @@ class _EditorShellState extends State<EditorShell> {
       case LogicalKeyboardKey.enter:
       case LogicalKeyboardKey.f2:
         final item = c.selectedCollectionId;
-        if (item != null && k == LogicalKeyboardKey.enter) {
-          c.placeCollectionItem(item);
+        if (item != null) {
+          k == LogicalKeyboardKey.enter
+              ? c.placeCollectionItem(item)
+              : c.beginCollectionRename(item);
           return KeyEventResult.handled;
         }
         final one = c.single;

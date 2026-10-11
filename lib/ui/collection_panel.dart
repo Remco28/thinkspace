@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/canvas_view.dart';
 import '../editor/controller.dart';
 import '../io/files.dart';
 import '../model/scene.dart';
-import 'layers_panel.dart';
 import 'widgets.dart';
 
 class CollectionPanel extends StatelessWidget {
@@ -176,7 +176,21 @@ class _Thumb extends StatelessWidget {
         ),
         items: const [
           PopupMenuItem(value: 'place', child: Text('Place on page')),
-          PopupMenuItem(value: 'rename', child: Text('Rename')),
+          PopupMenuItem(
+            value: 'rename',
+            child: SizedBox(
+              width: 130,
+              child: Row(
+                children: [
+                  Expanded(child: Text('Rename')),
+                  Text(
+                    'F2',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF8A90A0)),
+                  ),
+                ],
+              ),
+            ),
+          ),
           PopupMenuItem(value: 'remove', child: Text('Remove from collection')),
         ],
       );
@@ -185,27 +199,112 @@ class _Thumb extends StatelessWidget {
         case 'place':
           c.placeCollectionItem(item.id);
         case 'rename':
-          final n = await promptText(context, 'Rename', item.name);
-          if (n != null) c.renameCollectionItem(item.id, n);
+          c.beginCollectionRename(item.id);
         case 'remove':
           c.removeFromCollection(item.id);
       }
     },
     child: Tooltip(
       message:
-          'Drag onto the page, or double-click to place. Drag onto another to rearrange.',
+          'Drag onto the page, or double-click to place. Drag onto another to rearrange. F2 renames.',
       waitDuration: const Duration(milliseconds: 700),
       child: Column(
         children: [
           Expanded(child: image),
           const SizedBox(height: 3),
-          Text(
-            item.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11.5),
-          ),
+          if (c.renamingCollectionId == item.id)
+            _NameField(
+              key: ValueKey('rename-${item.id}'),
+              initial: item.name,
+              onDone: c.finishCollectionRename,
+            )
+          else
+            Text(
+              item.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: c.selectedCollectionId == item.id
+                    ? FontWeight.w600
+                    : FontWeight.w400,
+              ),
+            ),
         ],
+      ),
+    ),
+  );
+}
+
+/// The tile's name, editable in place: Enter keeps it, Esc leaves it alone,
+/// and clicking elsewhere keeps what was typed. Keyboard focus then returns to
+/// the editor so the one-key shortcuts work straight away.
+class _NameField extends StatefulWidget {
+  const _NameField({super.key, required this.initial, required this.onDone});
+  final String initial;
+  final void Function(String? name) onDone;
+
+  @override
+  State<_NameField> createState() => _NameFieldState();
+}
+
+class _NameFieldState extends State<_NameField> {
+  late final TextEditingController _text;
+  final FocusNode _focus = FocusNode();
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _text = TextEditingController(text: widget.initial);
+    _text.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: widget.initial.length,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _finish(String? name) {
+    if (_done) return;
+    _done = true;
+    final editor = Focus.maybeOf(context);
+    widget.onDone(name);
+    editor?.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 20,
+    child: Focus(
+      onKeyEvent: (node, e) {
+        if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) {
+          _finish(null);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: TextField(
+        key: const ValueKey('collection-rename'),
+        controller: _text,
+        focusNode: _focus,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 11.5),
+        decoration: const InputDecoration(
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: _finish,
+        onTapOutside: (_) => _finish(_text.text),
       ),
     ),
   );

@@ -2050,4 +2050,57 @@ void main() {
       expect(await removeBackground(asset, 0.02), isNull);
     });
   });
+
+  group('collection names', () {
+    test('every picture added to the collection gets its own name', () async {
+      for (int i = 0; i < 3; i++) {
+        c.addToCollection(await makeAsset(c, w: 10, h: 10));
+      }
+      expect(c.doc.collection.map((i) => i.name), [
+        'image 1',
+        'image 2',
+        'image 3',
+      ]);
+      // A gap left by removing one is reused rather than leaving two alike.
+      c.removeFromCollection(c.doc.collection[1].id);
+      c.addToCollection(await makeAsset(c, w: 10, h: 10));
+      expect(c.doc.collection.map((i) => i.name).toSet().length, 3);
+    });
+
+    test('a name that is taken gets the next number', () async {
+      final a = await makeAsset(c, w: 10, h: 10);
+      c.addToCollection(a, name: 'logo');
+      c.addToCollection(a, name: 'logo');
+      c.addToCollection(a, name: 'logo');
+      expect(c.doc.collection.map((i) => i.name), ['logo', 'logo 2', 'logo 3']);
+    });
+
+    test('sending page pictures to the collection keeps names apart', () async {
+      final img = await addImage();
+      c.addToCollection(await makeAsset(c, w: 10, h: 10), name: img.name);
+      c.select([img.id]);
+      c.sendSelectionToCollection();
+      final names = c.doc.collection.map((i) => i.name).toList();
+      expect(names.toSet().length, 2, reason: '$names');
+    });
+
+    test(
+      'renaming to a taken name adds a number; the same name is fine',
+      () async {
+        final a = await makeAsset(c, w: 10, h: 10);
+        final one = c.addToCollection(a, name: 'one');
+        final two = c.addToCollection(a, name: 'two');
+        c.renameCollectionItem(two.id, 'one');
+        expect(c.doc.collection[1].name, 'one 2');
+        c.renameCollectionItem(one.id, 'one');
+        expect(
+          c.doc.collection[0].name,
+          'one',
+          reason: 'not clashing with itself',
+        );
+        c.renameCollectionItem(one.id, '   ');
+        expect(c.doc.collection[0].name, 'one');
+      },
+    );
+  });
 }

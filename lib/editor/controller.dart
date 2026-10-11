@@ -1025,10 +1025,26 @@ class EditorController extends ChangeNotifier {
     return o;
   }
 
+  /// A name no other collection item has. A taken name gets the next free
+  /// number ("image 2" → "image 3"); [except] is the item being renamed.
+  String uniqueCollectionName(String base, {String? except}) {
+    final taken = {
+      for (final i in doc.collection)
+        if (i.id != except) i.name,
+    };
+    if (!taken.contains(base)) return base;
+    final stem = base.replaceFirst(RegExp(r'\s+\d+$'), '');
+    var n = 2;
+    while (taken.contains('$stem $n')) {
+      n++;
+    }
+    return '$stem $n';
+  }
+
   CollectionItem addToCollection(Asset a, {String? name}) {
     final item = CollectionItem(
       id: doc.newId('c'),
-      name: name ?? 'item ${doc.collection.length + 1}',
+      name: uniqueCollectionName(name ?? 'image 1'),
       assetId: a.id,
     );
     transact('add to collection', () => doc.collection.add(item));
@@ -1090,12 +1106,37 @@ class EditorController extends ChangeNotifier {
     moveCollectionItem(id, doc.collection[to].id);
   }
 
-  void renameCollectionItem(String id, String name) =>
-      transact('rename item', () {
-        for (final c in doc.collection) {
-          if (c.id == id && name.trim().isNotEmpty) c.name = name.trim();
-        }
-      });
+  void renameCollectionItem(String id, String name) {
+    final fresh = uniqueCollectionName(name.trim(), except: id);
+    if (name.trim().isEmpty) return;
+    transact('rename item', () {
+      for (final c in doc.collection) {
+        if (c.id == id) c.name = fresh;
+      }
+    });
+  }
+
+  /// The collection item whose name is being typed in place (F2).
+  String? renamingCollectionId;
+
+  /// Start renaming the selected collection item (or [id]) right on its tile.
+  void beginCollectionRename([String? id]) {
+    final target = id ?? selectedCollectionId;
+    if (target == null) return;
+    _collectionSel = target;
+    selection = [];
+    renamingCollectionId = target;
+    notifyListeners();
+  }
+
+  /// Finish the in-place rename; a null or blank name leaves things as they were.
+  void finishCollectionRename(String? name) {
+    final id = renamingCollectionId;
+    if (id == null) return;
+    renamingCollectionId = null;
+    if (name != null && name.trim().isNotEmpty) renameCollectionItem(id, name);
+    notifyListeners();
+  }
 
   /// A new object from a collected source; the source stays in the collection.
   ImageObject? placeCollectionItem(String itemId, {Offset? at}) {
@@ -1112,7 +1153,11 @@ class EditorController extends ChangeNotifier {
     transact('add to collection', () {
       for (final o in imgs) {
         doc.collection.add(
-          CollectionItem(id: doc.newId('c'), name: o.name, assetId: o.assetId),
+          CollectionItem(
+            id: doc.newId('c'),
+            name: uniqueCollectionName(o.name),
+            assetId: o.assetId,
+          ),
         );
       }
     });
@@ -1167,7 +1212,7 @@ class EditorController extends ChangeNotifier {
       return;
     }
     final a = await assets.addEncoded(bytes);
-    addToCollection(a, name: uniqueName('image'));
+    addToCollection(a);
   }
 
   /// Offer to place a new image on the page or in the collection.
@@ -1176,7 +1221,7 @@ class EditorController extends ChangeNotifier {
       case PasteMode.layer:
         placeAsset(a);
       case PasteMode.collection:
-        addToCollection(a, name: uniqueName('image'));
+        addToCollection(a);
         showToast('Added to collection');
       case PasteMode.ask:
         pendingPaste = PendingPaste(a.id, name);
@@ -1194,7 +1239,7 @@ class EditorController extends ChangeNotifier {
     }
     if (a != null) {
       if (toCollection) {
-        addToCollection(a, name: uniqueName('image'));
+        addToCollection(a);
       } else {
         placeAsset(a);
       }

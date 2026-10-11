@@ -61,6 +61,12 @@ const _sections = <(String, List<_Row>)>[
       ),
       (
         [
+          ['F2'],
+        ],
+        'Edit the selected text, or rename the selected collection item',
+      ),
+      (
+        [
           ['Enter'],
           ['Delete'],
         ],
