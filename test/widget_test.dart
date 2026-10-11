@@ -843,6 +843,120 @@ void main() {
     expect(c.doc.allObjects.every((o) => o.locked), isTrue);
   });
 
+  group('touch', () {
+    Offset at(WidgetTester tester, EditorController c, Offset scene) =>
+        canvasRect(tester).topLeft + c.toScreen(scene);
+
+    appTest('one finger draws like the mouse does', (tester) async {
+      final c = await pumpApp(tester);
+      c.setTool(Tool.pen);
+      await tester.pump();
+      final from = at(tester, c, const Offset(300, 300));
+      final g = await tester.startGesture(from, kind: PointerDeviceKind.touch);
+      for (int i = 1; i <= 8; i++) {
+        await g.moveBy(const Offset(12, 4));
+      }
+      await g.up();
+      await tester.pump();
+      expect(c.touchInput, isTrue);
+      expect(c.doc.allObjects.single, isA<StrokeObject>());
+    });
+
+    appTest('a second finger moves and zooms the page, and the first '
+        'finger\'s stroke is taken back', (tester) async {
+      final c = await pumpApp(tester);
+      c.setTool(Tool.pen);
+      await tester.pump();
+      final zoom = c.zoom, pan = c.pan;
+      final a = await tester.startGesture(
+        at(tester, c, const Offset(400, 300)),
+        kind: PointerDeviceKind.touch,
+        pointer: 1,
+      );
+      await a.moveBy(const Offset(30, 0));
+      await a.moveBy(const Offset(30, 0));
+      expect(c.doc.allObjects, hasLength(1), reason: 'drawing so far');
+      final b = await tester.startGesture(
+        at(tester, c, const Offset(500, 300)),
+        kind: PointerDeviceKind.touch,
+        pointer: 2,
+      );
+      await tester.pump();
+      expect(c.doc.allObjects, isEmpty, reason: 'the stray stroke is undone');
+      // Spread the fingers apart: zoom in. Then slide both: pan.
+      await b.moveBy(const Offset(100, 0));
+      await a.moveBy(const Offset(-100, 0));
+      await tester.pump();
+      expect(c.zoom, greaterThan(zoom * 1.5));
+      final panned = c.pan;
+      await a.moveBy(const Offset(40, 30));
+      await b.moveBy(const Offset(40, 30));
+      await tester.pump();
+      expect(c.pan.dx, greaterThan(panned.dx + 30));
+      expect(c.pan.dy, greaterThan(panned.dy + 20));
+      expect(c.pan, isNot(pan));
+      await a.up();
+      // The finger that is left does not start drawing.
+      await b.moveBy(const Offset(50, 50));
+      await b.up();
+      await tester.pump();
+      expect(c.doc.allObjects, isEmpty);
+      expect(c.undoDepth, 0);
+    });
+
+    appTest('holding a finger down opens the menu for what is under it', (
+      tester,
+    ) async {
+      final c = await pumpApp(tester);
+      c.addObject(
+        ShapeObject(
+          id: c.doc.newId('o'),
+          name: 'box',
+          ellipse: false,
+          center: const Offset(300, 300),
+          size: const Size(160, 100),
+          fill: 0xFF3366FF,
+        ),
+      );
+      c.clearSelection();
+      await tester.pump();
+      final g = await tester.startGesture(
+        at(tester, c, const Offset(300, 300)),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+      expect(find.text('Duplicate'), findsOneWidget);
+      expect(c.selection, isNotEmpty);
+      await g.up();
+      await tester.pumpAndSettle();
+    });
+
+    appTest('a finger can hit a thin line a mouse would miss', (tester) async {
+      final c = await pumpApp(tester);
+      c.addObject(
+        LineObject(
+          id: c.doc.newId('o'),
+          name: 'rule',
+          p1: const Offset(200, 300),
+          p2: const Offset(500, 300),
+          width: 2,
+        ),
+      );
+      c.clearSelection();
+      await tester.pump();
+      final near = at(tester, c, Offset(350, 300 + 10 / c.zoom));
+      // Mouse: ten pixels away misses.
+      await tester.tapAt(near, kind: PointerDeviceKind.mouse);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(c.selection, isEmpty);
+      // Finger: the same spot hits.
+      await tester.tapAt(near, kind: PointerDeviceKind.touch);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(c.selection, hasLength(1));
+    });
+  });
+
   appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {

@@ -29,3 +29,17 @@ Copy-Item packaging\windows\README-Windows.txt "$out\README.txt"
 
 Compress-Archive -Path $out -DestinationPath dist\thinkspace-windows-x64.zip
 "Built dist\thinkspace-windows-x64.zip ({0:N1} MB)" -f ((Get-Item dist\thinkspace-windows-x64.zip).Length / 1MB)
+
+# The installer, when Inno Setup is available (the CI machine installs it).
+$iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
+if (-not $iscc) {
+  $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+}
+if (Test-Path $iscc) {
+  $version = ((Select-String -Path pubspec.yaml -Pattern '^version:\s*(\S+)').Matches[0].Groups[1].Value) -replace '\+.*', ''
+  & $iscc "/DMyAppVersion=$version" packaging\windows\thinkspace.iss
+  if ($LASTEXITCODE -ne 0) { throw 'the installer could not be built' }
+  "Built dist\Thinkspace-Setup.exe"
+} else {
+  Write-Warning 'Inno Setup was not found; only the zip was built.'
+}

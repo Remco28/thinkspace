@@ -106,6 +106,10 @@ class EditorController extends ChangeNotifier {
   /// they can be drawn lit.
   CanvasGrip? hoverGrip, draggingGrip;
 
+  /// The last thing pressed on the page was a finger: handles are drawn bigger
+  /// and things are easier to hit.
+  bool touchInput = false;
+
   /// The options card for the cut-out tool is showing.
   bool cutoutOptionsOpen = false;
   bool cutoutLeavesHole = false;
@@ -505,7 +509,7 @@ class EditorController extends ChangeNotifier {
 
   /// Everything under [p], topmost first.
   List<SceneObject> objectsAt(Offset p) {
-    final tol = 4 / zoom;
+    final tol = (touchInput ? 12 : 4) / zoom;
     final out = <SceneObject>[];
     for (final layer in doc.layers.reversed) {
       if (!layer.visible || layer.locked) continue;

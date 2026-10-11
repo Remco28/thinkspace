@@ -37,10 +37,14 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze
       - run: flutter test
+      - name: Installer tool
+        run: choco install innosetup -y --no-progress
       - name: Build and package (release)
         shell: pwsh
         run: tool/package_windows.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: thinkspace-windows-x64
-          path: dist/thinkspace-windows-x64.zip
+          path: |
+            dist/thinkspace-windows-x64.zip
+            dist/Thinkspace-Setup.exe

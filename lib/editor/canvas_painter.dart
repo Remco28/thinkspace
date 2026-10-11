@@ -168,16 +168,18 @@ class CanvasPainter extends CustomPainter {
       ..color = kAccent
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
+    // Fingers need bigger things to hit than a mouse pointer does.
+    final k = c.touchInput ? 1.7 : 1.0;
     for (final h in c.handlesFor(o)) {
       final p = _s(h.pos);
       if (h.kind == HandleKind.rotate && o is BoxObject) {
         final top = _s(o.toScene(Offset(0, -o.size.height / 2)));
         canvas.drawLine(top, p, stroke);
-        canvas.drawCircle(p, 6, fill);
-        canvas.drawCircle(p, 6, stroke);
+        canvas.drawCircle(p, 6 * k, fill);
+        canvas.drawCircle(p, 6 * k, stroke);
         // little arc to hint at rotation
         canvas.drawArc(
-          Rect.fromCircle(center: p, radius: 3),
+          Rect.fromCircle(center: p, radius: 3 * k),
           -2.4,
           4.4,
           false,
@@ -186,10 +188,10 @@ class CanvasPainter extends CustomPainter {
         stroke.strokeWidth = 1.5;
       } else if (h.kind == HandleKind.lineStart ||
           h.kind == HandleKind.lineEnd) {
-        canvas.drawCircle(p, 6.5, fill);
-        canvas.drawCircle(p, 6.5, stroke);
+        canvas.drawCircle(p, 6.5 * k, fill);
+        canvas.drawCircle(p, 6.5 * k, stroke);
       } else {
-        final r = Rect.fromCenter(center: p, width: 9, height: 9);
+        final r = Rect.fromCenter(center: p, width: 9 * k, height: 9 * k);
         canvas.drawRect(r, fill);
         canvas.drawRect(r, stroke);
       }

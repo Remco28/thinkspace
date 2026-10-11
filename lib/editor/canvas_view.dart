@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -55,6 +56,55 @@ class _CanvasViewState extends State<CanvasView> {
   Offset? _rightDown;
   bool _rightMoved = false;
 
+  // ---- fingers --------------------------------------------------------------
+  // One finger does what the mouse does. A second finger turns the gesture
+  // into moving and zooming the page (whatever the first one started is
+  // taken back), and holding a finger still opens the right-click menu.
+  final Map<int, Offset> _touches = {};
+  bool _navigating = false;
+  Offset _navCentre = Offset.zero;
+  double _navDist = 1;
+  Timer? _longPress;
+  Offset? _pressStart;
+
+  @override
+  void dispose() {
+    _longPress?.cancel();
+    super.dispose();
+  }
+
+  void _beginNavigation() {
+    final ids = _touches.keys.take(2).toList();
+    final a = _touches[ids[0]]!, b = _touches[ids[1]]!;
+    _navCentre = (a + b) / 2;
+    _navDist = (a - b).distance;
+  }
+
+  void _navigate() {
+    final ids = _touches.keys.take(2).toList();
+    if (ids.length < 2) return;
+    final a = _touches[ids[0]]!, b = _touches[ids[1]]!;
+    final centre = (a + b) / 2;
+    final dist = (a - b).distance;
+    c.panBy(centre - _navCentre);
+    if (dist > 1 && _navDist > 1) {
+      c.zoomTo(c.zoom * dist / _navDist, anchorScreen: centre);
+    }
+    _navCentre = centre;
+    _navDist = dist;
+  }
+
+  void _longPressed(Offset local, Offset global) {
+    if (!mounted || _navigating || _touches.isEmpty) return;
+    ix.cancel(); // the press was not the start of a drag after all
+    final hits = c.objectsAt(c.toScene(local));
+    if (hits.isNotEmpty && !c.selection.contains(hits.first.id)) {
+      c.select([hits.first.id]);
+    }
+    if (hits.isEmpty) c.clearSelection();
+    showObjectMenu(context, c, global);
+  }
+
   void _hover(PointerHoverEvent e) {
     final g = ix.gripAt(e.localPosition);
     if (g != c.hoverGrip) {
@@ -102,6 +152,20 @@ class _CanvasViewState extends State<CanvasView> {
                       behavior: HitTestBehavior.opaque,
                       onPointerDown: (e) {
                         widget.focusNode?.requestFocus();
+                        final touch = e.kind == PointerDeviceKind.touch;
+                        c.touchInput = touch;
+                        if (touch) {
+                          _touches[e.pointer] = e.localPosition;
+                          if (_touches.length >= 2) {
+                            _longPress?.cancel();
+                            if (!_navigating) {
+                              ix.cancel();
+                              _navigating = true;
+                              _beginNavigation();
+                            }
+                            return;
+                          }
+                        }
                         c.endListWalk();
                         // Starting to draw is also "Start" for the cut-out options.
                         if (c.cutoutOptionsOpen) {
@@ -123,8 +187,28 @@ class _CanvasViewState extends State<CanvasView> {
                           currentModifiers(),
                           forcePan: pan,
                         );
+                        _longPress?.cancel();
+                        if (touch && c.tool == Tool.select) {
+                          _pressStart = e.localPosition;
+                          final local = e.localPosition, global = e.position;
+                          _longPress = Timer(
+                            const Duration(milliseconds: 550),
+                            () => _longPressed(local, global),
+                          );
+                        }
                       },
                       onPointerMove: (e) {
+                        if (e.kind == PointerDeviceKind.touch) {
+                          _touches[e.pointer] = e.localPosition;
+                          if (_navigating) {
+                            _navigate();
+                            return;
+                          }
+                          if (_pressStart != null &&
+                              (e.localPosition - _pressStart!).distance > 10) {
+                            _longPress?.cancel();
+                          }
+                        }
                         if (_rightDown != null &&
                             (e.localPosition - _rightDown!).distance > 4) {
                           _rightMoved = true;
@@ -137,6 +221,16 @@ class _CanvasViewState extends State<CanvasView> {
                         if (cur != _cursor) setState(() => _cursor = cur);
                       },
                       onPointerUp: (e) {
+                        if (e.kind == PointerDeviceKind.touch) {
+                          _touches.remove(e.pointer);
+                          _longPress?.cancel();
+                          if (_navigating) {
+                            // Lifting fingers one by one never starts a
+                            // drag with the one that is left.
+                            if (_touches.isEmpty) _navigating = false;
+                            return;
+                          }
+                        }
                         ix.pointerUp(e.localPosition, currentModifiers());
                         final rd = _rightDown;
                         _rightDown = null;
@@ -151,7 +245,12 @@ class _CanvasViewState extends State<CanvasView> {
                           showObjectMenu(context, c, e.position);
                         }
                       },
-                      onPointerCancel: (e) => ix.cancel(),
+                      onPointerCancel: (e) {
+                        _touches.remove(e.pointer);
+                        _longPress?.cancel();
+                        if (_touches.isEmpty) _navigating = false;
+                        ix.cancel();
+                      },
                       onPointerSignal: (e) {
                         if (e is PointerScrollEvent) {
                           ix.scroll(

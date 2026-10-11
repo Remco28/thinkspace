@@ -158,7 +158,7 @@ class CanvasInteractor {
   HandleSpot? _hitHandle(Offset p) {
     final o = c.single;
     if (o == null || o.locked || c.editingTextId != null) return null;
-    final r = 9 / c.zoom;
+    final r = (c.touchInput ? 20 : 9) / c.zoom;
     HandleSpot? best;
     double bestD = r;
     for (final h in c.handlesFor(o)) {
@@ -175,7 +175,7 @@ class CanvasInteractor {
   CanvasGrip? gripAt(Offset screen) => _hitGrip(c.toScene(screen));
 
   CanvasGrip? _hitGrip(Offset p) {
-    final r = 14 / c.zoom;
+    final r = (c.touchInput ? 26 : 14) / c.zoom;
     for (final e in c.gripPositions.entries) {
       if ((e.value - p).distance <= r) return e.key;
     }
@@ -191,7 +191,7 @@ class CanvasInteractor {
     final now = DateTime.now();
     final isDouble =
         now.difference(_lastDown).inMilliseconds < 350 &&
-        (screen - _lastDownScreen).distance < 6;
+        (screen - _lastDownScreen).distance < (c.touchInput ? 28 : 6);
     _lastDown = now;
     _lastDownScreen = screen;
 
@@ -422,7 +422,11 @@ class CanvasInteractor {
     final deltaScreen = screen - _lastScreen;
     _lastScreen = screen;
     final p = c.toScene(screen);
-    if (!_moved && (screen - _startScreen).distance > 3) _moved = true;
+    // A finger wobbles more than a mouse: a longer press-and-slide to count
+    // as a drag.
+    if (!_moved && (screen - _startScreen).distance > (c.touchInput ? 10 : 3)) {
+      _moved = true;
+    }
 
     switch (_mode) {
       case _Mode.none:

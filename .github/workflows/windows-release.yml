@@ -1,0 +1,39 @@
+name: Windows release
+
+# When a release is published, build the Windows version of that tag and
+# attach it. It can also be run by hand for a release that already exists.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach the Windows files to (for example v0.9.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Installer tool
+        run: choco install innosetup -y --no-progress
+      - name: Build and package (release)
+        shell: pwsh
+        run: tool/package_windows.ps1
+      - name: Attach to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload $env:TAG dist/thinkspace-windows-x64.zip dist/Thinkspace-Setup.exe --clobber
