@@ -11,6 +11,7 @@ import 'package:thinkspace/editor/interactor.dart';
 import 'package:thinkspace/editor/render.dart';
 import 'package:thinkspace/io/prefs.dart';
 import 'package:thinkspace/model/assets.dart';
+import 'package:thinkspace/model/geometry.dart';
 import 'package:thinkspace/model/scene.dart';
 
 import 'helpers.dart';
@@ -2290,5 +2291,194 @@ void main() {
       c.setTool(Tool.pen);
       expect(c.cutoutOptionsOpen, isFalse);
     });
+  });
+
+  group('highlighter', () {
+    test('a nearly level pass over text becomes a level bar', () {
+      final wobble = [
+        for (int i = 0; i <= 20; i++)
+          Offset(100.0 + i * 10, 200 + (i.isEven ? 3 : -4)),
+      ];
+      final bar = straightenMark(wobble, 26)!;
+      expect(bar.length, 2);
+      expect(bar.first.dx, 100);
+      expect(bar.last.dx, 300);
+      expect(bar.first.dy, bar.last.dy);
+      expect(bar.first.dy, closeTo(200, 2));
+    });
+
+    test(
+      'a nearly upright pass becomes an upright bar; a diagonal is left',
+      () {
+        final up = [
+          for (int i = 0; i <= 20; i++)
+            Offset(50 + (i.isEven ? 2 : -3), 80.0 + i * 8),
+        ];
+        final bar = straightenMark(up, 20)!;
+        expect(bar.first.dx, bar.last.dx);
+        final diagonal = [
+          for (int i = 0; i <= 20; i++) Offset(100.0 + i * 10, 100.0 + i * 6),
+        ];
+        expect(straightenMark(diagonal, 26), isNull);
+        // A short flick or a squiggle is not straightened either.
+        expect(
+          straightenMark([
+            const Offset(0, 0),
+            const Offset(5, 0),
+            const Offset(9, 1),
+          ], 26),
+          isNull,
+        );
+        final wave = [
+          for (int i = 0; i <= 20; i++)
+            Offset(100.0 + i * 10, 200 + 60 * math.sin(i / 2)),
+        ];
+        expect(straightenMark(wave, 26), isNull);
+      },
+    );
+
+    test('the marker draws a flat-ended mark that keeps text readable', () {
+      c.setTool(Tool.highlight);
+      ix.pointerDown(const Offset(100, 100), noMods);
+      for (int i = 1; i <= 12; i++) {
+        ix.pointerMove(
+          Offset(100 + i * 12.0, 100 + (i.isEven ? 3 : -2)),
+          noMods,
+        );
+      }
+      ix.pointerUp(const Offset(244, 100), noMods);
+      final s = c.doc.allObjects.single as StrokeObject;
+      expect(s.highlight, HighlightStyle.multiply);
+      expect(s.color, kHighlightPalette.first);
+      expect(s.width, 26);
+      expect(s.points.length, 2, reason: 'straightened');
+      expect(s.opacity, 1);
+      expect(c.tool, Tool.highlight, reason: 'stays active for more marks');
+    });
+
+    test('Shift forces a straight line, a tap leaves nothing', () {
+      c.setTool(Tool.highlight);
+      const shift = Modifiers(shift: true);
+      ix.pointerDown(const Offset(100, 100), shift);
+      for (int i = 1; i <= 10; i++) {
+        ix.pointerMove(Offset(100 + i * 12.0, 100 + i * 9.0), shift);
+      }
+      ix.pointerUp(const Offset(220, 190), shift);
+      expect((c.doc.allObjects.single as StrokeObject).points.length, 2);
+      click(ix, const Offset(400, 400));
+      expect(c.doc.allObjects.length, 1);
+    });
+
+    test('box mode drags a rectangle that is a highlight, not an outline', () {
+      c.setTool(Tool.highlight);
+      c.hlBox = true;
+      c.hlColor = kHighlightPalette[2];
+      drag(ix, const Offset(100, 100), const Offset(300, 160));
+      final b = c.doc.allObjects.single as ShapeObject;
+      expect(b.size, const Size(200, 60));
+      expect(b.fill, kHighlightPalette[2]);
+      expect(b.strokeWidth, 0);
+      expect(b.highlight, HighlightStyle.multiply);
+    });
+
+    test(
+      'with the text-readable switch off the colour is plain and see-through',
+      () {
+        c.setTool(Tool.highlight);
+        c.hlKeepText = false;
+        drag(ix, const Offset(100, 100), const Offset(200, 100));
+        final s = c.doc.allObjects.single as StrokeObject;
+        expect(s.highlight, HighlightStyle.plain);
+        expect(s.opacity, closeTo(0.45, 1e-9));
+      },
+    );
+
+    test(
+      'a highlight is saved with the project; old files have none',
+      () async {
+        c.setTool(Tool.highlight);
+        drag(ix, const Offset(100, 100), const Offset(220, 100));
+        c.hlBox = true;
+        drag(ix, const Offset(100, 200), const Offset(220, 260));
+        final c2 = newEditor();
+        await c2.loadProjectJson(c.projectJson());
+        final objs = c2.doc.allObjects.toList();
+        expect((objs[0] as StrokeObject).highlight, HighlightStyle.multiply);
+        expect((objs[1] as ShapeObject).highlight, HighlightStyle.multiply);
+        final plain = StrokeObject(
+          id: 's',
+          name: 's',
+          points: [Offset.zero, const Offset(5, 5)],
+        );
+        expect(plain.toJson().containsKey('highlight'), isFalse);
+        expect(
+          StrokeObject.fromJson(plain.toJson()).highlight,
+          HighlightStyle.none,
+        );
+      },
+    );
+
+    test(
+      'multiply keeps writing under the highlight dark; plain washes it out',
+      () async {
+        Future<List<int>> overText(HighlightStyle style) async {
+          final cc = newEditor();
+          cc.doc.canvasSize = const Size(100, 40);
+          cc.doc.background = 0xFFFFFFFF;
+          cc.doc.layers.first.objects
+            ..add(
+              ShapeObject(
+                id: 'ink',
+                name: 'ink',
+                ellipse: false,
+                center: const Offset(50, 20),
+                size: const Size(20, 20),
+                stroke: 0xFF000000,
+                fill: 0xFF000000,
+                strokeWidth: 0,
+              ),
+            )
+            ..add(
+              ShapeObject(
+                id: 'hl',
+                name: 'hl',
+                ellipse: false,
+                center: const Offset(50, 20),
+                size: const Size(100, 40),
+                stroke: 0xFFFFF200,
+                fill: 0xFFFFF200,
+                strokeWidth: 0,
+                highlight: style,
+                opacity: style == HighlightStyle.plain ? 0.45 : 1,
+              ),
+            );
+          final img = await renderDocument(cc.doc, cc.assets);
+          final px = (await img.toByteData())!.buffer.asUint8List();
+          int at(int x, int y) => (y * 100 + x) * 4;
+          return [
+            ...px.sublist(at(50, 20), at(50, 20) + 3),
+            ...px.sublist(at(5, 5), at(5, 5) + 3),
+          ];
+        }
+
+        final multiply = await overText(HighlightStyle.multiply);
+        expect(multiply.sublist(0, 3), [
+          0,
+          0,
+          0,
+        ], reason: 'the writing stays black');
+        expect(multiply.sublist(3), [
+          255,
+          242,
+          0,
+        ], reason: 'the page turns the colour');
+        final plain = await overText(HighlightStyle.plain);
+        expect(
+          plain[0],
+          greaterThan(60),
+          reason: 'a plain wash over black lightens it',
+        );
+      },
+    );
   });
 }

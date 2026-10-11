@@ -16,6 +16,10 @@ permissions:
 
 jobs:
   windows:
+    # Windows files go on releases whose tag says "windows" (the previews), or
+    # on whichever tag is named when the workflow is run by hand. Ordinary
+    # Linux releases stay Linux-only until Windows is declared ready.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.release.tag_name, 'windows')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

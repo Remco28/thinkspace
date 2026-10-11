@@ -53,11 +53,18 @@ void paintDocumentObjects(
 }
 
 void paintObject(ui.Canvas canvas, SceneObject o, AssetStore assets) {
-  final grouped = o.opacity < 0.999;
+  // A highlighter mark is drawn on its own and then multiplied onto what is
+  // already there, so writing underneath stays dark.
+  final multiply =
+      (o is StrokeObject && o.highlight == HighlightStyle.multiply) ||
+      (o is ShapeObject && o.highlight == HighlightStyle.multiply);
+  final grouped = o.opacity < 0.999 || multiply;
   if (grouped) {
     canvas.saveLayer(
       o.bounds.inflate(4),
-      Paint()..color = Color.fromRGBO(0, 0, 0, o.opacity.clamp(0.0, 1.0)),
+      Paint()
+        ..color = Color.fromRGBO(0, 0, 0, o.opacity.clamp(0.0, 1.0))
+        ..blendMode = multiply ? BlendMode.multiply : BlendMode.srcOver,
     );
   }
   if (o is ImageObject) {
@@ -266,7 +273,10 @@ void _paintStroke(ui.Canvas canvas, StrokeObject s) {
       ..color = Color(s.color)
       ..style = PaintingStyle.stroke
       ..strokeWidth = s.width
-      ..strokeCap = StrokeCap.round
+      // A marker has a flat tip; a pen is round.
+      ..strokeCap = s.highlight == HighlightStyle.none
+          ? StrokeCap.round
+          : StrokeCap.butt
       ..strokeJoin = StrokeJoin.round,
   );
 }

@@ -51,10 +51,17 @@ class PropertiesPanel extends StatelessWidget {
     Tool.badge => 'marker',
     Tool.rect => 'rectangle',
     Tool.pen => 'pen stroke',
+    Tool.highlight => 'highlight',
     _ => t.name,
   };
 
-  String _kindLabel(SceneObject o) => switch (o.kind) {
+  String _kindLabel(SceneObject o) =>
+      ((o is StrokeObject && o.highlight != HighlightStyle.none) ||
+          (o is ShapeObject && o.highlight != HighlightStyle.none))
+      ? 'Highlight'
+      : _kindOf(o);
+
+  String _kindOf(SceneObject o) => switch (o.kind) {
     ObjectKind.image => 'Image',
     ObjectKind.text => 'Text',
     ObjectKind.rect => 'Rectangle',
@@ -176,7 +183,9 @@ class PropertiesPanel extends StatelessWidget {
   /// Colour, width and so on for the next thing drawn.
   Widget _toolDefaults() {
     final rows = <Widget>[];
-    if (c.tool == Tool.text) {
+    if (c.tool == Tool.highlight) {
+      rows.addAll(_highlightDefaults());
+    } else if (c.tool == Tool.text) {
       rows.addAll([
         _colour('Colour', c.textColor, (v) {
           c.textColor = v;
@@ -267,11 +276,132 @@ class PropertiesPanel extends StatelessWidget {
     int value,
     ValueChanged<int> onChanged, {
     bool allowNone = false,
+    List<int> palette = kPalette,
   }) => PropRow(
     label,
-    ColorRow(value: value, onChanged: onChanged, allowNone: allowNone),
+    ColorRow(
+      value: value,
+      onChanged: onChanged,
+      allowNone: allowNone,
+      palette: palette,
+    ),
     stacked: true,
   );
+
+  // ---- the highlighter ------------------------------------------------------
+
+  /// Settings for the next highlight.
+  List<Widget> _highlightDefaults() => [
+    PropRow(
+      'Style',
+      SizedBox(
+        width: 190,
+        child: ButtonRow([
+          ActionButton(
+            key: const ValueKey('hl-marker'),
+            label: 'Marker',
+            icon: Icons.border_color_outlined,
+            selected: !c.hlBox,
+            tooltip: 'Drag over the text like a marker',
+            onPressed: () {
+              c.hlBox = false;
+              c.notify();
+            },
+          ),
+          ActionButton(
+            key: const ValueKey('hl-box'),
+            label: 'Box',
+            icon: Icons.crop_square,
+            selected: c.hlBox,
+            tooltip: 'Drag a rectangle over a whole area',
+            onPressed: () {
+              c.hlBox = true;
+              c.notify();
+            },
+          ),
+        ]),
+      ),
+    ),
+    _colour('Colour', c.hlColor, (v) {
+      c.hlColor = v;
+      c.notify();
+    }, palette: kHighlightPalette),
+    if (!c.hlBox)
+      PropRow(
+        'Width',
+        _plainSlider(c.hlWidth, 8, 80, (v) {
+          c.hlWidth = v.roundToDouble();
+          c.notify();
+        }),
+      ),
+    SwitchRow(
+      key: const ValueKey('hl-keep-text'),
+      label: 'Keep the text readable',
+      hint:
+          'Tints the page and keeps writing under it dark. Turn off for dark pictures.',
+      value: c.hlKeepText,
+      onChanged: (v) {
+        c.hlKeepText = v;
+        c.notify();
+      },
+    ),
+  ];
+
+  /// Settings for a highlight that is already on the page.
+  Section _highlightSection(SceneObject o) {
+    final style = o is StrokeObject
+        ? o.highlight
+        : (o as ShapeObject).highlight;
+    final colour = o is StrokeObject ? o.color : (o as ShapeObject).fill;
+    return Section(
+      title: 'Highlight',
+      children: [
+        _colour('Colour', colour, (v) {
+          c.editSelected('highlight colour', (x) {
+            if (x is StrokeObject) x.color = v;
+            if (x is ShapeObject) {
+              x.fill = v;
+              x.stroke = v;
+            }
+          });
+          c.hlColor = v;
+        }, palette: kHighlightPalette),
+        if (o is StrokeObject)
+          PropRow(
+            'Width',
+            LiveSlider(
+              controller: c,
+              value: o.width,
+              min: 8,
+              max: 80,
+              label: 'width',
+              apply: (v) => c.liveEditSelected((x) {
+                (x as StrokeObject).width = v.roundToDouble();
+                c.hlWidth = v.roundToDouble();
+              }),
+            ),
+          ),
+        SwitchRow(
+          key: const ValueKey('hl-keep-text'),
+          label: 'Keep the text readable',
+          hint:
+              'Tints the page and keeps writing under it dark. Turn off for dark pictures.',
+          value: style == HighlightStyle.multiply,
+          onChanged: (keep) {
+            c.editSelected('highlight blend', (x) {
+              final h = keep ? HighlightStyle.multiply : HighlightStyle.plain;
+              if (x is StrokeObject) x.highlight = h;
+              if (x is ShapeObject) x.highlight = h;
+              // Plain needs to be see-through; multiply does not.
+              if (!keep && x.opacity > 0.95) x.opacity = 0.45;
+              if (keep && x.opacity <= 0.5) x.opacity = 1;
+            });
+            c.hlKeepText = keep;
+          },
+        ),
+      ],
+    );
+  }
 
   // ---- selection ----------------------------------------------------------
 
@@ -679,6 +809,10 @@ class PropertiesPanel extends StatelessWidget {
   }
 
   Widget? _typeSection(BuildContext context, SceneObject o) {
+    if ((o is StrokeObject && o.highlight != HighlightStyle.none) ||
+        (o is ShapeObject && o.highlight != HighlightStyle.none)) {
+      return _highlightSection(o);
+    }
     if (o is BadgeObject) {
       return Section(
         title: 'Marker',

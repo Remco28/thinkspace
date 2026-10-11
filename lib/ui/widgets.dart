@@ -165,10 +165,14 @@ class ColorRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.allowNone = false,
+    this.palette = kPalette,
   });
   final int value;
   final ValueChanged<int> onChanged;
   final bool allowNone;
+
+  /// The fixed swatches; the rainbow one after them mixes any other colour.
+  final List<int> palette;
 
   @override
   Widget build(BuildContext context) {
@@ -194,13 +198,13 @@ class ColorRow extends StatelessWidget {
       );
     }
 
-    final custom = !kPalette.contains(value) && value != 0;
+    final custom = !palette.contains(value) && value != 0;
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       children: [
         if (allowNone) swatch(0),
-        for (final c in kPalette) swatch(c),
+        for (final c in palette) swatch(c),
         // The last swatch opens the colour picker; it shows the colour in use
         // when that is not one of the fixed ones.
         Builder(
@@ -529,4 +533,67 @@ class _LinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LinePainter old) => old.color != color;
+}
+
+/// A chisel-tip marker lying over a bar of colour: the highlighter tool.
+class HighlighterGlyph extends StatelessWidget {
+  const HighlighterGlyph(this.size, this.color, {super.key});
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size.square(size), painter: _HighlighterPainter(color));
+}
+
+class _HighlighterPainter extends CustomPainter {
+  _HighlighterPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final u = s.width / 18; // drawn on an 18-unit grid
+    // The stripe the marker has just laid down.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(1.5 * u, 14 * u, 15 * u, 3 * u),
+        Radius.circular(1.2 * u),
+      ),
+      Paint()..color = color.withValues(alpha: 0.45),
+    );
+    // The marker: a slanted body with a flat tip.
+    final body = Path()
+      ..moveTo(5.2 * u, 12.2 * u)
+      ..lineTo(11.6 * u, 3.0 * u)
+      ..lineTo(14.6 * u, 5.2 * u)
+      ..lineTo(8.2 * u, 14.2 * u)
+      ..close();
+    canvas.drawPath(
+      body,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5 * u
+        ..strokeJoin = StrokeJoin.round,
+    );
+    canvas.drawLine(
+      Offset(7.2 * u, 8.4 * u),
+      Offset(10.6 * u, 10.8 * u),
+      Paint()
+        ..color = color
+        ..strokeWidth = 1.2 * u,
+    );
+    // The tip, resting on the stripe.
+    canvas.drawLine(
+      Offset(5.0 * u, 12.6 * u),
+      Offset(8.4 * u, 14.6 * u),
+      Paint()
+        ..color = color
+        ..strokeWidth = 1.8 * u
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_HighlighterPainter old) => old.color != color;
 }

@@ -17,6 +17,7 @@ enum _Mode {
   marquee,
   create,
   pen,
+  highlight,
   lasso,
   cutBox,
   gripResize,
@@ -216,6 +217,8 @@ class CanvasInteractor {
         _token = c.beginEdit('add text');
       case Tool.pen:
         _downPen(p);
+      case Tool.highlight:
+        _downHighlight(p);
       case Tool.badge:
         _downBadge(p, m);
       case Tool.cutout:
@@ -449,6 +452,8 @@ class CanvasInteractor {
         _doCreate(p, m);
       case _Mode.pen:
         _doPen(p, m);
+      case _Mode.highlight:
+        _doHighlight(p, m);
       case _Mode.lasso:
         final pts = c.lasso!;
         if ((pts.last - p).distance * c.zoom > 2) pts.add(p);
@@ -621,6 +626,84 @@ class CanvasInteractor {
     c.notify();
   }
 
+  void _downHighlight(Offset p) {
+    _token = c.beginEdit('highlight');
+    _penPoints = [p];
+    _penStraight = false;
+    _createId = null; // starts once the pointer really moves, like the pen
+    _mode = _Mode.highlight;
+  }
+
+  void _doHighlight(Offset p, Modifiers m) {
+    if (_createId == null) {
+      if ((p - _penPoints.first).distance * c.zoom < _penMinDrag) return;
+      final keep = c.hlKeepText;
+      final style = keep ? HighlightStyle.multiply : HighlightStyle.plain;
+      // Plain highlighter colour has to be see-through to be a highlighter.
+      final opacity = keep ? 1.0 : 0.45;
+      final SceneObject o;
+      if (c.hlBox) {
+        o = ShapeObject(
+          id: c.doc.newId('o'),
+          name: c.uniqueName('highlight'),
+          ellipse: false,
+          center: _penPoints.first,
+          size: const Size(1, 1),
+          stroke: c.hlColor,
+          fill: c.hlColor,
+          strokeWidth: 0,
+          highlight: style,
+          opacity: opacity,
+        );
+      } else {
+        o = StrokeObject(
+          id: c.doc.newId('o'),
+          name: c.uniqueName('highlight'),
+          points: [_penPoints.first],
+          color: c.hlColor,
+          width: c.hlWidth,
+          highlight: style,
+          opacity: opacity,
+        );
+      }
+      c.currentLayer.objects.add(o);
+      c.selection = [o.id];
+      _createId = o.id;
+    }
+    final o = c.doc.objectById(_createId!);
+    if (o is ShapeObject) {
+      final a = _snapPoint(_penPoints.first, m), b = _snapPoint(p, m);
+      final r = Rect.fromPoints(a, b);
+      o.center = r.center;
+      o.size = Size(math.max(1, r.width), math.max(1, r.height));
+      c.notify();
+    } else if (o is StrokeObject) {
+      _penStraight = m.shift;
+      if (m.shift) {
+        _penPoints = [_penPoints.first, _constrain(_penPoints.first, p, m)];
+        o.points = List.of(_penPoints);
+        c.notify();
+        return;
+      }
+      if ((_penPoints.last - p).distance * c.zoom < 1.5) return;
+      _penPoints.add(p);
+      o.points = List.of(_penPoints);
+      c.notify();
+    }
+  }
+
+  void _finishHighlight(EditToken? token) {
+    final id = _createId;
+    final o = id == null ? null : c.doc.objectById(id);
+    if (o is StrokeObject && !_penStraight && o.points.length > 2) {
+      final smooth = simplifyPolyline(o.points, 1.2 / c.zoom);
+      // A quick, nearly level pass over a line of text becomes a level bar.
+      o.points = straightenMark(smooth, o.width) ?? smooth;
+    }
+    if (token != null) c.endEdit(token);
+    // Like the pen, the highlighter stays active: one page, many marks.
+  }
+
   void _doGrip(Offset p, Modifiers m) {
     final target = p + _gripGrab;
     final content = contentBounds(c.doc);
@@ -693,6 +776,8 @@ class CanvasInteractor {
         _finishCreate(token, p, m);
       case _Mode.pen:
         _finishPen(token);
+      case _Mode.highlight:
+        _finishHighlight(token);
       case _Mode.textBox:
         _finishTextBox(token, p, m);
       case _Mode.lasso:

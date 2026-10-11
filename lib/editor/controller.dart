@@ -16,7 +16,18 @@ import '../model/scene.dart';
 import 'image_ops.dart';
 import 'render.dart';
 
-enum Tool { select, line, arrow, rect, ellipse, text, pen, badge, cutout }
+enum Tool {
+  select,
+  line,
+  arrow,
+  rect,
+  ellipse,
+  text,
+  pen,
+  highlight,
+  badge,
+  cutout,
+}
 
 enum CutoutMode { lasso, box, wand }
 
@@ -64,6 +75,15 @@ const List<int> kPalette = [
   0xFFFFFFFF, // white
   0xFF9E9E9E, // grey
   0xFF222222, // near black
+];
+
+/// The five highlighter colours.
+const List<int> kHighlightPalette = [
+  0xFFFFF200, // yellow
+  0xFF8BE04E, // green
+  0xFFFF7EC8, // pink
+  0xFF5CC8FF, // blue
+  0xFFFFB347, // orange
 ];
 
 class EditorController extends ChangeNotifier {
@@ -143,6 +163,13 @@ class EditorController extends ChangeNotifier {
   TextFont textFont = TextFont.sans;
   PasteMode pasteMode = PasteMode.ask;
   PendingPaste? pendingPaste;
+
+  // The highlighter: colour, marker width, marker or box, and whether writing
+  // under it stays dark (multiply) or the colour is simply see-through.
+  int hlColor = kHighlightPalette.first;
+  double hlWidth = 26;
+  bool hlBox = false;
+  bool hlKeepText = true;
 
   // --- transient overlays drawn by the canvas -------------------------------
   Rect? marquee;

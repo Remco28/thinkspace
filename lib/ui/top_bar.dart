@@ -41,6 +41,7 @@ class TopBar extends StatelessWidget {
     (Tool.ellipse, Icons.circle_outlined, 'Ellipse', 'E'),
     (Tool.text, Icons.title, 'Text', 'T'),
     (Tool.pen, Icons.edit_outlined, 'Pen', 'P'),
+    (Tool.highlight, Icons.border_color_outlined, 'Highlighter', 'H'),
     (Tool.badge, Icons.looks_one_outlined, 'Numbered marker', 'N'),
     (Tool.cutout, Icons.content_cut, 'Cut out', 'C'),
   ];
@@ -198,7 +199,11 @@ class TopBar extends StatelessWidget {
                   SmallIconButton(
                     key: ValueKey('tool-${t.$1.name}'),
                     icon: t.$2,
-                    glyph: t.$1 == Tool.line ? LineGlyph.new : null,
+                    glyph: switch (t.$1) {
+                      Tool.line => LineGlyph.new,
+                      Tool.highlight => HighlighterGlyph.new,
+                      _ => null,
+                    },
                     tooltip:
                         '${t.$3}  (${t.$4})${t.$1 == Tool.select ? '' : ' — double-click to keep it active'}',
                     active: c.tool == t.$1,

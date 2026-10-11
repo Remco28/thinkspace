@@ -355,6 +355,8 @@ class _EditorShellState extends State<EditorShell> {
         c.setTool(Tool.text);
       case LogicalKeyboardKey.keyP:
         c.setTool(Tool.pen);
+      case LogicalKeyboardKey.keyH:
+        c.setTool(Tool.highlight);
       case LogicalKeyboardKey.keyN:
         c.setTool(Tool.badge);
       case LogicalKeyboardKey.keyC:

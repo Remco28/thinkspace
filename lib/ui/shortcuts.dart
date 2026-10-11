@@ -14,6 +14,7 @@ const _tools = <(String, String)>[
   ('E', 'Ellipse'),
   ('T', 'Text'),
   ('P', 'Pen'),
+  ('H', 'Highlighter'),
   ('N', 'Numbered marker'),
   ('C', 'Cut out'),
 ];

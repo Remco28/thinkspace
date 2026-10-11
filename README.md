@@ -14,6 +14,7 @@ Thinkspace is **not** a photo editor, a vector studio or a drafting tool. The sc
 - **Fast lines and arrows.** Straight lines and arrows that you resize by dragging their ends. `Shift` snaps them to clean angles. Also rectangles, ellipses, text in four typefaces (sans, serif, mono, handwriting) and a smoothed pen; hold `Shift` with the pen for a straight line.
 - **Layers that do the simple things.** Show/hide, reorder, lock, and *move everything on a layer together* — click a layer to select its contents, then drag. Drag any object onto another layer without it changing.
 - **A collection of source images.** Keep pictures you have gathered but not placed. Drag one onto the page to use it; the original stays in the collection to use again. Every item has its own name; click an item to select it (`Enter` places it, `Delete` removes it, `F2` renames it on the spot), and drag one onto another to rearrange the shelf (or use `[` `]`). The collection is resizable and can be hidden.
+- **A highlighter.** Press `H`: drag over text in a screenshot like a marker (a quick, nearly level pass becomes a perfectly level bar; hold `Shift` for a straight line), or switch to Box and drag a rectangle over a whole area. Five highlighter colours; writing underneath stays dark, like a real marker (there is a switch for dark pictures, where it becomes a plain see-through colour).
 - **A tidy side panel.** The layers list and the settings for whatever is selected share the right-hand column, with a draggable divider so you can give either more room (double-click it to reset). Any colour can be mixed with the colour picker, from the rainbow swatch.
 - **Cut things out.** Draw around the part of a picture you want (freehand or box) and it becomes a new object, leaving the original intact. Or click a colour to remove it, or clear a flat background in one click, then fine-tune it with a Less ↔ More slider (it can also clear the gaps inside a drawing, and it softens the edge, so a line drawing on white sits cleanly on any colour). Cutting can leave a gap in the original, which you can leave empty or fill with a colour. Choosing the cut-out tool opens a small card in the middle of the page that asks the questions in order: what to select (draw around it, a box, or a colour), whether to copy or cut, and what to leave behind. Pieces can be merged into a single image, and a merged image can be unmerged back into its original pieces for as long as the picture itself has not been cut or recoloured (moving, scaling, turning and fading do not matter).
 - **A page that grows with the work.** Drag the grips on the page edge (or type a size) to make room for a longer composition. Resizing never touches the objects on it. "Fit page to content" tightens it up again.
@@ -60,7 +61,7 @@ Touch and pen work too: one finger does what the mouse does, two fingers move an
 
 | Key | Does |
 |---|---|
-| `V` `L` `A` `R` `E` `T` `P` `C` | Select · line · arrow · rectangle · ellipse · text · pen · cut out |
+| `V` `L` `A` `R` `E` `T` `P` `H` `N` `C` | Select · line · arrow · rectangle · ellipse · text · pen · highlighter · numbered marker · cut out |
 | double-click a tool | keep it active until `Esc` |
 | `Shift` while drawing / dragging | straight angles · perfect squares · lock to one axis |
 | `Ctrl` while moving | ignore snapping |

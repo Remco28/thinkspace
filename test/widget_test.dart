@@ -957,6 +957,52 @@ void main() {
     });
   });
 
+  appTest('the highlighter has its own tool, key and panel', (tester) async {
+    final c = await pumpApp(tester);
+    expect(find.byKey(const ValueKey('tool-highlight')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyH);
+    await tester.pump();
+    expect(c.tool, Tool.highlight);
+    expect(find.byKey(const ValueKey('tool-key-highlight')), findsOneWidget);
+    // Marker or box, colours, width and the text-readable switch.
+    expect(find.byKey(const ValueKey('hl-marker')), findsOneWidget);
+    expect(find.text('Width'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('hl-box')));
+    await tester.pump();
+    expect(c.hlBox, isTrue);
+    expect(find.text('Width'), findsNothing, reason: 'a box has no width');
+    await tester.tap(find.byKey(const ValueKey('hl-keep-text')));
+    await tester.pump();
+    expect(c.hlKeepText, isFalse);
+  });
+
+  appTest('a drawn highlight can be recoloured and switched to plain', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    c.setTool(Tool.highlight);
+    final r = canvasRect(tester);
+    final g = await tester.startGesture(
+      r.topLeft + const Offset(100, 200),
+      kind: PointerDeviceKind.mouse,
+    );
+    await g.moveBy(const Offset(120, 0));
+    await g.moveBy(const Offset(120, 0));
+    await g.up();
+    await tester.pump();
+    final s = c.doc.allObjects.single as StrokeObject;
+    expect(find.text('Highlight'), findsWidgets);
+    c.setTool(Tool.select);
+    c.select([s.id]);
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('hl-keep-text')));
+    await tester.tap(find.byKey(const ValueKey('hl-keep-text')));
+    await tester.pump();
+    final live = c.doc.allObjects.single as StrokeObject;
+    expect(live.highlight, HighlightStyle.plain);
+    expect(live.opacity, lessThan(0.5));
+  });
+
   appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {

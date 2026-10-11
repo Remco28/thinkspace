@@ -414,6 +414,18 @@ class TextObject extends BoxObject {
   }
 }
 
+/// How a highlighter mark sits on the page. Multiply tints what is under it
+/// and keeps dark writing dark, like a real marker; plain is a see-through
+/// colour, for dark pictures where multiply would vanish.
+enum HighlightStyle {
+  none,
+  multiply,
+  plain;
+
+  static HighlightStyle byName(Object? n) =>
+      values.firstWhere((h) => h.name == n, orElse: () => none);
+}
+
 class ShapeObject extends BoxObject {
   ShapeObject({
     required super.id,
@@ -424,6 +436,7 @@ class ShapeObject extends BoxObject {
     this.stroke = 0xFFE53935,
     this.fill = 0,
     this.strokeWidth = 4,
+    this.highlight = HighlightStyle.none,
     super.rotation,
     super.opacity,
     super.visible,
@@ -440,6 +453,9 @@ class ShapeObject extends BoxObject {
   /// 0 means unfilled.
   int fill;
   double strokeWidth;
+
+  /// A box made with the highlighter.
+  HighlightStyle highlight;
 
   @override
   ObjectKind get kind => ellipse ? ObjectKind.ellipse : ObjectKind.rect;
@@ -477,6 +493,7 @@ class ShapeObject extends BoxObject {
     stroke: stroke,
     fill: fill,
     strokeWidth: strokeWidth,
+    highlight: highlight,
     rotation: rotation,
     opacity: opacity,
     visible: visible,
@@ -489,6 +506,7 @@ class ShapeObject extends BoxObject {
     'stroke': stroke,
     'fill': fill,
     'strokeWidth': strokeWidth,
+    if (highlight != HighlightStyle.none) 'highlight': highlight.name,
   };
 
   factory ShapeObject.fromJson(Map<String, dynamic> j) {
@@ -501,6 +519,7 @@ class ShapeObject extends BoxObject {
       stroke: j['stroke'],
       fill: j['fill'] ?? 0,
       strokeWidth: (j['strokeWidth'] as num).toDouble(),
+      highlight: HighlightStyle.byName(j['highlight']),
       opacity: ((j['opacity'] ?? 1) as num).toDouble(),
       visible: j['visible'] ?? true,
       locked: j['locked'] ?? false,
@@ -673,6 +692,7 @@ class StrokeObject extends SceneObject {
     required this.points,
     this.color = 0xFFE53935,
     this.width = 5,
+    this.highlight = HighlightStyle.none,
     super.opacity,
     super.visible,
     super.locked,
@@ -681,6 +701,9 @@ class StrokeObject extends SceneObject {
   List<Offset> points;
   int color;
   double width;
+
+  /// A mark made with the highlighter (flat ends, and see-through).
+  HighlightStyle highlight;
 
   @override
   ObjectKind get kind => ObjectKind.stroke;
@@ -711,6 +734,7 @@ class StrokeObject extends SceneObject {
     points: List.of(points),
     color: color,
     width: width,
+    highlight: highlight,
     opacity: opacity,
     visible: visible,
     locked: locked,
@@ -722,6 +746,7 @@ class StrokeObject extends SceneObject {
     'points': [for (final p in points) _offJson(p)],
     'color': color,
     'width': width,
+    if (highlight != HighlightStyle.none) 'highlight': highlight.name,
   };
 
   factory StrokeObject.fromJson(Map<String, dynamic> j) => StrokeObject(
@@ -730,6 +755,7 @@ class StrokeObject extends SceneObject {
     points: [for (final p in j['points']) _off(p)],
     color: j['color'],
     width: (j['width'] as num).toDouble(),
+    highlight: HighlightStyle.byName(j['highlight']),
     opacity: ((j['opacity'] ?? 1) as num).toDouble(),
     visible: j['visible'] ?? true,
     locked: j['locked'] ?? false,

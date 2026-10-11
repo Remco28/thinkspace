@@ -90,3 +90,27 @@ double normalizeAngle(double a) {
   }
   return a;
 }
+
+/// A quick pass of the highlighter over a line of text wobbles. If the stroke
+/// is nearly level (or nearly upright) and stays within about a stroke width
+/// of its middle, return it as the perfectly straight line it was meant to be;
+/// otherwise null, and the stroke stays as drawn.
+List<Offset>? straightenMark(List<Offset> pts, double width) {
+  if (pts.length < 3) return null;
+  final first = pts.first, last = pts.last;
+  final dx = (last.dx - first.dx).abs(), dy = (last.dy - first.dy).abs();
+  if (math.max(dx, dy) < 24) return null;
+  final slack = math.max(width, 8.0);
+  const tolerance = 0.14; // tan of about 8 degrees
+  if (dy <= dx * tolerance) {
+    final mean = pts.fold<double>(0, (a, p) => a + p.dy) / pts.length;
+    if (pts.any((p) => (p.dy - mean).abs() > slack)) return null;
+    return [Offset(first.dx, mean), Offset(last.dx, mean)];
+  }
+  if (dx <= dy * tolerance) {
+    final mean = pts.fold<double>(0, (a, p) => a + p.dx) / pts.length;
+    if (pts.any((p) => (p.dx - mean).abs() > slack)) return null;
+    return [Offset(mean, first.dy), Offset(mean, last.dy)];
+  }
+  return null;
+}
