@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../editor/controller.dart';
 import '../model/scene.dart';
+import 'menus.dart';
 
 enum _Act {
   copy,
@@ -37,51 +38,131 @@ Future<void> showObjectMenu(
       .toList()
       .reversed
       .toList();
+  const w = 220.0;
   final items = <PopupMenuEntry<Object>>[
     if (sel.isNotEmpty) ...[
-      const PopupMenuItem(value: _Act.copy, child: Text('Copy')),
-      const PopupMenuItem(value: _Act.cut, child: Text('Cut')),
-      const PopupMenuItem(value: _Act.duplicate, child: Text('Duplicate')),
-      const PopupMenuItem(value: _Act.delete, child: Text('Delete')),
-      const PopupMenuDivider(),
-      const PopupMenuItem(value: _Act.front, child: Text('Bring to front')),
-      const PopupMenuItem(value: _Act.back, child: Text('Send to back')),
-      for (final l in others)
-        PopupMenuItem(value: l.id, child: Text('Move to “${l.name}”')),
-      const PopupMenuDivider(),
+      menuItem(
+        value: _Act.copy,
+        label: 'Copy',
+        icon: Icons.content_copy,
+        shortcut: 'Ctrl+C',
+        width: w,
+      ),
+      menuItem(
+        value: _Act.cut,
+        label: 'Cut',
+        icon: Icons.content_cut,
+        shortcut: 'Ctrl+X',
+        width: w,
+      ),
+      menuItem(
+        value: _Act.duplicate,
+        label: 'Duplicate',
+        icon: Icons.copy_all_outlined,
+        shortcut: 'Ctrl+D',
+        width: w,
+      ),
+      menuItem(
+        value: _Act.delete,
+        label: 'Delete',
+        icon: Icons.delete_outline,
+        shortcut: 'Del',
+        danger: true,
+        width: w,
+      ),
+      menuDivider(),
+      menuItem(
+        value: _Act.front,
+        label: 'Bring to front',
+        icon: Icons.flip_to_front,
+        shortcut: 'Ctrl+Shift+]',
+        width: w,
+      ),
+      menuItem(
+        value: _Act.back,
+        label: 'Send to back',
+        icon: Icons.flip_to_back,
+        shortcut: 'Ctrl+Shift+[',
+        width: w,
+      ),
+      if (others.isNotEmpty) ...[
+        menuDivider(),
+        menuLabel('Move to layer', width: w),
+        for (final l in others)
+          menuItem(
+            value: l.id,
+            label: l.name,
+            icon: Icons.layers_outlined,
+            width: w,
+          ),
+      ],
+      menuDivider(),
       if (one is ImageObject) ...[
-        const PopupMenuItem(value: _Act.cutout, child: Text('Cut out…')),
-        const PopupMenuItem(
-          value: _Act.removeBg,
-          child: Text('Remove background'),
+        menuItem(
+          value: _Act.cutout,
+          label: 'Cut out…',
+          icon: Icons.content_cut,
+          width: w,
         ),
-        const PopupMenuItem(
+        menuItem(
+          value: _Act.removeBg,
+          label: 'Remove background',
+          icon: Icons.auto_fix_high,
+          width: w,
+        ),
+        menuItem(
           value: _Act.keep,
-          child: Text('Keep in collection'),
+          label: 'Keep in collection',
+          icon: Icons.collections_outlined,
+          width: w,
         ),
       ],
-      PopupMenuItem(
-        value: _Act.merge,
-        child: Text(
-          sel.length > 1 ? 'Merge into one image' : 'Turn into an image',
-        ),
-      ),
       if (c.canUnmerge)
-        const PopupMenuItem(
+        menuItem(
           value: _Act.unmerge,
-          child: Text('Unmerge (back to the original pieces)'),
+          label: 'Unmerge into the original pieces',
+          icon: Icons.call_split,
+          shortcut: 'U',
+          width: w,
+        )
+      else
+        menuItem(
+          value: _Act.merge,
+          label: sel.length > 1 ? 'Merge into one image' : 'Turn into an image',
+          icon: Icons.layers_clear_outlined,
+          shortcut: 'M',
+          width: w,
         ),
-      PopupMenuItem(
+      menuItem(
         value: _Act.lock,
-        child: Text(sel.every((o) => o.locked) ? 'Unlock' : 'Lock in place'),
+        label: sel.every((o) => o.locked) ? 'Unlock' : 'Lock in place',
+        icon: sel.every((o) => o.locked)
+            ? Icons.lock_open_outlined
+            : Icons.lock_outline,
+        width: w,
       ),
     ] else ...[
-      const PopupMenuItem(value: _Act.paste, child: Text('Paste')),
-      const PopupMenuItem(
-        value: _Act.selectAll,
-        child: Text('Select everything'),
+      menuItem(
+        value: _Act.paste,
+        label: 'Paste',
+        icon: Icons.content_paste,
+        shortcut: 'Ctrl+V',
+        width: w,
       ),
-      const PopupMenuItem(value: _Act.fit, child: Text('Fit the page in view')),
+      menuItem(
+        value: _Act.selectAll,
+        label: 'Select everything',
+        icon: Icons.select_all,
+        shortcut: 'Ctrl+A',
+        width: w,
+      ),
+      menuItem(
+        value: _Act.fit,
+        label: 'Fit the page in view',
+        icon: Icons.fit_screen_outlined,
+        shortcut: 'F',
+        width: w,
+      ),
     ],
   ];
   final v = await showMenu<Object>(

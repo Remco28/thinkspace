@@ -335,13 +335,13 @@ class EditorController extends ChangeNotifier {
     dirty = _savedSig == null || doc.signature() != _savedSig;
   }
 
-  void undo() {
+  void undo({bool quiet = false}) {
     finishTextEdit();
     if (_undo.isEmpty) return;
     final s = _undo.removeLast();
     _redo.add(_capture(s.label));
     _restore(s);
-    showToast('Undid ${s.label}');
+    if (!quiet) showToast('Undid ${s.label}');
   }
 
   void redo() {
@@ -1644,7 +1644,63 @@ class EditorController extends ChangeNotifier {
       'remove background',
       () => (doc.objectById(o.id) as ImageObject?)?.assetId = na.id,
     );
+    // Open the fine-tuning bar, as long as nothing else happens meanwhile.
+    _bgObject = o.id;
+    _bgDepth = undoDepth;
+    _bgAsset = na.id;
+    notifyListeners();
     return true;
+  }
+
+  // ---- fine-tuning a background removal -------------------------------------
+  // Right after "Remove background" a small bar offers Less / More and the
+  // enclosed-areas switch. Changing either takes the removal back and redoes
+  // it from the original picture, so the whole thing stays one undo step.
+
+  String? _bgObject, _bgAsset;
+  int _bgDepth = -1;
+  bool _bgBusy = false, _bgPending = false;
+
+  /// The picture whose background was just removed, while the bar applies:
+  /// nothing else has been done since, and it is still selected.
+  ImageObject? get bgSessionObject {
+    final id = _bgObject;
+    if (id == null || undoDepth != _bgDepth) return null;
+    final o = doc.objectById(id);
+    if (o is! ImageObject || o.assetId != _bgAsset) return null;
+    return single?.id == id ? o : null;
+  }
+
+  void endBgSession() {
+    if (_bgObject == null) return;
+    _bgObject = _bgAsset = null;
+    notifyListeners();
+  }
+
+  /// Redo the removal with the current settings.
+  Future<void> adjustBackground() async {
+    if (_bgBusy) {
+      _bgPending = true; // one more pass once this one is done
+      return;
+    }
+    _bgBusy = true;
+    try {
+      do {
+        _bgPending = false;
+        final o = bgSessionObject;
+        if (o == null) break;
+        undo(quiet: true);
+        final back = doc.objectById(o.id);
+        if (back is ImageObject) {
+          final ok = await removeBackgroundFrom(back);
+          if (!ok) endBgSession();
+        } else {
+          endBgSession();
+        }
+      } while (_bgPending);
+    } finally {
+      _bgBusy = false;
+    }
   }
 
   Future<bool> removeColorAt(ImageObject o, Offset scene) async {

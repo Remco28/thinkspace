@@ -6,6 +6,7 @@ import '../editor/canvas_view.dart';
 import '../editor/controller.dart';
 import '../io/files.dart';
 import '../model/scene.dart';
+import 'menus.dart';
 import 'widgets.dart';
 
 class CollectionPanel extends StatelessWidget {
@@ -174,24 +175,30 @@ class _Thumb extends StatelessWidget {
           d.globalPosition.dx,
           d.globalPosition.dy,
         ),
-        items: const [
-          PopupMenuItem(value: 'place', child: Text('Place on page')),
-          PopupMenuItem(
-            value: 'rename',
-            child: SizedBox(
-              width: 130,
-              child: Row(
-                children: [
-                  Expanded(child: Text('Rename')),
-                  Text(
-                    'F2',
-                    style: TextStyle(fontSize: 11.5, color: Color(0xFF8A90A0)),
-                  ),
-                ],
-              ),
-            ),
+        items: [
+          menuItem(
+            value: 'place',
+            label: 'Place on page',
+            icon: Icons.add_photo_alternate_outlined,
+            shortcut: 'Enter',
+            width: 210,
           ),
-          PopupMenuItem(value: 'remove', child: Text('Remove from collection')),
+          menuItem(
+            value: 'rename',
+            label: 'Rename',
+            icon: Icons.drive_file_rename_outline,
+            shortcut: 'F2',
+            width: 210,
+          ),
+          menuDivider(),
+          menuItem(
+            value: 'remove',
+            label: 'Remove from collection',
+            icon: Icons.delete_outline,
+            shortcut: 'Del',
+            danger: true,
+            width: 210,
+          ),
         ],
       );
       if (!context.mounted) return;

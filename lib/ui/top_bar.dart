@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../editor/canvas_painter.dart';
 import '../editor/controller.dart';
 import '../io/files.dart';
+import 'menus.dart';
 import 'widgets.dart';
 
 enum MenuAction {
@@ -47,34 +48,16 @@ class TopBar extends StatelessWidget {
   static PopupMenuEntry<MenuAction> _item(
     MenuAction a,
     String label,
-    String keys,
-  ) => PopupMenuItem(
-    value: a,
-    height: 34,
-    child: SizedBox(
-      width: 250,
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 13.5))),
-          Text(
-            keys,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF8A90A0)),
-          ),
-        ],
-      ),
-    ),
-  );
+    String keys, {
+    IconData? icon,
+  }) =>
+      menuItem(value: a, label: label, icon: icon, shortcut: keys, width: 250);
 
   static PopupMenuEntry<MenuAction> _check(
     MenuAction a,
     String label,
     bool on,
-  ) => CheckedPopupMenuItem(
-    value: a,
-    checked: on,
-    height: 34,
-    child: Text(label, style: const TextStyle(fontSize: 13.5)),
-  );
+  ) => menuItem(value: a, label: label, checked: on, width: 250);
 
   /// A second click on the same tool within a moment keeps it active.
   void _toolTap(Tool t) {
@@ -105,30 +88,61 @@ class TopBar extends StatelessWidget {
               tooltip: 'Menu',
               icon: const Icon(Icons.menu, size: 20),
               onSelected: onMenu,
+              position: PopupMenuPosition.under,
+              offset: const Offset(0, 4),
               itemBuilder: (_) => [
-                _item(MenuAction.newDoc, 'New', 'Ctrl+N'),
-                _item(MenuAction.open, 'Open…', 'Ctrl+O'),
-                _item(MenuAction.save, 'Save', 'Ctrl+S'),
-                _item(MenuAction.saveAs, 'Save as…', 'Ctrl+Shift+S'),
-                const PopupMenuDivider(height: 8),
-                _item(MenuAction.importImage, 'Add image…', 'Ctrl+I'),
-                const PopupMenuDivider(height: 8),
-                _item(MenuAction.exportPng, 'Export PNG…', 'Ctrl+E'),
-                _item(MenuAction.exportPng2x, 'Export PNG at 2×…', ''),
+                _item(
+                  MenuAction.newDoc,
+                  'New',
+                  'Ctrl+N',
+                  icon: Icons.note_add_outlined,
+                ),
+                _item(
+                  MenuAction.open,
+                  'Open…',
+                  'Ctrl+O',
+                  icon: Icons.folder_open_outlined,
+                ),
+                _item(
+                  MenuAction.save,
+                  'Save',
+                  'Ctrl+S',
+                  icon: Icons.save_outlined,
+                ),
+                _item(
+                  MenuAction.saveAs,
+                  'Save as…',
+                  'Ctrl+Shift+S',
+                  icon: Icons.save_as_outlined,
+                ),
+                menuDivider(),
+                _item(
+                  MenuAction.importImage,
+                  'Add image…',
+                  'Ctrl+I',
+                  icon: Icons.add_photo_alternate_outlined,
+                ),
+                menuDivider(),
+                _item(
+                  MenuAction.exportPng,
+                  'Export PNG…',
+                  'Ctrl+E',
+                  icon: Icons.ios_share,
+                ),
+                _item(
+                  MenuAction.exportPng2x,
+                  'Export PNG at 2×…',
+                  '',
+                  icon: Icons.high_quality_outlined,
+                ),
                 _item(
                   MenuAction.copyPage,
                   'Copy page as image',
                   'Ctrl+Shift+C',
+                  icon: Icons.content_copy,
                 ),
-                const PopupMenuDivider(height: 8),
-                const PopupMenuItem(
-                  enabled: false,
-                  height: 26,
-                  child: Text(
-                    'When I paste an image…',
-                    style: TextStyle(fontSize: 11.5),
-                  ),
-                ),
+                menuDivider(),
+                menuLabel('When I paste an image', width: 250),
                 _check(
                   MenuAction.pasteAsk,
                   'Ask me',
@@ -144,13 +158,19 @@ class TopBar extends StatelessWidget {
                   'Add to the collection',
                   c.pasteMode == PasteMode.collection,
                 ),
-                const PopupMenuDivider(height: 8),
+                menuDivider(),
                 _check(
                   MenuAction.autoGrow,
                   'Grow the page as I add things',
                   c.autoGrow,
                 ),
-                _item(MenuAction.shortcuts, 'Keyboard shortcuts', '?'),
+                menuDivider(),
+                _item(
+                  MenuAction.shortcuts,
+                  'Keyboard shortcuts',
+                  '?',
+                  icon: Icons.keyboard_outlined,
+                ),
               ],
             ),
             const SizedBox(width: 4),

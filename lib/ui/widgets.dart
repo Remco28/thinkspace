@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../editor/canvas_painter.dart';
 import '../editor/controller.dart';
+import 'color_picker.dart';
 
 const Color kPanel = Color(0xFFF7F8FA);
 const Color kBorder = Color(0xFFD9DCE3);
@@ -172,10 +173,9 @@ class ColorRow extends StatelessWidget {
         child: Container(
           width: 18,
           height: 18,
-          margin: const EdgeInsets.only(right: 4, bottom: 4),
           decoration: BoxDecoration(
             color: argb == 0 ? Colors.white : Color(argb),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(
               color: selected ? kAccent : const Color(0xFFBFC4CF),
               width: selected ? 2 : 1,
@@ -190,36 +190,52 @@ class ColorRow extends StatelessWidget {
 
     final custom = !kPalette.contains(value) && value != 0;
     return Wrap(
+      spacing: 6,
+      runSpacing: 6,
       children: [
         if (allowNone) swatch(0),
         for (final c in kPalette) swatch(c),
-        GestureDetector(
-          onTap: () async {
-            final v = await showHexDialog(context, value);
-            if (v != null) onChanged(v);
-          },
-          child: Container(
-            width: 18,
-            height: 18,
-            margin: const EdgeInsets.only(bottom: 4),
-            decoration: BoxDecoration(
-              color: custom ? Color(value) : null,
-              gradient: custom
-                  ? null
-                  : const SweepGradient(
-                      colors: [
-                        Colors.red,
-                        Colors.yellow,
-                        Colors.green,
-                        Colors.blue,
-                        Colors.purple,
-                        Colors.red,
-                      ],
-                    ),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: custom ? kAccent : const Color(0xFFBFC4CF),
-                width: custom ? 2 : 1,
+        // The last swatch opens the colour picker; it shows the colour in use
+        // when that is not one of the fixed ones.
+        Builder(
+          builder: (context) => Tooltip(
+            message: 'Mix any colour',
+            waitDuration: const Duration(milliseconds: 500),
+            child: GestureDetector(
+              key: const ValueKey('custom-colour'),
+              onTap: () {
+                final box = context.findRenderObject() as RenderBox;
+                final at = box.localToGlobal(Offset.zero) & box.size;
+                showColorPopover(
+                  context,
+                  anchor: at,
+                  initial: value,
+                  onChanged: onChanged,
+                );
+              },
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: custom ? Color(value) : null,
+                  gradient: custom
+                      ? null
+                      : const SweepGradient(
+                          colors: [
+                            Colors.red,
+                            Colors.yellow,
+                            Colors.green,
+                            Colors.blue,
+                            Colors.purple,
+                            Colors.red,
+                          ],
+                        ),
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: custom ? kAccent : const Color(0xFFBFC4CF),
+                    width: custom ? 2 : 1,
+                  ),
+                ),
               ),
             ),
           ),
@@ -229,43 +245,14 @@ class ColorRow extends StatelessWidget {
   }
 }
 
-Future<int?> showHexDialog(BuildContext context, int current) {
-  final ctl = TextEditingController(
-    text: current == 0
-        ? ''
-        : (current & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase(),
-  );
-  return showDialog<int>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Custom colour'),
-      content: TextField(
-        controller: ctl,
-        autofocus: true,
-        decoration: const InputDecoration(prefixText: '#', hintText: 'RRGGBB'),
-        onSubmitted: (s) => Navigator.pop(ctx, _parseHex(s)),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, _parseHex(ctl.text)),
-          child: const Text('Use colour'),
-        ),
-      ],
-    ),
-  );
-}
-
-int? _parseHex(String s) {
-  var t = s.trim().replaceAll('#', '');
-  if (t.length == 3) t = t.split('').map((e) => '$e$e').join();
-  if (t.length != 6) return null;
-  final v = int.tryParse(t, radix: 16);
-  return v == null ? null : 0xFF000000 | v;
-}
+/// The outline every text and number box in the panels shares.
+OutlineInputBorder fieldBorder({bool focused = false}) => OutlineInputBorder(
+  borderRadius: BorderRadius.circular(7),
+  borderSide: BorderSide(
+    color: focused ? kAccent : const Color(0xFFD0D4DD),
+    width: focused ? 1.6 : 1,
+  ),
+);
 
 class NumberField extends StatefulWidget {
   const NumberField({
@@ -334,7 +321,9 @@ class _NumberFieldState extends State<NumberField> {
         isDense: true,
         suffixText: widget.suffix,
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        border: const OutlineInputBorder(),
+        border: fieldBorder(),
+        enabledBorder: fieldBorder(),
+        focusedBorder: fieldBorder(focused: true),
       ),
       keyboardType: const TextInputType.numberWithOptions(
         decimal: true,

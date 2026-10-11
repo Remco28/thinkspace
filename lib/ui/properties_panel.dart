@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/controller.dart';
 import '../model/scene.dart';
+import 'kit.dart';
 import 'widgets.dart';
 
+/// The settings for whatever is selected, or for the page when nothing is.
 class PropertiesPanel extends StatelessWidget {
   const PropertiesPanel({super.key, required this.controller});
   final EditorController controller;
@@ -19,7 +21,7 @@ class PropertiesPanel extends StatelessWidget {
       builder: (context, _) {
         final objs = c.selectedObjects;
         final title = objs.isEmpty
-            ? (c.tool == Tool.select ? 'Page' : 'New ${c.tool.name}')
+            ? (c.tool == Tool.select ? 'Page' : 'New ${_toolLabel(c.tool)}')
             : (objs.length == 1
                   ? _kindLabel(objs.first)
                   : '${objs.length} selected');
@@ -27,22 +29,16 @@ class PropertiesPanel extends StatelessWidget {
           children: [
             PanelHeader(title),
             Expanded(
-              child: Theme(
-                data: Theme.of(context).copyWith(
-                  outlinedButtonTheme: OutlinedButtonThemeData(
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      textStyle: const TextStyle(fontSize: 12.5),
-                    ),
-                  ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  kPanelPad,
+                  12,
+                  kPanelPad,
+                  20,
                 ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                  child: objs.isEmpty
-                      ? _page(context)
-                      : _selection(context, objs),
-                ),
+                child: objs.isEmpty
+                    ? _page(context)
+                    : _selection(context, objs),
               ),
             ),
           ],
@@ -50,6 +46,13 @@ class PropertiesPanel extends StatelessWidget {
       },
     );
   }
+
+  String _toolLabel(Tool t) => switch (t) {
+    Tool.badge => 'marker',
+    Tool.rect => 'rectangle',
+    Tool.pen => 'pen stroke',
+    _ => t.name,
+  };
 
   String _kindLabel(SceneObject o) => switch (o.kind) {
     ObjectKind.image => 'Image',
@@ -69,172 +72,162 @@ class PropertiesPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (drawing) ...[
-          if (c.tool == Tool.badge)
-            LabeledRow(
-              'Colour',
-              ColorRow(
-                value: c.penColor,
-                onChanged: (v) {
-                  c.penColor = v;
-                  c.notify();
-                },
-              ),
-            )
-          else if (c.tool != Tool.text) ...[
-            LabeledRow(
-              'Colour',
-              ColorRow(
-                value: c.penColor,
-                onChanged: (v) {
-                  c.penColor = v;
-                  c.notify();
-                },
-              ),
-            ),
-            LabeledRow(
-              'Width',
-              _plainSlider(c.penWidth, 1, 30, (v) {
-                c.penWidth = v.roundToDouble();
-                c.notify();
-              }),
-            ),
-            if (c.tool == Tool.rect || c.tool == Tool.ellipse)
-              LabeledRow(
-                'Fill',
-                ColorRow(
-                  allowNone: true,
-                  value: c.fillColor,
-                  onChanged: (v) {
-                    c.fillColor = v;
-                    c.notify();
-                  },
+        if (drawing) _toolDefaults(),
+        Section(
+          first: !drawing,
+          title: 'Page size',
+          children: [
+            Row(
+              children: [
+                NumberField(
+                  key: const ValueKey('canvas-w'),
+                  value: d.canvasSize.width,
+                  suffix: ' wide',
+                  width: 104,
+                  onSubmitted: (v) =>
+                      c.setCanvasSize(Size(v, d.canvasSize.height)),
                 ),
-              ),
-          ] else ...[
-            LabeledRow(
-              'Colour',
-              ColorRow(
-                value: c.textColor,
-                onChanged: (v) {
-                  c.textColor = v;
-                  c.notify();
-                },
-              ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('×', style: TextStyle(color: kLabel)),
+                ),
+                NumberField(
+                  key: const ValueKey('canvas-h'),
+                  value: d.canvasSize.height,
+                  suffix: ' high',
+                  width: 104,
+                  onSubmitted: (v) =>
+                      c.setCanvasSize(Size(d.canvasSize.width, v)),
+                ),
+              ],
             ),
-            LabeledRow(
-              'Font',
-              _FontPicker(
-                value: c.textFont,
-                onChanged: (f) {
-                  c.textFont = f;
-                  c.notify();
-                },
-              ),
-            ),
-            LabeledRow(
-              'Size',
-              _plainSlider(c.textSize, 8, 160, (v) {
-                c.textSize = v.roundToDouble();
-                c.notify();
-              }),
-            ),
-          ],
-          const Divider(height: 24),
-        ],
-        const _Caption('Canvas size'),
-        Row(
-          children: [
-            NumberField(
-              key: const ValueKey('canvas-w'),
-              value: d.canvasSize.width,
-              suffix: ' wide',
-              width: 100,
-              onSubmitted: (v) => c.setCanvasSize(Size(v, d.canvasSize.height)),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6),
-              child: Text('×'),
-            ),
-            NumberField(
-              key: const ValueKey('canvas-h'),
-              value: d.canvasSize.height,
-              suffix: ' high',
-              width: 100,
-              onSubmitted: (v) => c.setCanvasSize(Size(d.canvasSize.width, v)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Drag the grips on the page edge to resize it. Resizing never touches the objects on it.',
-          style: TextStyle(
-            fontSize: 11.5,
-            color: Color(0xFF6B7385),
-            height: 1.35,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            OutlinedButton(
+            ActionButton(
+              key: const ValueKey('fit-page'),
+              label: 'Fit page to content',
+              icon: Icons.crop_free,
+              tooltip:
+                  'Resize the page to exactly fit everything on it, whether that makes it bigger or smaller',
               onPressed: c.fitCanvasToContent,
-              child: const Text('Fit page to content'),
+            ),
+            SwitchRow(
+              key: const ValueKey('grow-page'),
+              label: 'Grow the page as I add things',
+              hint:
+                  'The page gets bigger when you place something past its edge.',
+              value: c.autoGrow,
+              onChanged: (v) {
+                c.autoGrow = v;
+                c.notify();
+              },
+            ),
+            const Hint(
+              'You can also drag the handles on the page’s edge. Resizing never changes what is on it.',
             ),
           ],
         ),
-        CheckboxRow(
-          label: 'Grow the page as I add things',
-          value: c.autoGrow,
-          onChanged: (v) {
-            c.autoGrow = v;
-            c.notify();
-          },
-        ),
-        const Divider(height: 20),
-        const _Caption('Page colour'),
-        ColorRow(
-          allowNone: true,
-          value: d.background,
-          onChanged: c.setBackground,
-        ),
-        const SizedBox(height: 10),
-        const _Caption('Grid'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        Section(
+          title: 'Page colour',
           children: [
-            const Text('Spacing', style: TextStyle(fontSize: 12)),
-            NumberField(
-              key: const ValueKey('grid-size'),
-              value: d.gridSize,
-              width: 60,
-              onSubmitted: (v) => c.setGridSize(v),
-            ),
-            FilterChip(
-              label: const Text('Show'),
-              selected: c.showGrid,
-              onSelected: (_) => c.toggleGrid(),
-              visualDensity: VisualDensity.compact,
-            ),
-            FilterChip(
-              label: const Text('Snap'),
-              selected: c.snapOn,
-              onSelected: (_) => c.toggleSnap(),
-              visualDensity: VisualDensity.compact,
+            ColorRow(
+              allowNone: true,
+              value: d.background,
+              onChanged: c.setBackground,
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        const Text(
-          'Hold Ctrl while dragging to ignore snapping.',
-          style: TextStyle(fontSize: 11.5, color: Color(0xFF6B7385)),
+        Section(
+          title: 'Grid',
+          children: [
+            PropRow(
+              'Spacing',
+              NumberField(
+                key: const ValueKey('grid-size'),
+                value: d.gridSize,
+                suffix: ' px',
+                width: 88,
+                onSubmitted: (v) => c.setGridSize(v),
+              ),
+            ),
+            ButtonRow([
+              ActionButton(
+                key: const ValueKey('grid-show'),
+                label: 'Show grid',
+                icon: Icons.grid_4x4,
+                selected: c.showGrid,
+                tooltip: 'Show the grid  (G)',
+                onPressed: c.toggleGrid,
+              ),
+              ActionButton(
+                key: const ValueKey('grid-snap'),
+                label: 'Snap',
+                icon: Icons.filter_center_focus,
+                selected: c.snapOn,
+                tooltip:
+                    'Snap to the grid  (Shift+G). Hold Ctrl while dragging to place freely.',
+                onPressed: c.toggleSnap,
+              ),
+            ]),
+          ],
         ),
       ],
     );
+  }
+
+  /// Colour, width and so on for the next thing drawn.
+  Widget _toolDefaults() {
+    final rows = <Widget>[];
+    if (c.tool == Tool.text) {
+      rows.addAll([
+        _colour('Colour', c.textColor, (v) {
+          c.textColor = v;
+          c.notify();
+        }),
+        PropRow(
+          'Font',
+          _FontPicker(
+            value: c.textFont,
+            onChanged: (f) {
+              c.textFont = f;
+              c.notify();
+            },
+          ),
+        ),
+        PropRow(
+          'Size',
+          _plainSlider(c.textSize, 8, 160, (v) {
+            c.textSize = v.roundToDouble();
+            c.notify();
+          }),
+        ),
+      ]);
+    } else {
+      rows.add(
+        _colour('Colour', c.penColor, (v) {
+          c.penColor = v;
+          c.notify();
+        }),
+      );
+      if (c.tool != Tool.badge) {
+        rows.add(
+          PropRow(
+            'Width',
+            _plainSlider(c.penWidth, 1, 30, (v) {
+              c.penWidth = v.roundToDouble();
+              c.notify();
+            }),
+          ),
+        );
+      }
+      if (c.tool == Tool.rect || c.tool == Tool.ellipse) {
+        rows.add(
+          _colour('Fill', c.fillColor, (v) {
+            c.fillColor = v;
+            c.notify();
+          }, allowNone: true),
+        );
+      }
+    }
+    return Section(first: true, children: rows);
   }
 
   Widget _plainSlider(
@@ -242,18 +235,32 @@ class PropertiesPanel extends StatelessWidget {
     double min,
     double max,
     ValueChanged<double> onChanged,
-  ) => SliderTheme(
-    data: const SliderThemeData(
-      trackHeight: 3,
-      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7),
-      overlayShape: RoundSliderOverlayShape(overlayRadius: 0),
+  ) => SizedBox(
+    width: double.infinity,
+    child: SliderTheme(
+      data: const SliderThemeData(
+        trackHeight: 3,
+        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7),
+        overlayShape: RoundSliderOverlayShape(overlayRadius: 0),
+      ),
+      child: Slider(
+        value: v.clamp(min, max),
+        min: min,
+        max: max,
+        onChanged: onChanged,
+      ),
     ),
-    child: Slider(
-      value: v.clamp(min, max),
-      min: min,
-      max: max,
-      onChanged: onChanged,
-    ),
+  );
+
+  Widget _colour(
+    String label,
+    int value,
+    ValueChanged<int> onChanged, {
+    bool allowNone = false,
+  }) => PropRow(
+    label,
+    ColorRow(value: value, onChanged: onChanged, allowNone: allowNone),
+    stacked: true,
   );
 
   // ---- selection ----------------------------------------------------------
@@ -264,97 +271,306 @@ class PropertiesPanel extends StatelessWidget {
     final sameKind = kinds.length == 1;
     final first = objs.first;
     final layerIds = objs.map((o) => c.doc.layerOf(o.id)?.id).toSet();
+    final locked = objs.any((o) => o.locked);
+
+    final specific = one != null
+        ? _typeSection(context, one)
+        : sameKind
+        ? _typeSectionMulti(objs)
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (one != null)
-          LabeledRow(
-            'Name',
-            SizedBox(
-              height: 30,
-              child: TextFormField(
-                key: ValueKey('name-${one.id}-${one.name}'),
-                initialValue: one.name,
-                style: const TextStyle(fontSize: 12.5),
-                decoration: const InputDecoration(
+        Section(
+          first: true,
+          children: [
+            if (one != null)
+              PropRow(
+                'Name',
+                SizedBox(
+                  height: kControlHeight,
+                  child: TextFormField(
+                    key: ValueKey('name-${one.id}-${one.name}'),
+                    initialValue: one.name,
+                    style: const TextStyle(fontSize: 12.5),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: fieldBorder(),
+                      enabledBorder: fieldBorder(),
+                      focusedBorder: fieldBorder(focused: true),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
+                    ),
+                    onFieldSubmitted: (v) => c.renameObject(one.id, v),
+                  ),
+                ),
+              ),
+            PropRow(
+              'Layer',
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  isExpanded: true,
                   isDense: true,
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
+                  style: const TextStyle(fontSize: 12.5, color: kInk),
+                  value: layerIds.length == 1 ? layerIds.first : null,
+                  hint: const Text('Several layers'),
+                  items: [
+                    for (final l in c.doc.layers.reversed)
+                      DropdownMenuItem(
+                        value: l.id,
+                        child: Text(l.name, overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) {
+                      c.moveObjectsToLayer(objs.map((o) => o.id).toList(), v);
+                    }
+                  },
                 ),
-                onFieldSubmitted: (v) => c.renameObject(one.id, v),
               ),
             ),
-          ),
-        LabeledRow(
-          'Layer',
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              isDense: true,
-              style: const TextStyle(fontSize: 12.5, color: Color(0xFF222733)),
-              value: layerIds.length == 1 ? layerIds.first : null,
-              hint: const Text('Several layers'),
-              items: [
-                for (final l in c.doc.layers.reversed)
-                  DropdownMenuItem(
-                    value: l.id,
-                    child: Text(l.name, overflow: TextOverflow.ellipsis),
+            PropRow(
+              'Opacity',
+              Row(
+                children: [
+                  Expanded(
+                    child: LiveSlider(
+                      key: const ValueKey('opacity'),
+                      controller: c,
+                      value: first.opacity,
+                      min: 0.05,
+                      max: 1,
+                      label: 'opacity',
+                      apply: (v) => c.liveEditSelected((o) => o.opacity = v),
+                    ),
                   ),
-              ],
-              onChanged: (v) {
-                if (v != null) {
-                  c.moveObjectsToLayer(objs.map((o) => o.id).toList(), v);
-                }
-              },
+                  SizedBox(
+                    width: 38,
+                    child: Text(
+                      '${(first.opacity * 100).round()}%',
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontSize: 12, color: kInk),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
-        LabeledRow(
-          'Opacity',
-          Row(
+        if (one is BoxObject)
+          Section(title: 'Size and rotation', children: _transform(one)),
+        ?specific,
+        if (c.mergeable.length > 1)
+          Section(
+            title: 'Combine',
             children: [
-              Expanded(
-                child: LiveSlider(
-                  key: const ValueKey('opacity'),
-                  controller: c,
-                  value: first.opacity,
-                  min: 0.05,
-                  max: 1,
-                  label: 'opacity',
-                  apply: (v) => c.liveEditSelected((o) => o.opacity = v),
-                ),
-              ),
-              SizedBox(
-                width: 46,
-                child: Text(
-                  '${(first.opacity * 100).round()}%',
-                  style: const TextStyle(fontSize: 12),
-                ),
+              ActionButton(
+                key: const ValueKey('merge-button'),
+                label: 'Merge into one image',
+                icon: Icons.layers_clear_outlined,
+                tooltip:
+                    'Turn everything selected into a single picture  (M). You can take it apart again later.',
+                onPressed: c.flattenSelection,
               ),
             ],
           ),
-        ),
-        if (one is BoxObject) ...[
-          LabeledRow(
-            'Rotate',
+        Section(
+          title: 'Align',
+          children: [
             Row(
               children: [
-                NumberField(
-                  key: const ValueKey('rotation'),
-                  value: (one.rotation * 180 / math.pi),
-                  suffix: '°',
-                  width: 76,
-                  onSubmitted: (v) => c.editSelected(
-                    'rotate',
-                    (o) => (o as BoxObject).rotation = v * math.pi / 180,
+                IconGroup(
+                  buttons: [
+                    GroupButton(
+                      icon: Icons.align_horizontal_left,
+                      tooltip: objs.length > 1
+                          ? 'Align left edges'
+                          : 'Align to the left of the page',
+                      onPressed: () => c.alignSelection('left'),
+                    ),
+                    GroupButton(
+                      icon: Icons.align_horizontal_center,
+                      tooltip: 'Centre horizontally',
+                      onPressed: () => c.alignSelection('centre'),
+                    ),
+                    GroupButton(
+                      icon: Icons.align_horizontal_right,
+                      tooltip: 'Align right edges',
+                      onPressed: () => c.alignSelection('right'),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                IconGroup(
+                  buttons: [
+                    GroupButton(
+                      icon: Icons.align_vertical_top,
+                      tooltip: 'Align top edges',
+                      onPressed: () => c.alignSelection('top'),
+                    ),
+                    GroupButton(
+                      icon: Icons.align_vertical_center,
+                      tooltip: 'Centre vertically',
+                      onPressed: () => c.alignSelection('middle'),
+                    ),
+                    GroupButton(
+                      icon: Icons.align_vertical_bottom,
+                      tooltip: 'Align bottom edges',
+                      onPressed: () => c.alignSelection('bottom'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        Section(
+          title: 'Arrange',
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                IconGroup(
+                  buttons: [
+                    GroupButton(
+                      icon: Icons.flip_to_front,
+                      tooltip: 'Bring to front  Ctrl+Shift+]',
+                      onPressed: () => c.reorderSelection('front'),
+                    ),
+                    GroupButton(
+                      icon: Icons.arrow_upward,
+                      tooltip: 'Forward  ]',
+                      onPressed: () => c.reorderSelection('forward'),
+                    ),
+                    GroupButton(
+                      icon: Icons.arrow_downward,
+                      tooltip: 'Backward  [',
+                      onPressed: () => c.reorderSelection('backward'),
+                    ),
+                    GroupButton(
+                      icon: Icons.flip_to_back,
+                      tooltip: 'Send to back  Ctrl+Shift+[',
+                      onPressed: () => c.reorderSelection('back'),
+                    ),
+                  ],
+                ),
+                IconGroup(
+                  buttons: [
+                    GroupButton(
+                      icon: Icons.copy_all_outlined,
+                      tooltip: 'Duplicate  Ctrl+D',
+                      onPressed: c.duplicateSelection,
+                    ),
+                    GroupButton(
+                      icon: locked ? Icons.lock : Icons.lock_outline,
+                      tooltip: locked
+                          ? 'Unlock so it can be grabbed again'
+                          : 'Lock so it can’t be grabbed',
+                      active: locked,
+                      onPressed: () => c.editSelected(
+                        locked ? 'unlock' : 'lock',
+                        (o) => o.locked = !locked,
+                      ),
+                    ),
+                    if (objs.any((o) => o is ImageObject))
+                      GroupButton(
+                        icon: Icons.collections_outlined,
+                        tooltip: 'Keep a copy in the collection',
+                        onPressed: c.sendSelectionToCollection,
+                      ),
+                    GroupButton(
+                      icon: Icons.delete_outline,
+                      tooltip: 'Delete  Del',
+                      danger: true,
+                      onPressed: c.deleteSelection,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Size, turning and flipping: how the thing sits on the page.
+  List<Widget> _transform(BoxObject one) {
+    final a = one is ImageObject ? c.assets[one.assetId] : null;
+    return [
+      if (one is! TextObject)
+        PropRow(
+          'Size',
+          Row(
+            children: [
+              NumberField(
+                key: const ValueKey('size-w'),
+                value: one.size.width,
+                width: 64,
+                onSubmitted: (v) => c.editSelected(
+                  'resize',
+                  (o) => (o as BoxObject).size = Size(
+                    math.max(4, v),
+                    o.size.height,
                   ),
                 ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Text('×', style: TextStyle(color: kLabel)),
+              ),
+              NumberField(
+                key: const ValueKey('size-h'),
+                value: one.size.height,
+                width: 64,
+                onSubmitted: (v) => c.editSelected(
+                  'resize',
+                  (o) => (o as BoxObject).size = Size(
+                    o.size.width,
+                    math.max(4, v),
+                  ),
+                ),
+              ),
+              if (a != null) ...[
                 const SizedBox(width: 6),
                 SmallIconButton(
+                  icon: Icons.photo_size_select_actual_outlined,
+                  tooltip:
+                      'Back to the picture’s own size (${a.width} × ${a.height})',
+                  onPressed: () => c.editSelected(
+                    'original size',
+                    (x) => (x as ImageObject).size = Size(
+                      a.width.toDouble(),
+                      a.height.toDouble(),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      PropRow(
+        'Rotate',
+        Row(
+          children: [
+            NumberField(
+              key: const ValueKey('rotation'),
+              value: (one.rotation * 180 / math.pi),
+              suffix: '°',
+              width: 76,
+              onSubmitted: (v) => c.editSelected(
+                'rotate',
+                (o) => (o as BoxObject).rotation = v * math.pi / 180,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconGroup(
+              buttons: [
+                GroupButton(
                   icon: Icons.rotate_90_degrees_ccw,
                   tooltip: 'Rotate 90° left',
                   onPressed: () => c.editSelected(
@@ -362,7 +578,7 @@ class PropertiesPanel extends StatelessWidget {
                     (o) => (o as BoxObject).rotation -= math.pi / 2,
                   ),
                 ),
-                SmallIconButton(
+                GroupButton(
                   icon: Icons.rotate_90_degrees_cw,
                   tooltip: 'Rotate 90° right',
                   onPressed: () => c.editSelected(
@@ -370,180 +586,25 @@ class PropertiesPanel extends StatelessWidget {
                     (o) => (o as BoxObject).rotation += math.pi / 2,
                   ),
                 ),
+                if (one is ImageObject)
+                  GroupButton(
+                    icon: Icons.flip,
+                    tooltip: 'Flip left to right',
+                    active: one.flipX,
+                    onPressed: () => c.editSelected(
+                      'flip',
+                      (x) => (x as ImageObject).flipX = !x.flipX,
+                    ),
+                  ),
               ],
             ),
-          ),
-          if (one is! TextObject)
-            LabeledRow(
-              'Size',
-              Row(
-                children: [
-                  NumberField(
-                    key: const ValueKey('size-w'),
-                    value: one.size.width,
-                    width: 62,
-                    onSubmitted: (v) => c.editSelected(
-                      'resize',
-                      (o) => (o as BoxObject).size = Size(
-                        math.max(4, v),
-                        o.size.height,
-                      ),
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 5),
-                    child: Text('×'),
-                  ),
-                  NumberField(
-                    key: const ValueKey('size-h'),
-                    value: one.size.height,
-                    width: 62,
-                    onSubmitted: (v) => c.editSelected(
-                      'resize',
-                      (o) => (o as BoxObject).size = Size(
-                        o.size.width,
-                        math.max(4, v),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-        const SizedBox(height: 4),
-        if (sameKind && one != null)
-          _typeControls(context, one)
-        else if (sameKind)
-          _typeControlsMulti(context, objs),
-        if (c.mergeable.length > 1)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: OutlinedButton.icon(
-              key: const ValueKey('merge-button'),
-              onPressed: c.flattenSelection,
-              icon: const Icon(Icons.layers_clear_outlined, size: 16),
-              label: const Text('Merge into one image'),
-            ),
-          ),
-        if (c.canUnmerge)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: OutlinedButton.icon(
-              key: const ValueKey('unmerge-button'),
-              onPressed: c.unmerge,
-              icon: const Icon(Icons.call_split, size: 16),
-              label: const Text('Unmerge into the original pieces'),
-            ),
-          ),
-        const Divider(height: 22),
-        const _Caption('Align'),
-        Wrap(
-          spacing: 2,
-          children: [
-            SmallIconButton(
-              icon: Icons.align_horizontal_left,
-              tooltip: objs.length > 1
-                  ? 'Align left edges'
-                  : 'Align to the left of the page',
-              onPressed: () => c.alignSelection('left'),
-            ),
-            SmallIconButton(
-              icon: Icons.align_horizontal_center,
-              tooltip: 'Centre horizontally',
-              onPressed: () => c.alignSelection('centre'),
-            ),
-            SmallIconButton(
-              icon: Icons.align_horizontal_right,
-              tooltip: 'Align right edges',
-              onPressed: () => c.alignSelection('right'),
-            ),
-            const SizedBox(width: 8),
-            SmallIconButton(
-              icon: Icons.align_vertical_top,
-              tooltip: 'Align top edges',
-              onPressed: () => c.alignSelection('top'),
-            ),
-            SmallIconButton(
-              icon: Icons.align_vertical_center,
-              tooltip: 'Centre vertically',
-              onPressed: () => c.alignSelection('middle'),
-            ),
-            SmallIconButton(
-              icon: Icons.align_vertical_bottom,
-              tooltip: 'Align bottom edges',
-              onPressed: () => c.alignSelection('bottom'),
-            ),
           ],
         ),
-        const SizedBox(height: 6),
-        const _Caption('Arrange'),
-        Wrap(
-          spacing: 2,
-          children: [
-            SmallIconButton(
-              icon: Icons.flip_to_front,
-              tooltip: 'Bring to front  Ctrl+Shift+]',
-              onPressed: () => c.reorderSelection('front'),
-            ),
-            SmallIconButton(
-              icon: Icons.arrow_upward,
-              tooltip: 'Forward  ]',
-              onPressed: () => c.reorderSelection('forward'),
-            ),
-            SmallIconButton(
-              icon: Icons.arrow_downward,
-              tooltip: 'Backward  [',
-              onPressed: () => c.reorderSelection('backward'),
-            ),
-            SmallIconButton(
-              icon: Icons.flip_to_back,
-              tooltip: 'Send to back  Ctrl+Shift+[',
-              onPressed: () => c.reorderSelection('back'),
-            ),
-            const SizedBox(width: 8),
-            SmallIconButton(
-              icon: Icons.copy_all_outlined,
-              tooltip: 'Duplicate  Ctrl+D',
-              onPressed: c.duplicateSelection,
-            ),
-            SmallIconButton(
-              icon: Icons.lock_outline,
-              tooltip: 'Lock so it can’t be grabbed',
-              onPressed: () => c.editSelected('lock', (o) => o.locked = true),
-            ),
-            SmallIconButton(
-              icon: Icons.delete_outline,
-              tooltip: 'Delete  Del',
-              onPressed: c.deleteSelection,
-              color: const Color(0xFFC62828),
-            ),
-          ],
-        ),
-        if (objs.any((o) => o.locked))
-          TextButton(
-            onPressed: () => c.editSelected('unlock', (o) => o.locked = false),
-            child: const Text('Unlock'),
-          ),
-      ],
-    );
+      ),
+    ];
   }
 
-  Widget _typeControlsMulti(BuildContext context, List<SceneObject> objs) =>
-      Column(
-        children: [
-          if (objs.first is LineObject ||
-              objs.first is StrokeObject ||
-              objs.first is ShapeObject)
-            LabeledRow(
-              'Colour',
-              ColorRow(
-                value: _colorOf(objs.first),
-                onChanged: (v) =>
-                    c.editSelected('colour', (o) => _setColor(o, v)),
-              ),
-            ),
-        ],
-      );
+  // ---- what is specific to the kind of thing ------------------------------
 
   int _colorOf(SceneObject o) => o is LineObject
       ? o.color
@@ -560,50 +621,56 @@ class PropertiesPanel extends StatelessWidget {
     c.penColor = v;
   }
 
-  Widget _typeControls(BuildContext context, SceneObject o) {
-    if (o is BadgeObject) {
-      return Column(
+  Widget? _typeSectionMulti(List<SceneObject> objs) {
+    final f = objs.first;
+    if (f is LineObject || f is StrokeObject || f is ShapeObject) {
+      return Section(
         children: [
-          LabeledRow(
-            'Number',
-            Align(
-              alignment: Alignment.centerLeft,
-              child: NumberField(
-                key: const ValueKey('badge-number'),
-                value: o.number.toDouble(),
-                width: 70,
-                onSubmitted: (v) => c.editSelected(
-                  'renumber',
-                  (x) => (x as BadgeObject).number = v.round().clamp(0, 999),
-                ),
-              ),
-            ),
-          ),
-          LabeledRow(
+          _colour(
             'Colour',
-            ColorRow(
-              value: o.color,
-              onChanged: (v) {
-                c.editSelected('colour', (x) => (x as BadgeObject).color = v);
-                c.penColor = v;
-              },
-            ),
+            _colorOf(f),
+            (v) => c.editSelected('colour', (o) => _setColor(o, v)),
           ),
         ],
       );
     }
-    if (o is LineObject) {
-      return Column(
+    return null;
+  }
+
+  Widget? _typeSection(BuildContext context, SceneObject o) {
+    if (o is BadgeObject) {
+      return Section(
+        title: 'Marker',
         children: [
-          LabeledRow(
-            'Colour',
-            ColorRow(
-              value: o.color,
-              onChanged: (v) =>
-                  c.editSelected('colour', (x) => _setColor(x, v)),
+          PropRow(
+            'Number',
+            NumberField(
+              key: const ValueKey('badge-number'),
+              value: o.number.toDouble(),
+              width: 76,
+              onSubmitted: (v) => c.editSelected(
+                'renumber',
+                (x) => (x as BadgeObject).number = v.round().clamp(0, 999),
+              ),
             ),
           ),
-          LabeledRow(
+          _colour('Colour', o.color, (v) {
+            c.editSelected('colour', (x) => (x as BadgeObject).color = v);
+            c.penColor = v;
+          }),
+        ],
+      );
+    }
+    if (o is LineObject) {
+      return Section(
+        title: o.headEnd ? 'Arrow' : 'Line',
+        children: [
+          _colour(
+            'Colour',
+            o.color,
+            (v) => c.editSelected('colour', (x) => _setColor(x, v)),
+          ),
+          PropRow(
             'Width',
             LiveSlider(
               controller: c,
@@ -617,12 +684,11 @@ class PropertiesPanel extends StatelessWidget {
               }),
             ),
           ),
-          LabeledRow(
+          PropRow(
             'Ends',
-            Wrap(
-              spacing: 4,
-              children: [
-                SmallIconButton(
+            IconGroup(
+              buttons: [
+                GroupButton(
                   icon: Icons.arrow_back,
                   tooltip: 'Arrowhead at the start',
                   active: o.headStart,
@@ -631,7 +697,7 @@ class PropertiesPanel extends StatelessWidget {
                     (x) => (x as LineObject).headStart = !x.headStart,
                   ),
                 ),
-                SmallIconButton(
+                GroupButton(
                   icon: Icons.arrow_forward,
                   tooltip: 'Arrowhead at the end',
                   active: o.headEnd,
@@ -640,7 +706,7 @@ class PropertiesPanel extends StatelessWidget {
                     (x) => (x as LineObject).headEnd = !x.headEnd,
                   ),
                 ),
-                SmallIconButton(
+                GroupButton(
                   icon: Icons.more_horiz,
                   tooltip: 'Dashed',
                   active: o.dashed,
@@ -656,17 +722,15 @@ class PropertiesPanel extends StatelessWidget {
       );
     }
     if (o is StrokeObject) {
-      return Column(
+      return Section(
+        title: 'Pen stroke',
         children: [
-          LabeledRow(
+          _colour(
             'Colour',
-            ColorRow(
-              value: o.color,
-              onChanged: (v) =>
-                  c.editSelected('colour', (x) => _setColor(x, v)),
-            ),
+            o.color,
+            (v) => c.editSelected('colour', (x) => _setColor(x, v)),
           ),
-          LabeledRow(
+          PropRow(
             'Width',
             LiveSlider(
               controller: c,
@@ -683,28 +747,19 @@ class PropertiesPanel extends StatelessWidget {
       );
     }
     if (o is ShapeObject) {
-      return Column(
+      return Section(
+        title: o.ellipse ? 'Ellipse' : 'Rectangle',
         children: [
-          LabeledRow(
+          _colour(
             'Outline',
-            ColorRow(
-              value: o.stroke,
-              onChanged: (v) =>
-                  c.editSelected('colour', (x) => _setColor(x, v)),
-            ),
+            o.stroke,
+            (v) => c.editSelected('colour', (x) => _setColor(x, v)),
           ),
-          LabeledRow(
-            'Fill',
-            ColorRow(
-              allowNone: true,
-              value: o.fill,
-              onChanged: (v) {
-                c.editSelected('fill', (x) => (x as ShapeObject).fill = v);
-                c.fillColor = v;
-              },
-            ),
-          ),
-          LabeledRow(
+          _colour('Fill', o.fill, (v) {
+            c.editSelected('fill', (x) => (x as ShapeObject).fill = v);
+            c.fillColor = v;
+          }, allowNone: true),
+          PropRow(
             'Width',
             LiveSlider(
               controller: c,
@@ -721,23 +776,24 @@ class PropertiesPanel extends StatelessWidget {
       );
     }
     if (o is TextObject) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      return Section(
+        title: 'Text',
         children: [
-          LabeledRow(
-            'Colour',
-            ColorRow(
-              value: o.color,
-              onChanged: (v) {
-                c.editSelected(
-                  'text colour',
-                  (x) => (x as TextObject).color = v,
-                );
-                c.textColor = v;
+          _colour('Colour', o.color, (v) {
+            c.editSelected('text colour', (x) => (x as TextObject).color = v);
+            c.textColor = v;
+          }),
+          PropRow(
+            'Font',
+            _FontPicker(
+              value: o.font,
+              onChanged: (f) {
+                c.editSelected('font', (x) => (x as TextObject).font = f);
+                c.textFont = f;
               },
             ),
           ),
-          LabeledRow(
+          PropRow(
             'Size',
             Row(
               children: [
@@ -758,190 +814,115 @@ class PropertiesPanel extends StatelessWidget {
                   width: 30,
                   child: Text(
                     '${o.fontSize.round()}',
-                    style: const TextStyle(fontSize: 12),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontSize: 12, color: kInk),
                   ),
                 ),
               ],
             ),
           ),
-          LabeledRow(
-            'Font',
-            _FontPicker(
-              value: o.font,
-              onChanged: (f) {
-                c.editSelected('font', (x) => (x as TextObject).font = f);
-                c.textFont = f;
-              },
-            ),
-          ),
-          LabeledRow(
+          PropRow(
             'Style',
             Wrap(
-              spacing: 4,
+              spacing: 8,
+              runSpacing: 6,
               children: [
-                SmallIconButton(
-                  icon: Icons.format_bold,
-                  tooltip: 'Bold',
-                  active: o.bold,
-                  onPressed: () => c.editSelected(
-                    'bold',
-                    (x) => (x as TextObject).bold = !x.bold,
-                  ),
+                IconGroup(
+                  buttons: [
+                    GroupButton(
+                      icon: Icons.format_bold,
+                      tooltip: 'Bold',
+                      active: o.bold,
+                      onPressed: () => c.editSelected(
+                        'bold',
+                        (x) => (x as TextObject).bold = !x.bold,
+                      ),
+                    ),
+                    GroupButton(
+                      icon: Icons.format_italic,
+                      tooltip: 'Italic',
+                      active: o.italic,
+                      onPressed: () => c.editSelected(
+                        'italic',
+                        (x) => (x as TextObject).italic = !x.italic,
+                      ),
+                    ),
+                  ],
                 ),
-                SmallIconButton(
-                  icon: Icons.format_italic,
-                  tooltip: 'Italic',
-                  active: o.italic,
-                  onPressed: () => c.editSelected(
-                    'italic',
-                    (x) => (x as TextObject).italic = !x.italic,
-                  ),
-                ),
-                SmallIconButton(
-                  icon: Icons.format_align_left,
-                  tooltip: 'Align left',
-                  active: o.align == TextAlign.left,
-                  onPressed: () => c.editSelected(
-                    'align',
-                    (x) => (x as TextObject).align = TextAlign.left,
-                  ),
-                ),
-                SmallIconButton(
-                  icon: Icons.format_align_center,
-                  tooltip: 'Center',
-                  active: o.align == TextAlign.center,
-                  onPressed: () => c.editSelected(
-                    'align',
-                    (x) => (x as TextObject).align = TextAlign.center,
-                  ),
-                ),
-                SmallIconButton(
-                  icon: Icons.format_align_right,
-                  tooltip: 'Align right',
-                  active: o.align == TextAlign.right,
-                  onPressed: () => c.editSelected(
-                    'align',
-                    (x) => (x as TextObject).align = TextAlign.right,
-                  ),
+                IconGroup(
+                  buttons: [
+                    for (final (icon, tip, al) in [
+                      (Icons.format_align_left, 'Align left', TextAlign.left),
+                      (Icons.format_align_center, 'Centre', TextAlign.center),
+                      (
+                        Icons.format_align_right,
+                        'Align right',
+                        TextAlign.right,
+                      ),
+                    ])
+                      GroupButton(
+                        icon: icon,
+                        tooltip: tip,
+                        active: o.align == al,
+                        onPressed: () => c.editSelected(
+                          'align',
+                          (x) => (x as TextObject).align = al,
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
           ),
-          LabeledRow(
-            'Backdrop',
-            ColorRow(
-              allowNone: true,
-              value: o.background,
-              onChanged: (v) => c.editSelected(
-                'text backdrop',
-                (x) => (x as TextObject).background = v,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: OutlinedButton.icon(
-              onPressed: () => c.beginTextEdit(o.id),
-              icon: const Icon(Icons.edit, size: 16),
-              label: const Text('Edit text'),
-            ),
+          _colour('Backdrop', o.background, (v) {
+            c.editSelected(
+              'text backdrop',
+              (x) => (x as TextObject).background = v,
+            );
+          }, allowNone: true),
+          ActionButton(
+            label: 'Edit text',
+            icon: Icons.edit_outlined,
+            tooltip: 'Type in the text box  (Enter or F2)',
+            onPressed: () => c.beginTextEdit(o.id),
           ),
         ],
       );
     }
     if (o is ImageObject) {
-      final a = c.assets[o.assetId];
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      return Section(
+        title: 'Picture',
         children: [
-          if (a != null)
-            Text(
-              '${a.width} × ${a.height} px',
-              style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7385)),
+          ActionButton(
+            key: const ValueKey('cutout-button'),
+            label: 'Cut out…',
+            icon: Icons.content_cut,
+            tooltip:
+                'Draw around the part you want. It becomes its own picture.  (C)',
+            onPressed: () => c.setTool(Tool.cutout),
+          ),
+          ActionButton(
+            key: const ValueKey('remove-bg-button'),
+            label: 'Remove background',
+            icon: Icons.auto_fix_high,
+            tooltip:
+                'Make the background around the picture see-through. You can fine-tune it afterwards.',
+            onPressed: () => c.removeBackgroundFrom(o),
+          ),
+
+          if (c.canUnmerge)
+            ActionButton(
+              key: const ValueKey('unmerge-button'),
+              label: 'Unmerge into the original pieces',
+              icon: Icons.call_split,
+              tooltip: 'Take this merged picture apart again  (U)',
+              onPressed: c.unmerge,
             ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              OutlinedButton.icon(
-                key: const ValueKey('cutout-button'),
-                onPressed: () => c.setTool(Tool.cutout),
-                icon: const Icon(Icons.content_cut, size: 16),
-                label: const Text('Cut out…'),
-              ),
-              OutlinedButton.icon(
-                key: const ValueKey('remove-bg-button'),
-                onPressed: () => c.removeBackgroundFrom(o),
-                icon: const Icon(Icons.auto_fix_high, size: 16),
-                label: const Text('Remove background'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => c.editSelected(
-                  'flip',
-                  (x) => (x as ImageObject).flipX = !x.flipX,
-                ),
-                icon: const Icon(Icons.flip, size: 16),
-                label: const Text('Flip'),
-              ),
-              if (a != null)
-                OutlinedButton(
-                  onPressed: () => c.editSelected(
-                    'original size',
-                    (x) => (x as ImageObject).size = Size(
-                      a.width.toDouble(),
-                      a.height.toDouble(),
-                    ),
-                  ),
-                  child: const Text('Original size'),
-                ),
-              OutlinedButton.icon(
-                onPressed: c.sendSelectionToCollection,
-                icon: const Icon(Icons.collections_outlined, size: 16),
-                label: const Text('Keep in collection'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Background tolerance',
-            style: TextStyle(fontSize: 11.5, color: Color(0xFF6B7385)),
-          ),
-          _plainSlider(c.wandTolerance, 0.02, 0.5, (v) {
-            c.wandTolerance = v;
-            c.notify();
-          }),
-          CheckboxRow(
-            key: const ValueKey('bg-inside'),
-            label: 'Also clear gaps inside the picture',
-            value: c.bgInside,
-            onChanged: (v) {
-              c.bgInside = v;
-              c.notify();
-            },
-          ),
         ],
       );
     }
-    return const SizedBox.shrink();
+    return null;
   }
-}
-
-class _Caption extends StatelessWidget {
-  const _Caption(this.text);
-  final String text;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Text(
-      text,
-      style: const TextStyle(
-        fontSize: 11.5,
-        fontWeight: FontWeight.w700,
-        color: Color(0xFF5B6272),
-      ),
-    ),
-  );
 }
 
 /// Four little "Aa" buttons, each drawn in its own typeface.
@@ -955,12 +936,12 @@ class _FontPicker extends StatelessWidget {
     children: [
       for (final f in TextFont.values)
         Padding(
-          padding: const EdgeInsets.only(right: 4),
+          padding: const EdgeInsets.only(right: 6),
           child: Tooltip(
             message: f.label,
             child: InkWell(
               key: ValueKey('font-${f.name}'),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(7),
               onTap: () => onChanged(f),
               child: Container(
                 width: 38,
@@ -968,9 +949,9 @@ class _FontPicker extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: f == value ? kAccent.withValues(alpha: 0.14) : null,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(7),
                   border: Border.all(
-                    color: f == value ? kAccent : const Color(0xFFD8DBE3),
+                    color: f == value ? kAccent : const Color(0xFFD0D4DD),
                   ),
                 ),
                 child: Text(
@@ -979,7 +960,7 @@ class _FontPicker extends StatelessWidget {
                     fontFamily: f.family,
                     fontSize: f == TextFont.hand ? 17 : 14,
                     height: 1.1,
-                    color: const Color(0xFF222733),
+                    color: kInk,
                   ),
                 ),
               ),
@@ -987,33 +968,5 @@ class _FontPicker extends StatelessWidget {
           ),
         ),
     ],
-  );
-}
-
-/// A checkbox with its label, the whole row clickable.
-class CheckboxRow extends StatelessWidget {
-  const CheckboxRow({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: () => onChanged(!value),
-    child: Row(
-      children: [
-        Checkbox(
-          value: value,
-          visualDensity: VisualDensity.compact,
-          onChanged: (v) => onChanged(v ?? false),
-        ),
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 12.5))),
-      ],
-    ),
   );
 }

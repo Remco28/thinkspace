@@ -9,6 +9,7 @@ import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/editor/image_ops.dart';
 import 'package:thinkspace/editor/interactor.dart';
 import 'package:thinkspace/editor/render.dart';
+import 'package:thinkspace/io/prefs.dart';
 import 'package:thinkspace/model/assets.dart';
 import 'package:thinkspace/model/scene.dart';
 
@@ -2159,6 +2160,25 @@ void main() {
       final item = c.addToCollection(await makeAsset(c, w: 10, h: 10));
       c.removeFromCollection('nope');
       expect(c.doc.collection.single.id, item.id);
+    });
+  });
+
+  group('preferences', () {
+    test('the divider position is remembered, and bad files are ignored', () {
+      final dir = Directory.systemTemp.createTempSync('thinkspace_prefs');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final f = File('${dir.path}/sub/prefs.json');
+      final p = Prefs(f);
+      expect(p.layersFraction, isNull);
+      p.layersFraction = 0.3;
+      p.save();
+      expect(Prefs(f).layersFraction, 0.3);
+      f.writeAsStringSync('not json');
+      expect(Prefs(f).layersFraction, isNull);
+      f.writeAsStringSync('{"layersFraction": 7}');
+      expect(Prefs(f).layersFraction, isNull, reason: 'out of range');
+      expect(Prefs(null).layersFraction, isNull);
+      Prefs(null).save(); // nothing to write to: quietly nothing
     });
   });
 }

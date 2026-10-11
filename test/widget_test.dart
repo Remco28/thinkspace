@@ -497,6 +497,148 @@ void main() {
     expect(c.renamingCollectionId, isNull);
   });
 
+  appTest('the divider between Layers and the settings can be dragged', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    final divider = find.byKey(const ValueKey('layers-splitter'));
+    expect(divider, findsOneWidget);
+    double layersBottom() => tester.getTopLeft(divider).dy;
+    final before = layersBottom();
+    await tester.drag(divider, const Offset(0, -80));
+    await tester.pump();
+    expect(layersBottom(), lessThan(before - 40));
+    // It cannot squeeze the Layers list to nothing.
+    await tester.drag(divider, const Offset(0, -2000));
+    await tester.pump();
+    expect(layersBottom(), greaterThan(100));
+    // A double-click puts it back.
+    await tester.tap(divider);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(divider);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(layersBottom(), closeTo(before, 1));
+  });
+
+  appTest('the colour picker mixes a colour from a hex code', (tester) async {
+    final c = await pumpApp(tester);
+    await tester.tap(find.byKey(const ValueKey('custom-colour')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('color-popover')), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('color-hex')), '12ab34');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(c.doc.background, 0xFF12AB34);
+    // Picking in the square also settles a colour.
+    final square = find.byKey(const ValueKey('color-square'));
+    await tester.tapAt(tester.getTopLeft(square) + const Offset(10, 10));
+    await tester.pump();
+    expect(c.doc.background, isNot(0xFF12AB34));
+    // The mixed colour is offered again next time.
+    await tester.tapAt(const Offset(5, 5)); // outside: closes
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('color-popover')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('custom-colour')));
+    await tester.pumpAndSettle();
+    expect(find.text('Recent'), findsOneWidget);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+  });
+
+  appTest('after Remove background a bar fine-tunes it as one undo step', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final a = await tester.runAsync(
+      () => makeAsset(
+        c,
+        w: 80,
+        h: 80,
+        color: 0xFFFFFFFF,
+        centerColor: 0xFF1B7A2B,
+      ),
+    );
+    final img = ImageObject(
+      id: c.doc.newId('o'),
+      name: 'pic',
+      assetId: a!.id,
+      center: const Offset(300, 300),
+      size: const Size(160, 160),
+    );
+    c.addObject(img);
+    c.select([img.id]);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('background-bar')), findsNothing);
+    final before = c.undoDepth;
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('remove-bg-button')));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pump();
+    expect(find.byKey(const ValueKey('background-bar')), findsOneWidget);
+    expect(c.undoDepth, before + 1);
+    final removed = c.doc.allObjects.whereType<ImageObject>().single.assetId;
+    // Switching "enclosed areas" redoes the removal without adding steps.
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('background-enclosed')));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    });
+    await tester.pump();
+    expect(c.undoDepth, before + 1);
+    expect(
+      c.doc.allObjects.whereType<ImageObject>().single.assetId,
+      isNot(removed),
+    );
+    expect(find.byKey(const ValueKey('background-bar')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('background-done')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('background-bar')), findsNothing);
+    // One undo takes the whole thing back.
+    c.undo();
+    expect(c.doc.allObjects.whereType<ImageObject>().single.assetId, a.id);
+  });
+
+  appTest('the bar goes away when something else is done', (tester) async {
+    final c = await pumpApp(tester);
+    final a = await tester.runAsync(
+      () => makeAsset(
+        c,
+        w: 60,
+        h: 60,
+        color: 0xFFFFFFFF,
+        centerColor: 0xFF1B7A2B,
+      ),
+    );
+    final img = ImageObject(
+      id: c.doc.newId('o'),
+      name: 'pic',
+      assetId: a!.id,
+      center: const Offset(300, 300),
+      size: const Size(120, 120),
+    );
+    c.addObject(img);
+    c.select([img.id]);
+    await tester.pump();
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('remove-bg-button')));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    });
+    await tester.pump();
+    expect(find.byKey(const ValueKey('background-bar')), findsOneWidget);
+    c.clearSelection();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('background-bar')), findsNothing);
+  });
+
+  appTest('the menu opens with grouped, labelled sections', (tester) async {
+    await pumpApp(tester);
+    await tester.tap(find.byKey(const ValueKey('main-menu')));
+    await tester.pumpAndSettle();
+    expect(find.text('Save as…'), findsOneWidget);
+    expect(find.text('WHEN I PASTE AN IMAGE'), findsOneWidget);
+    expect(find.text('Keyboard shortcuts'), findsOneWidget);
+  });
+
   appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {

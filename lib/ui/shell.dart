@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -6,12 +7,15 @@ import 'package:flutter/services.dart';
 
 import '../dev/inspector.dart';
 import '../editor/canvas_view.dart';
+import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/controller.dart';
 import '../editor/image_ops.dart' show HoleFill;
 import '../editor/interactor.dart';
 import '../io/files.dart';
+import '../io/prefs.dart';
 import '../model/scene.dart';
 import 'collection_panel.dart';
+import 'kit.dart' show kMuted;
 import 'layers_panel.dart';
 import 'properties_panel.dart';
 import 'shortcuts.dart';
@@ -49,6 +53,12 @@ class _EditorShellState extends State<EditorShell> {
   final FocusNode _focus = FocusNode(debugLabel: 'shell');
   double collectionWidth = 270;
   bool collectionOpen = true;
+
+  /// How much of the right column the Layers list takes; the rest is the
+  /// settings panel. Dragged with the handle between them and remembered.
+  double layersFraction = _defaultLayersFraction;
+  static const double _defaultLayersFraction = 0.42;
+  Prefs _prefs = Prefs(null);
   Inspector? _inspector;
   AppLifecycleListener? _lifecycle;
   String? _lastTitle;
@@ -77,6 +87,10 @@ class _EditorShellState extends State<EditorShell> {
       final data =
           env['THINKSPACE_DATA_DIR'] ??
           (base == null ? null : '$base/thinkspace');
+      if (data != null) {
+        _prefs = Prefs(File('$data/prefs.json'));
+        layersFraction = _prefs.layersFraction ?? layersFraction;
+      }
       c.recoveryFile =
           widget.recoveryFile ??
           (data == null ? null : File('$data/recovery.thinkspace'));
@@ -287,6 +301,8 @@ class _EditorShellState extends State<EditorShell> {
       case LogicalKeyboardKey.escape:
         if (ix.active) {
           ix.cancel();
+        } else if (c.bgSessionObject != null) {
+          c.endBgSession();
         } else if (c.tool != Tool.select) {
           c.setTool(Tool.select);
         } else if (c.selectedCollectionId != null) {
@@ -567,18 +583,52 @@ class _EditorShellState extends State<EditorShell> {
                           ),
                           child: Material(
                             color: kPanel,
-                            child: Column(
-                              children: [
-                                Expanded(
-                                  flex: 5,
-                                  child: LayersPanel(controller: c),
-                                ),
-                                const Divider(height: 1, color: kBorder),
-                                Expanded(
-                                  flex: 6,
-                                  child: PropertiesPanel(controller: c),
-                                ),
-                              ],
+                            child: LayoutBuilder(
+                              builder: (context, box) {
+                                const handle = 9.0, minLayers = 110.0;
+                                const minSettings = 190.0;
+                                final total = box.maxHeight - handle;
+                                final layersH = (total * layersFraction)
+                                    .clamp(
+                                      minLayers,
+                                      math.max(minLayers, total - minSettings),
+                                    )
+                                    .toDouble();
+                                return Column(
+                                  children: [
+                                    SizedBox(
+                                      height: layersH,
+                                      child: LayersPanel(controller: c),
+                                    ),
+                                    _HSplitter(
+                                      onDrag: (dy) => setState(
+                                        () => layersFraction =
+                                            ((layersH + dy) / total)
+                                                .clamp(
+                                                  minLayers / total,
+                                                  math.max(
+                                                    minLayers / total,
+                                                    (total - minSettings) /
+                                                        total,
+                                                  ),
+                                                )
+                                                .toDouble(),
+                                      ),
+                                      onEnd: _savePrefs,
+                                      onReset: () {
+                                        setState(
+                                          () => layersFraction =
+                                              _defaultLayersFraction,
+                                        );
+                                        _savePrefs();
+                                      },
+                                    ),
+                                    Expanded(
+                                      child: PropertiesPanel(controller: c),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -599,6 +649,11 @@ class _EditorShellState extends State<EditorShell> {
         ),
       ),
     );
+  }
+
+  void _savePrefs() {
+    _prefs.layersFraction = layersFraction;
+    _prefs.save();
   }
 
   Widget _canvasArea() {
@@ -642,6 +697,16 @@ class _EditorShellState extends State<EditorShell> {
               child: Align(
                 alignment: Alignment.topCenter,
                 child: _CutoutBar(c: c),
+              ),
+            ),
+          if (c.bgSessionObject != null && c.tool == Tool.select)
+            Positioned(
+              top: 8,
+              left: 52,
+              right: 8,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: _BackgroundBar(c: c),
               ),
             ),
           if (c.pendingPaste != null)
@@ -702,6 +767,63 @@ class _EmptyHint extends StatelessWidget {
         'Paste a picture (Ctrl+V), drop a file here,\nor press A to draw an arrow',
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 15, height: 1.5, color: Color(0xFFA0A6B5)),
+      ),
+    ),
+  );
+}
+
+/// The handle between the Layers list and the settings below it.
+class _HSplitter extends StatefulWidget {
+  const _HSplitter({
+    required this.onDrag,
+    required this.onEnd,
+    required this.onReset,
+  });
+  final void Function(double dy) onDrag;
+  final VoidCallback onEnd, onReset;
+
+  @override
+  State<_HSplitter> createState() => _HSplitterState();
+}
+
+class _HSplitterState extends State<_HSplitter> {
+  bool _hot = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.resizeRow,
+    onEnter: (_) => setState(() => _hot = true),
+    onExit: (_) => setState(() => _hot = false),
+    child: GestureDetector(
+      key: const ValueKey('layers-splitter'),
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragUpdate: (d) => widget.onDrag(d.delta.dy),
+      onVerticalDragEnd: (_) => widget.onEnd(),
+      onDoubleTap: widget.onReset,
+      child: Container(
+        height: 9,
+        color: kPanel,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Divider(height: 1, color: kBorder),
+            // A little grip, so it reads as something to hold.
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 120),
+              opacity: _hot ? 1 : 0.55,
+              child: Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: _hot
+                      ? const Color(0xFF9AA0AE)
+                      : const Color(0xFFC3C8D3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -922,6 +1044,104 @@ class _PasteChooserState extends State<_PasteChooser> {
       ),
     );
   }
+}
+
+/// Shown right after a background was removed: how much counts as
+/// background, and whether the gaps inside the picture go too.
+class _BackgroundBar extends StatelessWidget {
+  const _BackgroundBar({required this.c});
+  final EditorController c;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    key: const ValueKey('background-bar'),
+    elevation: 3,
+    borderRadius: BorderRadius.circular(10),
+    color: Colors.white,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 4,
+        children: [
+          const Icon(Icons.auto_fix_high, size: 16, color: kAccent),
+          const Text(
+            'Background removed',
+            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+          ),
+          Tooltip(
+            message:
+                'How different from the background a colour can be and still go. '
+                'More takes light greys and shadows too, but can start eating into the picture.',
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Less',
+                  style: TextStyle(fontSize: 12, color: kMuted),
+                ),
+                SizedBox(
+                  width: 140,
+                  child: Slider(
+                    key: const ValueKey('background-amount'),
+                    value: c.wandTolerance,
+                    min: 0.02,
+                    max: 0.5,
+                    onChanged: (v) {
+                      c.wandTolerance = v;
+                      c.adjustBackground();
+                    },
+                  ),
+                ),
+                const Text(
+                  'More',
+                  style: TextStyle(fontSize: 12, color: kMuted),
+                ),
+              ],
+            ),
+          ),
+          Tooltip(
+            message:
+                'Also clear background-coloured gaps the outside cannot reach, '
+                'like the space inside an outline or between branches.',
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 24,
+                  child: Transform.scale(
+                    scale: 0.72,
+                    child: Switch(
+                      key: const ValueKey('background-enclosed'),
+                      value: c.bgInside,
+                      onChanged: (v) {
+                        c.bgInside = v;
+                        c.adjustBackground();
+                      },
+                    ),
+                  ),
+                ),
+                const Text(
+                  'Include enclosed areas',
+                  style: TextStyle(fontSize: 12.5),
+                ),
+              ],
+            ),
+          ),
+          FilledButton.tonal(
+            key: const ValueKey('background-done'),
+            onPressed: c.endBgSession,
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+            ),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _CutoutBar extends StatelessWidget {

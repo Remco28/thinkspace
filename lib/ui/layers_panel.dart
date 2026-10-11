@@ -5,6 +5,7 @@ import '../editor/canvas_view.dart';
 import '../editor/controller.dart';
 import '../model/scene.dart';
 import 'context_menu.dart';
+import 'menus.dart';
 import 'widgets.dart';
 
 Future<String?> promptText(BuildContext context, String title, String initial) {
@@ -232,17 +233,38 @@ class _LayerTile extends StatelessWidget {
       context: context,
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
-        const PopupMenuItem(value: 'rename', child: Text('Rename')),
-        const PopupMenuItem(
+        menuItem(
+          value: 'rename',
+          label: 'Rename',
+          icon: Icons.drive_file_rename_outline,
+          width: 220,
+        ),
+        menuItem(
           value: 'select',
-          child: Text('Select everything on this layer'),
+          label: 'Select everything on this layer',
+          icon: Icons.select_all,
+          width: 220,
         ),
-        const PopupMenuItem(value: 'duplicate', child: Text('Duplicate layer')),
-        PopupMenuItem(
+        menuItem(
+          value: 'duplicate',
+          label: 'Duplicate layer',
+          icon: Icons.copy_all_outlined,
+          width: 220,
+        ),
+        menuItem(
           value: 'lock',
-          child: Text(layer.locked ? 'Unlock layer' : 'Lock layer'),
+          label: layer.locked ? 'Unlock layer' : 'Lock layer',
+          icon: layer.locked ? Icons.lock_open_outlined : Icons.lock_outline,
+          width: 220,
         ),
-        const PopupMenuItem(value: 'delete', child: Text('Delete layer')),
+        menuDivider(),
+        menuItem(
+          value: 'delete',
+          label: 'Delete layer',
+          icon: Icons.delete_outline,
+          danger: true,
+          width: 220,
+        ),
       ],
     );
     if (!context.mounted) return;

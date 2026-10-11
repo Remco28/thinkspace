@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'dev/inspector.dart';
 import 'editor/canvas_painter.dart';
+import 'ui/menus.dart';
 import 'ui/shell.dart';
 
 void main(List<String> args) => runApp(ThinkspaceApp(launchFiles: args));
@@ -26,7 +27,10 @@ class ThinkspaceApp extends StatelessWidget {
           visualDensity: VisualDensity.compact,
           scaffoldBackgroundColor: Colors.white,
           dividerColor: const Color(0xFFD9DCE3),
+          popupMenuTheme: menuTheme(),
           tooltipTheme: TooltipThemeData(
+            constraints: const BoxConstraints(maxWidth: 280),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
               color: const Color(0xE6222733),
               borderRadius: BorderRadius.circular(6),
