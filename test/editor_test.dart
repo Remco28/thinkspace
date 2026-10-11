@@ -2235,4 +2235,60 @@ void main() {
       expect((c.doc.objectById(a.id) as BadgeObject).size, const Size(44, 44));
     });
   });
+
+  group('round eight', () {
+    Future<ImageObject> whiteBox() async {
+      final a = await makeAsset(
+        c,
+        w: 60,
+        h: 60,
+        color: 0xFFFFFFFF,
+        centerColor: 0xFF1B7A2B,
+      );
+      final o = ImageObject(
+        id: c.doc.newId('o'),
+        name: 'pic',
+        assetId: a.id,
+        center: const Offset(300, 300),
+        size: const Size(120, 120),
+      );
+      c.addObject(o);
+      c.select([o.id]);
+      return o;
+    }
+
+    test('fine-tuning the background never throws away a live edit', () async {
+      final o = await whiteBox();
+      await c.removeBackgroundFrom(o);
+      expect(c.bgSessionObject, isNotNull);
+      // A slider mid-drag: the page has changed, with no undo step yet.
+      c.liveEditSelected((x) => x.opacity = 0.4);
+      await c.adjustBackground();
+      expect(c.bgSessionObject, isNull, reason: 'the session ends instead');
+      expect(c.doc.allObjects.single.opacity, 0.4);
+    });
+
+    test(
+      'Done while a removal is being computed does not reopen the bar',
+      () async {
+        final o = await whiteBox();
+        await c.removeBackgroundFrom(o);
+        final pending = c.adjustBackground();
+        c.endBgSession();
+        await pending;
+        expect(c.bgSessionObject, isNull);
+        expect(
+          c.doc.allObjects.whereType<ImageObject>().single.assetId,
+          isNotEmpty,
+        );
+      },
+    );
+
+    test('leaving the cut-out tool by any route closes its options', () {
+      c.setTool(Tool.cutout);
+      expect(c.cutoutOptionsOpen, isTrue);
+      c.setTool(Tool.pen);
+      expect(c.cutoutOptionsOpen, isFalse);
+    });
+  });
 }

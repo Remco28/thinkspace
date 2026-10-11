@@ -610,8 +610,19 @@ class _EditorShellState extends State<EditorShell> {
                                     ),
                                     _HSplitter(
                                       onDrag: (dy) => setState(
+                                        // From the current fraction, not from this
+                                        // build's height: several drag events can
+                                        // arrive before the next rebuild.
                                         () => layersFraction =
-                                            ((layersH + dy) / total)
+                                            (layersFraction.clamp(
+                                                      minLayers / total,
+                                                      math.max(
+                                                        minLayers / total,
+                                                        (total - minSettings) /
+                                                            total,
+                                                      ),
+                                                    ) +
+                                                    dy / total)
                                                 .clamp(
                                                   minLayers / total,
                                                   math.max(

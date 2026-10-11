@@ -488,6 +488,7 @@ class EditorController extends ChangeNotifier {
     // Choosing the cut-out tool opens its options first, so the choices
     // (what shape, cut or copy, what to leave behind) are made before drawing.
     if (t == Tool.cutout && tool != Tool.cutout) cutoutOptionsOpen = true;
+    if (t != Tool.cutout) cutoutOptionsOpen = false;
     tool = t;
     toolLocked = lock && t != Tool.select;
     lasso = null;
@@ -1657,7 +1658,11 @@ class EditorController extends ChangeNotifier {
     return doc.objectById(selection.first) as ImageObject?;
   }
 
-  Future<bool> removeBackgroundFrom(ImageObject o, {double? tolerance}) async {
+  Future<bool> removeBackgroundFrom(
+    ImageObject o, {
+    double? tolerance,
+    int? session,
+  }) async {
     final a = assets[o.assetId];
     if (a == null) return false;
     final r = await removeBackground(
@@ -1675,9 +1680,13 @@ class EditorController extends ChangeNotifier {
       () => (doc.objectById(o.id) as ImageObject?)?.assetId = na.id,
     );
     // Open the fine-tuning bar, as long as nothing else happens meanwhile.
-    _bgObject = o.id;
-    _bgDepth = undoDepth;
-    _bgAsset = na.id;
+    // (Not if it was dismissed while the removal was being computed.)
+    if (session == null || session == _bgGen) {
+      _bgObject = o.id;
+      _bgDepth = undoDepth;
+      _bgAsset = na.id;
+      _bgSig = doc.signature();
+    }
     notifyListeners();
     return true;
   }
@@ -1687,8 +1696,8 @@ class EditorController extends ChangeNotifier {
   // enclosed-areas switch. Changing either takes the removal back and redoes
   // it from the original picture, so the whole thing stays one undo step.
 
-  String? _bgObject, _bgAsset;
-  int _bgDepth = -1;
+  String? _bgObject, _bgAsset, _bgSig;
+  int _bgDepth = -1, _bgGen = 0;
   bool _bgBusy = false, _bgPending = false;
 
   /// The picture whose background was just removed, while the bar applies:
@@ -1702,6 +1711,7 @@ class EditorController extends ChangeNotifier {
   }
 
   void endBgSession() {
+    _bgGen++; // a removal still being computed must not bring the bar back
     if (_bgObject == null) return;
     _bgObject = _bgAsset = null;
     notifyListeners();
@@ -1719,10 +1729,17 @@ class EditorController extends ChangeNotifier {
         _bgPending = false;
         final o = bgSessionObject;
         if (o == null) break;
+        // Something changed the page without a step of its own (a slider
+        // still being dragged): taking the removal back would lose it.
+        if (doc.signature() != _bgSig) {
+          endBgSession();
+          break;
+        }
+        final gen = _bgGen;
         undo(quiet: true);
         final back = doc.objectById(o.id);
         if (back is ImageObject) {
-          final ok = await removeBackgroundFrom(back);
+          final ok = await removeBackgroundFrom(back, session: gen);
           if (!ok) endBgSession();
         } else {
           endBgSession();

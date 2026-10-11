@@ -781,6 +781,68 @@ void main() {
     },
   );
 
+  appTest('the divider follows a drag even when events arrive in a burst', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    final divider = find.byKey(const ValueKey('layers-splitter'));
+    final home = tester.getTopLeft(divider).dy;
+
+    Future<double> drag4({required bool frames}) async {
+      final g = await tester.startGesture(tester.getCenter(divider));
+      for (int i = 0; i < 4; i++) {
+        await g.moveBy(const Offset(0, -25));
+        if (frames) await tester.pump();
+      }
+      await g.up();
+      await tester.pump();
+      return tester.getTopLeft(divider).dy;
+    }
+
+    final burst = await drag4(frames: false);
+    expect(burst, lessThan(home - 30));
+    // Back to the start, then the same drag with a frame between each event.
+    await tester.tap(divider);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(divider);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.getTopLeft(divider).dy, closeTo(home, 1));
+    expect(await drag4(frames: true), closeTo(burst, 2));
+  });
+
+  appTest('the lock button locks and unlocks a mixed selection predictably', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    for (final (n, locked) in [('a', true), ('b', false)]) {
+      c.addObject(
+        ShapeObject(
+          id: c.doc.newId('o'),
+          name: n,
+          ellipse: false,
+          center: Offset(100.0 + n.codeUnitAt(0), 100),
+          size: const Size(40, 40),
+          locked: locked,
+        ),
+      );
+    }
+    c.select(c.doc.allObjects.map((o) => o.id).toList());
+    await tester.pump();
+    Future<void> lockButton() async {
+      final b = find.byTooltip('Unlock so it can be grabbed again');
+      final alt = find.byTooltip('Lock so it can’t be grabbed');
+      await tester.tap(b.evaluate().isNotEmpty ? b : alt);
+      await tester.pump();
+    }
+
+    // Some are locked: the first press unlocks everything…
+    await lockButton();
+    expect(c.doc.allObjects.every((o) => !o.locked), isTrue);
+    // …and the next locks everything.
+    await lockButton();
+    expect(c.doc.allObjects.every((o) => o.locked), isTrue);
+  });
+
   appTest(
     'drawing an arrow with the mouse lists it, selects it, and undo removes it',
     (tester) async {

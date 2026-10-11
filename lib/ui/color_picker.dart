@@ -123,6 +123,15 @@ class _ColorPickerState extends State<ColorPicker> {
     widget.onChanged(_argb);
   }
 
+  /// After typing a code, keyboard focus goes back to the editor so the
+  /// one-key shortcuts work again (as with the number boxes).
+  void _giveBackFocus() {
+    if (!_hexFocus.hasFocus) return;
+    // The picker is a popover on its own route; the editor is behind it, so
+    // simply letting go of the box is the most that can be asked of it.
+    _hexFocus.unfocus();
+  }
+
   void _commitHex() {
     var t = _hex.text.trim().replaceFirst('#', '');
     if (t.length == 3) t = t.split('').map((ch) => ch + ch).join();
@@ -183,7 +192,10 @@ class _ColorPickerState extends State<ColorPicker> {
                     enabledBorder: fieldBorder(),
                     focusedBorder: fieldBorder(focused: true),
                   ),
-                  onSubmitted: (_) => _commitHex(),
+                  onSubmitted: (_) {
+                    _commitHex();
+                    _giveBackFocus();
+                  },
                 ),
               ),
             ),
