@@ -62,7 +62,11 @@ void main() {
         SystemClipboard.parseFileList(
           'copy\nfile:///home/kid/a%20cat.png\r\nfile:///tmp/b.jpg\nhttp://x/y.png\n',
         ),
-        ['/home/kid/a cat.png', '/tmp/b.jpg'],
+        [
+          // Windows spells the same address with backslashes and a drive.
+          Uri.parse('file:///home/kid/a%20cat.png').toFilePath(),
+          Uri.parse('file:///tmp/b.jpg').toFilePath(),
+        ],
       );
       expect(SystemClipboard.parseFileList(''), isEmpty);
       expect(SystemClipboard.parseFileList('file://%zz'), isEmpty);
