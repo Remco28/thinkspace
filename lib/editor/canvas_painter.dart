@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -38,6 +39,7 @@ class CanvasPainter extends CustomPainter {
       doc,
       c.assets,
       hidden: {if (c.editingTextId != null) c.editingTextId!},
+      faded: c.removing,
     );
     canvas.drawRect(
       page,
@@ -49,6 +51,8 @@ class CanvasPainter extends CustomPainter {
     canvas.restore();
 
     _paintOverlays(canvas, size);
+    _paintPickLoupe(canvas);
+    _paintRemovePointer(canvas);
   }
 
   void _paintGrid(Canvas canvas, Rect page) {
@@ -66,6 +70,13 @@ class CanvasPainter extends CustomPainter {
   }
 
   Offset _s(Offset scene) => c.toScreen(scene);
+
+  /// Page to screen, for paths.
+  Float64List get _viewMatrix =>
+      (Matrix4.identity()
+            ..translateByDouble(c.pan.dx, c.pan.dy, 0, 1)
+            ..scaleByDouble(c.zoom, c.zoom, 1, 1))
+          .storage;
 
   void _paintOverlays(Canvas canvas, Size size) {
     _paintGrips(canvas);
@@ -144,10 +155,10 @@ class CanvasPainter extends CustomPainter {
       final path = Path()..addPolygon(pts, true);
       canvas.drawPath(path, accent);
     } else if (o is LineObject) {
-      canvas.drawLine(
-        _s(o.p1),
-        _s(o.p2),
+      canvas.drawPath(
+        linePath(o).transform(_viewMatrix),
         Paint()
+          ..style = PaintingStyle.stroke
           ..color = kAccent.withValues(alpha: 0.35)
           ..strokeWidth = math.max(3, o.width * c.zoom + 4)
           ..strokeCap = StrokeCap.round,
@@ -159,6 +170,91 @@ class CanvasPainter extends CustomPainter {
         Rect.fromPoints(_s(b.topLeft), _s(b.bottomRight)).inflate(3),
         accent,
       );
+    }
+  }
+
+  /// Remove marks' pointer: a ring the size of what it reaches, with a small
+  /// cross in the middle, so it is clear what a sweep will catch.
+  void _paintRemovePointer(Canvas canvas) {
+    final at = c.pointerScreen;
+    if (c.tool != Tool.remove || c.pickingColour || at == null) return;
+    final r = c.removeRadius;
+    final halo = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5;
+    final ink = Paint()
+      ..color = const Color(0xFF2B3140)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(at, r, Paint()..color = const Color(0x22FFFFFF));
+    canvas.drawCircle(at, r, halo);
+    canvas.drawCircle(at, r, ink);
+    const k = 3.2;
+    for (final p in [halo, ink]) {
+      canvas.drawLine(at + const Offset(-k, -k), at + const Offset(k, k), p);
+      canvas.drawLine(at + const Offset(-k, k), at + const Offset(k, -k), p);
+    }
+  }
+
+  /// While the eyedropper is waiting: an eyedropper for a pointer, its tip
+  /// on the spot that will be taken, and a round sample of the colour there.
+  /// The dropper leans up and to the right, so the sample sits up and to the
+  /// left where nothing covers it (and a right hand on a touchscreen doesn't
+  /// either); near the top or left edge it moves round to stay in view.
+  void _paintPickLoupe(Canvas canvas) {
+    final at = c.pointerScreen;
+    if (!c.pickingColour || at == null) return;
+    final colour = c.pickHoverColour;
+    if (colour != null) {
+      final dx = at.dx < 48 ? 30.0 : -30.0;
+      final dy = at.dy < 48 ? 30.0 : -30.0;
+      final centre = at + Offset(dx, dy);
+      canvas.drawCircle(
+        centre,
+        17,
+        Paint()
+          ..color = const Color(0x55000000)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+      canvas.drawCircle(centre, 16, Paint()..color = Colors.white);
+      canvas.drawCircle(centre, 12.5, Paint()..color = Color(colour));
+      canvas.drawCircle(
+        centre,
+        12.5,
+        Paint()
+          ..color = const Color(0x33000000)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1,
+      );
+    }
+    // The Material "colorize" glyph has its tip about (3, 21) into its 24px
+    // box; drawn with a white edge so it shows on dark and light alike.
+    const icon = Icons.colorize, px = 22.0;
+    final origin = at - const Offset(3, 21) * (px / 24);
+    for (final edge in [true, false]) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(icon.codePoint),
+          style: TextStyle(
+            fontFamily: icon.fontFamily,
+            package: icon.fontPackage,
+            fontSize: px,
+            height: 1,
+            foreground: edge
+                ? (Paint()
+                    ..style = PaintingStyle.stroke
+                    ..strokeWidth = 3
+                    ..strokeJoin = StrokeJoin.round
+                    ..color = Colors.white)
+                : (Paint()..color = const Color(0xFF2B3140)),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, origin);
+      tp.dispose();
     }
   }
 
@@ -190,6 +286,17 @@ class CanvasPainter extends CustomPainter {
           h.kind == HandleKind.lineEnd) {
         canvas.drawCircle(p, 6.5 * k, fill);
         canvas.drawCircle(p, 6.5 * k, stroke);
+      } else if (h.kind == HandleKind.lineBend) {
+        // A small diamond in the middle: pull it to bend the line.
+        final r = 5.5 * k;
+        final d = Path()
+          ..moveTo(p.dx, p.dy - r)
+          ..lineTo(p.dx + r, p.dy)
+          ..lineTo(p.dx, p.dy + r)
+          ..lineTo(p.dx - r, p.dy)
+          ..close();
+        canvas.drawPath(d, fill);
+        canvas.drawPath(d, stroke);
       } else {
         final r = Rect.fromCenter(center: p, width: 9 * k, height: 9 * k);
         canvas.drawRect(r, fill);
@@ -261,50 +368,24 @@ class CanvasPainter extends CustomPainter {
   }
 
   void _paintLabel(Canvas canvas, List<SceneObject> sel, Size size) {
-    final String text;
-    if (sel.length == 1) {
-      final l = c.doc.layerOf(sel.first.id);
-      text = '${sel.first.name} · ${l?.name ?? ''}';
-    } else {
-      text = '${sel.length} objects';
-    }
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: 260);
-    final b = c.selectionBounds;
-    var anchor = _s(b.topLeft);
-    if (sel.length == 1 && sel.first is BoxObject) {
-      final o = sel.first as BoxObject;
-      anchor = _s(
-        o.corners.reduce(
-          (a, b) => (a.dy < b.dy || (a.dy == b.dy && a.dx < b.dx)) ? a : b,
-        ),
-      );
-    }
-    final w = tp.width + 14, h = tp.height + 6;
-    var pos = anchor + Offset(0, -h - 8);
-    if (sel.length == 1 && sel.first is BoxObject) {
-      pos += const Offset(0, -34); // clear the rotate handle
-    }
-    pos = Offset(
-      pos.dx.clamp(4, math.max(4, size.width - w - 4)),
-      pos.dy < 4 ? anchor.dy + 10 : pos.dy,
+    final tag = selectionTag(c, size);
+    if (tag == null) return;
+    final tp = _tagText(tag.text)..layout(maxWidth: _tagTextMax);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(tag.tag, const Radius.circular(5)),
+      Paint()..color = kAccent,
     );
-    final r = RRect.fromRectAndRadius(
-      Rect.fromLTWH(pos.dx, pos.dy, w, h),
-      const Radius.circular(5),
-    );
-    canvas.drawRRect(r, Paint()..color = kAccent);
-    tp.paint(canvas, pos + const Offset(7, 3));
+    tp.paint(canvas, tag.tag.topLeft + const Offset(7, 3));
     tp.dispose();
+    // A hairline between the name and the padlock, which is a button laid
+    // over the tag by the canvas view.
+    canvas.drawLine(
+      Offset(tag.lock.left, tag.tag.top + 4),
+      Offset(tag.lock.left, tag.tag.bottom - 4),
+      Paint()
+        ..color = const Color(0x55FFFFFF)
+        ..strokeWidth = 1,
+    );
   }
 
   void _dashedRect(Canvas canvas, Rect r, Paint p) =>
@@ -322,4 +403,69 @@ class CanvasPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CanvasPainter old) => true;
+}
+
+const double _tagTextMax = 260;
+const double kTagLockWidth = 22;
+
+TextPainter _tagText(String text) => TextPainter(
+  text: TextSpan(
+    text: text,
+    style: const TextStyle(
+      color: Colors.white,
+      fontSize: 11.5,
+      fontWeight: FontWeight.w600,
+    ),
+  ),
+  textDirection: TextDirection.ltr,
+);
+
+/// Where the selection's name tag sits on screen (in a view of [size]), and
+/// the padlock button at its end. Null when nothing is selected or a text is
+/// being typed.
+({Rect tag, Rect lock, String text})? selectionTag(
+  EditorController c,
+  Size size,
+) {
+  final sel = c.selectedObjects;
+  if (sel.isEmpty || c.editingTextId != null) return null;
+  final String text;
+  if (sel.length == 1) {
+    final l = c.doc.layerOf(sel.first.id);
+    text = '${sel.first.name} · ${l?.name ?? ''}';
+  } else {
+    text = '${sel.length} objects';
+  }
+  final tp = _tagText(text)..layout(maxWidth: _tagTextMax);
+  final w = tp.width + 14 + kTagLockWidth, h = tp.height + 6;
+  tp.dispose();
+  final b = c.selectionBounds;
+  var anchor = c.toScreen(b.topLeft);
+  final one = sel.length == 1 ? sel.first : null;
+  if (one is BoxObject) {
+    anchor = c.toScreen(
+      one.corners.reduce(
+        (a, b) => (a.dy < b.dy || (a.dy == b.dy && a.dx < b.dx)) ? a : b,
+      ),
+    );
+  }
+  var pos = anchor + Offset(0, -h - 8);
+  // Clear the rotate handle, and stay put when locking hides it, so the
+  // padlock is still under the pointer to click again.
+  if (one is BoxObject) pos += const Offset(0, -34);
+  pos = Offset(
+    pos.dx.clamp(4, math.max(4, size.width - w - 4)),
+    pos.dy < 4 ? anchor.dy + 10 : pos.dy,
+  );
+  final tag = Rect.fromLTWH(pos.dx, pos.dy, w, h);
+  return (
+    tag: tag,
+    lock: Rect.fromLTRB(
+      tag.right - kTagLockWidth,
+      tag.top,
+      tag.right,
+      tag.bottom,
+    ),
+    text: text,
+  );
 }

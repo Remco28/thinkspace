@@ -5,7 +5,7 @@ import 'dart:ui';
 import 'assets.dart';
 import 'geometry.dart';
 
-enum ObjectKind { image, text, rect, ellipse, line, stroke, badge }
+enum ObjectKind { image, text, rect, ellipse, line, stroke, badge, hide }
 
 Offset _off(dynamic j) =>
     Offset((j[0] as num).toDouble(), (j[1] as num).toDouble());
@@ -62,6 +62,8 @@ abstract class SceneObject {
         return StrokeObject.fromJson(j);
       case 'badge':
         return BadgeObject.fromJson(j);
+      case 'hide':
+        return HideObject.fromJson(j);
     }
     throw FormatException('Unknown object type ${j['type']}');
   }
@@ -605,7 +607,76 @@ class BadgeObject extends BoxObject {
   }
 }
 
-/// A straight line or arrow between two points. Dragging the ends resizes it.
+/// A box that hides what is under it: pixelated, or covered with a solid
+/// colour. It stays editable; the pixels underneath are only lost on export.
+class HideObject extends BoxObject {
+  HideObject({
+    required super.id,
+    required super.name,
+    required super.center,
+    required super.size,
+    this.solid = false,
+    this.color = 0xFF222222,
+    this.block = 14,
+    super.rotation,
+    super.opacity,
+    super.visible,
+    super.locked,
+  });
+
+  /// Covered with [color] instead of pixelated.
+  bool solid;
+  int color;
+
+  /// How big the mosaic's tiles are, in page pixels.
+  double block;
+
+  @override
+  ObjectKind get kind => ObjectKind.hide;
+
+  @override
+  HideObject copyWith({String? id, String? name}) => HideObject(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    center: center,
+    size: size,
+    solid: solid,
+    color: color,
+    block: block,
+    rotation: rotation,
+    opacity: opacity,
+    visible: visible,
+    locked: locked,
+  );
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...boxJson('hide'),
+    'solid': solid,
+    'color': color,
+    'block': block,
+  };
+
+  factory HideObject.fromJson(Map<String, dynamic> j) {
+    final o = HideObject(
+      id: j['id'],
+      name: j['name'],
+      center: Offset.zero,
+      size: Size.zero,
+      solid: j['solid'] ?? false,
+      color: j['color'] ?? 0xFF222222,
+      block: ((j['block'] ?? 14) as num).toDouble(),
+      opacity: ((j['opacity'] ?? 1) as num).toDouble(),
+      visible: j['visible'] ?? true,
+      locked: j['locked'] ?? false,
+    );
+    o.readBox(j);
+    return o;
+  }
+}
+
+/// A line or arrow between two points. Dragging the ends resizes it; dragging
+/// its middle bends it into a curve.
 class LineObject extends SceneObject {
   LineObject({
     required super.id,
@@ -617,6 +688,7 @@ class LineObject extends SceneObject {
     this.headEnd = false,
     this.headStart = false,
     this.dashed = false,
+    this.bend = Offset.zero,
     super.opacity,
     super.visible,
     super.locked,
@@ -627,21 +699,66 @@ class LineObject extends SceneObject {
   double width;
   bool headEnd, headStart, dashed;
 
+  /// Where the middle of the curve sits, measured in the line's own frame:
+  /// along the line in [dx] and across it in [dy], both as a fraction of the
+  /// line's length. Zero is straight. Kept relative so the curve keeps its
+  /// shape when an end is dragged or the line is moved.
+  Offset bend;
+
   @override
   ObjectKind get kind => ObjectKind.line;
 
   double get headSize => math.max(14, width * 3.6);
   double get length => (p2 - p1).distance;
+  bool get curved => bend != Offset.zero;
+
+  /// The point halfway along the curve (the bend handle).
+  Offset get mid {
+    final d = p2 - p1;
+    return (p1 + p2) / 2 + d * bend.dx + Offset(-d.dy, d.dx) * bend.dy;
+  }
+
+  set mid(Offset m) {
+    final d = p2 - p1;
+    final len2 = d.dx * d.dx + d.dy * d.dy;
+    if (len2 == 0) {
+      bend = Offset.zero;
+      return;
+    }
+    final v = m - (p1 + p2) / 2;
+    bend = Offset(
+      (v.dx * d.dx + v.dy * d.dy) / len2,
+      (v.dy * d.dx - v.dx * d.dy) / len2,
+    );
+  }
+
+  /// The quadratic curve's control point: the curve passes through [mid].
+  Offset get control => mid * 2 - (p1 + p2) / 2;
+
+  Offset pointAt(double t) {
+    final c = control, u = 1 - t;
+    return p1 * (u * u) + c * (2 * u * t) + p2 * (t * t);
+  }
+
+  /// The curve as short straight pieces, for hit testing and bounds.
+  List<Offset> get samples =>
+      curved ? [for (int i = 0; i <= 32; i++) pointAt(i / 32)] : [p1, p2];
 
   @override
-  Rect get bounds => rectFromPoints([
-    p1,
-    p2,
-  ]).inflate(width / 2 + ((headEnd || headStart) ? headSize / 2 : 0));
+  Rect get bounds => rectFromPoints(
+    samples,
+  ).inflate(width / 2 + ((headEnd || headStart) ? headSize / 2 : 0));
 
   @override
-  bool hitTest(Offset p, double tolerance, AssetStore assets) =>
-      distToSegment(p, p1, p2) <= tolerance + width / 2;
+  bool hitTest(Offset p, double tolerance, AssetStore assets) {
+    final pts = samples;
+    for (int i = 1; i < pts.length; i++) {
+      if (distToSegment(p, pts[i - 1], pts[i]) <= tolerance + width / 2) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   @override
   void translate(Offset d) {
@@ -660,6 +777,7 @@ class LineObject extends SceneObject {
     headEnd: headEnd,
     headStart: headStart,
     dashed: dashed,
+    bend: bend,
     opacity: opacity,
     visible: visible,
     locked: locked,
@@ -675,6 +793,7 @@ class LineObject extends SceneObject {
     'headEnd': headEnd,
     'headStart': headStart,
     'dashed': dashed,
+    if (curved) 'bend': _offJson(bend),
   };
 
   factory LineObject.fromJson(Map<String, dynamic> j) => LineObject(
@@ -687,6 +806,7 @@ class LineObject extends SceneObject {
     headEnd: j['headEnd'] ?? false,
     headStart: j['headStart'] ?? false,
     dashed: j['dashed'] ?? false,
+    bend: j['bend'] == null ? Offset.zero : _off(j['bend']),
     opacity: ((j['opacity'] ?? 1) as num).toDouble(),
     visible: j['visible'] ?? true,
     locked: j['locked'] ?? false,

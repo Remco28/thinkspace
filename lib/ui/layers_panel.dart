@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../editor/canvas_painter.dart';
 import '../editor/canvas_view.dart';
@@ -43,6 +44,7 @@ IconData kindIcon(SceneObject o) => switch (o.kind) {
     o is LineObject && o.headEnd ? Icons.north_east : Icons.horizontal_rule,
   ObjectKind.stroke => Icons.edit_outlined,
   ObjectKind.badge => Icons.looks_one_outlined,
+  ObjectKind.hide => Icons.grid_on,
 };
 
 class LayersPanel extends StatefulWidget {
@@ -55,12 +57,66 @@ class LayersPanel extends StatefulWidget {
 
 class _LayersPanelState extends State<LayersPanel> {
   EditorController get c => widget.controller;
+  final _scroll = ScrollController();
+  int _seenFresh = 0;
+
+  /// The new layer whose name is open for typing.
+  String? _naming;
+
+  static const double _layerRow = 34, _objectRow = 28, _pad = 4;
+
+  @override
+  void initState() {
+    super.initState();
+    _seenFresh = c.freshLayerCount;
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// A layer was just made: open its name and scroll it into view (rows have
+  /// fixed heights, so its place can be worked out without building it).
+  void _noticeFresh() {
+    if (c.freshLayerCount == _seenFresh) return;
+    _seenFresh = c.freshLayerCount;
+    final id = c.freshLayerId;
+    if (c.doc.layerById(id ?? '') == null) return;
+    _naming = id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      var top = _pad;
+      for (final l in c.doc.layers.reversed) {
+        if (l.id == id) break;
+        top += _layerRow;
+        if (!c.collapsedLayers.contains(l.id)) {
+          top += l.objects.length * _objectRow;
+        }
+      }
+      final pos = _scroll.position;
+      final rowBottom = top + _layerRow;
+      double? to;
+      if (top < pos.pixels) to = top - _pad;
+      if (rowBottom > pos.pixels + pos.viewportDimension) {
+        to = rowBottom - pos.viewportDimension + _pad;
+      }
+      if (to == null) return;
+      _scroll.animateTo(
+        to.clamp(0.0, pos.maxScrollExtent),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: c,
       builder: (context, _) {
+        _noticeFresh();
         final layers = c.doc.layers;
         final n = layers.length;
         return Column(
@@ -77,6 +133,7 @@ class _LayersPanelState extends State<LayersPanel> {
             ),
             Expanded(
               child: ReorderableListView.builder(
+                scrollController: _scroll,
                 buildDefaultDragHandles: false,
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 itemCount: n,
@@ -90,6 +147,9 @@ class _LayersPanelState extends State<LayersPanel> {
                     layer: layer,
                     index: i,
                     collapsed: c.collapsedLayers.contains(layer.id),
+                    fresh: c.freshLayerId == layer.id ? c.freshLayerCount : 0,
+                    naming: _naming == layer.id,
+                    onNamed: () => setState(() => _naming = null),
                     onToggle: () {
                       c.collapsedLayers.contains(layer.id)
                           ? c.collapsedLayers.remove(layer.id)
@@ -115,12 +175,22 @@ class _LayerTile extends StatelessWidget {
     required this.index,
     required this.collapsed,
     required this.onToggle,
+    this.fresh = 0,
+    this.naming = false,
+    this.onNamed,
   });
   final EditorController c;
   final Layer layer;
   final int index;
   final bool collapsed;
   final VoidCallback onToggle;
+
+  /// Non-zero for a layer just made: the row lights up and fades back.
+  final int fresh;
+
+  /// The name is a text box, ready for typing.
+  final bool naming;
+  final VoidCallback? onNamed;
 
   @override
   Widget build(BuildContext context) {
@@ -140,18 +210,31 @@ class _LayerTile extends StatelessWidget {
               if (v != null) c.renameLayer(layer.id, v);
             },
             onSecondaryTapDown: (d) => _menu(context, d.globalPosition),
-            child: Container(
-              height: 34,
-              margin: const EdgeInsets.symmetric(horizontal: 6),
-              padding: const EdgeInsets.only(left: 2, right: 4),
-              decoration: BoxDecoration(
-                color: cand.isNotEmpty
-                    ? kAccent.withValues(alpha: 0.18)
-                    : isCurrent
-                    ? kAccent.withValues(alpha: 0.09)
-                    : null,
-                borderRadius: BorderRadius.circular(6),
-                border: cand.isNotEmpty ? Border.all(color: kAccent) : null,
+            child: TweenAnimationBuilder<double>(
+              key: ValueKey('layer-flash-$fresh'),
+              tween: Tween(begin: fresh == 0 ? 0 : 1, end: 0),
+              duration: const Duration(milliseconds: 1400),
+              curve: Curves.easeIn,
+              builder: (context, glow, child) => Container(
+                height: 34,
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                padding: const EdgeInsets.only(left: 2, right: 4),
+                decoration: BoxDecoration(
+                  color: cand.isNotEmpty
+                      ? kAccent.withValues(alpha: 0.18)
+                      : isCurrent
+                      ? kAccent.withValues(alpha: 0.09 + 0.26 * glow)
+                      : null,
+                  borderRadius: BorderRadius.circular(6),
+                  border: cand.isNotEmpty || glow > 0
+                      ? Border.all(
+                          color: kAccent.withValues(
+                            alpha: cand.isNotEmpty ? 1 : glow,
+                          ),
+                        )
+                      : null,
+                ),
+                child: child,
               ),
               child: Row(
                 children: [
@@ -191,17 +274,28 @@ class _LayerTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Expanded(
-                    child: Text(
-                      layer.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: layer.visible
-                            ? const Color(0xFF222733)
-                            : const Color(0xFF9AA0AE),
-                      ),
-                    ),
+                    child: naming
+                        ? _LayerNameField(
+                            key: ValueKey('layer-name-${layer.id}'),
+                            initial: layer.name,
+                            onDone: (v) {
+                              if (v != null && v.trim() != layer.name) {
+                                c.renameLayer(layer.id, v);
+                              }
+                              onNamed?.call();
+                            },
+                          )
+                        : Text(
+                            layer.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: layer.visible
+                                  ? const Color(0xFF222733)
+                                  : const Color(0xFF9AA0AE),
+                            ),
+                          ),
                   ),
                   if (layer.locked)
                     const Icon(
@@ -387,4 +481,86 @@ class _ObjectRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A new layer's name, open for typing with the old name selected. Enter or
+/// clicking elsewhere keeps what was typed; Escape keeps the name it had.
+/// Either way the keyboard goes back to the editor's shortcuts.
+class _LayerNameField extends StatefulWidget {
+  const _LayerNameField({
+    super.key,
+    required this.initial,
+    required this.onDone,
+  });
+  final String initial;
+  final ValueChanged<String?> onDone;
+
+  @override
+  State<_LayerNameField> createState() => _LayerNameFieldState();
+}
+
+class _LayerNameFieldState extends State<_LayerNameField> {
+  late final TextEditingController _ctl =
+      TextEditingController(text: widget.initial)
+        ..selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: widget.initial.length,
+        );
+  final FocusNode _focus = FocusNode();
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus) _finish(_ctl.text);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  void _finish(String? v) {
+    if (_done) return;
+    _done = true;
+    if (_focus.hasFocus) {
+      final editor = Focus.maybeOf(context);
+      editor != null ? editor.requestFocus() : _focus.unfocus();
+    }
+    widget.onDone(v);
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 26,
+    child: CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () => _finish(null),
+      },
+      child: TextField(
+        controller: _ctl,
+        focusNode: _focus,
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        decoration: InputDecoration(
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 6,
+          ),
+          border: fieldBorder(),
+          enabledBorder: fieldBorder(),
+          focusedBorder: fieldBorder(focused: true),
+        ),
+        onSubmitted: _finish,
+        onTapOutside: (_) => _finish(_ctl.text),
+      ),
+    ),
+  );
 }

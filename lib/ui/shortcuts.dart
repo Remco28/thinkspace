@@ -8,14 +8,15 @@ typedef _Row = (List<List<String>>, String);
 
 const _tools = <(String, String)>[
   ('V', 'Select'),
-  ('L', 'Line'),
   ('A', 'Arrow'),
+  ('L', 'Line'),
   ('R', 'Rectangle'),
   ('E', 'Ellipse'),
   ('T', 'Text'),
+  ('N', 'Numbered marker'),
   ('P', 'Pen'),
   ('H', 'Highlighter'),
-  ('N', 'Numbered marker'),
+  ('X', 'Remove marks'),
   ('C', 'Cut out'),
 ];
 
@@ -82,6 +83,12 @@ const _sections = <(String, List<_Row>)>[
       ),
       (
         [
+          ['Ctrl', 'L'],
+        ],
+        'Lock the selection in place, or unlock it',
+      ),
+      (
+        [
           ['Esc'],
         ],
         'Back to Select, or clear the selection',
@@ -127,6 +134,12 @@ const _sections = <(String, List<_Row>)>[
           ['G'],
         ],
         'Show the grid',
+      ),
+      (
+        [
+          ['F11'],
+        ],
+        'Full screen, and back',
       ),
       (
         [

@@ -25,15 +25,17 @@ enum Tool {
   text,
   pen,
   highlight,
+  remove,
   badge,
   cutout,
+  hide,
 }
 
 enum CutoutMode { lasso, box, wand }
 
 enum PasteMode { ask, layer, collection }
 
-enum HandleKind { resize, rotate, lineStart, lineEnd }
+enum HandleKind { resize, rotate, lineStart, lineEnd, lineBend }
 
 class HandleSpot {
   const HandleSpot(this.kind, this.pos, {this.hx = 0, this.hy = 0});
@@ -85,6 +87,81 @@ const List<int> kHighlightPalette = [
   0xFF5CC8FF, // blue
   0xFFFFB347, // orange
 ];
+
+/// How the next thing a tool makes looks. Each tool keeps its own, so a thick
+/// red arrow does not make the next pen stroke thick and red. Not every tool
+/// uses every field: [size] is the text size, the marker size or the size of
+/// Hide details' tiles; [box], [keepText] are the highlighter's; [solid] is
+/// Hide details' choice of a plain cover.
+class ToolStyle {
+  ToolStyle({
+    required this.color,
+    this.width = 5,
+    this.fill = 0,
+    this.size = 0,
+    this.font = TextFont.sans,
+    this.box = false,
+    this.keepText = true,
+    this.solid = false,
+  });
+
+  int color;
+  double width;
+  int fill;
+  double size;
+  TextFont font;
+  bool box;
+  bool keepText;
+  bool solid;
+
+  ToolStyle copy() => ToolStyle(
+    color: color,
+    width: width,
+    fill: fill,
+    size: size,
+    font: font,
+    box: box,
+    keepText: keepText,
+    solid: solid,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'color': color,
+    'width': width,
+    'fill': fill,
+    'size': size,
+    'font': font.name,
+    'box': box,
+    'keepText': keepText,
+    'solid': solid,
+  };
+
+  /// Take what is readable from [j]; anything missing or odd stays as it is.
+  void read(Object? j) {
+    if (j is! Map) return;
+    T? get<T>(String k) => j[k] is T ? j[k] as T : null;
+    color = get<int>('color') ?? color;
+    width = get<num>('width')?.toDouble() ?? width;
+    fill = get<int>('fill') ?? fill;
+    size = get<num>('size')?.toDouble() ?? size;
+    font = j['font'] is String ? TextFont.byName(j['font']) : font;
+    box = get<bool>('box') ?? box;
+    keepText = get<bool>('keepText') ?? keepText;
+    solid = get<bool>('solid') ?? solid;
+  }
+
+  bool sameAs(ToolStyle o) => jsonEncode(toJson()) == jsonEncode(o.toJson());
+}
+
+/// What each tool starts with, and goes back to on "Reset to default".
+Map<Tool, ToolStyle> defaultToolStyles() => {
+  for (final t in [Tool.line, Tool.arrow, Tool.rect, Tool.ellipse, Tool.pen])
+    t: ToolStyle(color: kPalette[0]),
+  Tool.badge: ToolStyle(color: kPalette[0], size: 44),
+  Tool.text: ToolStyle(color: 0xFF222222, size: 28),
+  Tool.highlight: ToolStyle(color: kHighlightPalette.first, width: 26),
+  Tool.hide: ToolStyle(color: 0xFF222222, size: 14),
+};
 
 class EditorController extends ChangeNotifier {
   EditorController() {
@@ -155,21 +232,97 @@ class EditorController extends ChangeNotifier {
   bool _fitPending = true;
 
   // --- defaults for new things --------------------------------------------
-  int penColor = kPalette[0];
-  double penWidth = 5;
-  int fillColor = 0;
-  int textColor = 0xFF222222;
-  double textSize = 28;
-  TextFont textFont = TextFont.sans;
-  PasteMode pasteMode = PasteMode.ask;
-  PendingPaste? pendingPaste;
+  /// Each tool's look for the next thing it makes. Changing something on the
+  /// page changes its tool's too, so the next one comes out the same.
+  final Map<Tool, ToolStyle> toolStyles = defaultToolStyles();
+
+  ToolStyle styleOf(Tool t) => toolStyles[t] ??= ToolStyle(color: kPalette[0]);
+
+  /// The tool that makes things like [o], whose look the next one copies.
+  static Tool? toolFor(SceneObject o) => switch (o) {
+    LineObject l => l.headEnd ? Tool.arrow : Tool.line,
+    StrokeObject s =>
+      s.highlight == HighlightStyle.none ? Tool.pen : Tool.highlight,
+    ShapeObject s =>
+      s.highlight != HighlightStyle.none
+          ? Tool.highlight
+          : s.ellipse
+          ? Tool.ellipse
+          : Tool.rect,
+    BadgeObject _ => Tool.badge,
+    TextObject _ => Tool.text,
+    HideObject _ => Tool.hide,
+    _ => null,
+  };
+
+  /// Change the look [o]'s tool will use next.
+  void rememberStyle(SceneObject o, void Function(ToolStyle s) f) {
+    final t = toolFor(o);
+    if (t != null) f(styleOf(t));
+  }
+
+  bool styleIsDefault(Tool t) {
+    final d = defaultToolStyles()[t];
+    return d == null || styleOf(t).sameAs(d);
+  }
+
+  void resetToolStyle(Tool t) {
+    final d = defaultToolStyles()[t];
+    if (d == null) return;
+    toolStyles[t] = d;
+    notifyListeners();
+  }
+
+  Map<String, dynamic> toolStylesJson() => {
+    for (final e in toolStyles.entries) e.key.name: e.value.toJson(),
+  };
+
+  void readToolStyles(Object? j) {
+    if (j is! Map) return;
+    for (final t in Tool.values) {
+      if (j[t.name] != null) styleOf(t).read(j[t.name]);
+    }
+  }
+
+  int get textColor => styleOf(Tool.text).color;
+  set textColor(int v) => styleOf(Tool.text).color = v;
+  double get textSize => styleOf(Tool.text).size;
+  set textSize(double v) => styleOf(Tool.text).size = v;
+  TextFont get textFont => styleOf(Tool.text).font;
+  set textFont(TextFont v) => styleOf(Tool.text).font = v;
+  double get markerSize => styleOf(Tool.badge).size;
+  set markerSize(double v) => styleOf(Tool.badge).size = v;
 
   // The highlighter: colour, marker width, marker or box, and whether writing
   // under it stays dark (multiply) or the colour is simply see-through.
-  int hlColor = kHighlightPalette.first;
-  double hlWidth = 26;
-  bool hlBox = false;
-  bool hlKeepText = true;
+  int get hlColor => styleOf(Tool.highlight).color;
+  set hlColor(int v) => styleOf(Tool.highlight).color = v;
+  double get hlWidth => styleOf(Tool.highlight).width;
+  set hlWidth(double v) => styleOf(Tool.highlight).width = v;
+  bool get hlBox => styleOf(Tool.highlight).box;
+  set hlBox(bool v) => styleOf(Tool.highlight).box = v;
+  bool get hlKeepText => styleOf(Tool.highlight).keepText;
+  set hlKeepText(bool v) => styleOf(Tool.highlight).keepText = v;
+
+  PasteMode pasteMode = PasteMode.ask;
+  PendingPaste? pendingPaste;
+
+  /// Projects opened or saved lately, newest first.
+  List<String> recentFiles = [];
+  static const int maxRecentFiles = 8;
+
+  void noteRecent(String path) {
+    final p = File(path).absolute.path;
+    recentFiles = [
+      p,
+      ...recentFiles.where((r) => r != p),
+    ].take(maxRecentFiles).toList();
+  }
+
+  void forgetRecent(String path) {
+    recentFiles = recentFiles.where((r) => r != path).toList();
+    notifyListeners();
+  }
 
   // --- transient overlays drawn by the canvas -------------------------------
   Rect? marquee;
@@ -218,6 +371,7 @@ class EditorController extends ChangeNotifier {
 
   @override
   void dispose() {
+    finishColourPick(null);
     _toastTimer?.cancel();
     _autosaveTimer?.cancel();
     super.dispose();
@@ -515,8 +669,133 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ===== remove marks ======================================================
+
+  /// What a Remove marks drag has brushed over so far: drawn faded, and taken
+  /// away when the drag ends.
+  final Set<String> removing = {};
+
+  /// How far from its centre the Remove marks pointer reaches, on screen.
+  double get removeRadius => touchInput ? 18 : 10;
+
+  /// Remove marks takes away what was drawn on top: pen and highlighter
+  /// marks, lines and arrows, shapes and markers. Pictures and text stay;
+  /// those are removed with Delete, on purpose.
+  /// Hide details boxes stay too: a sweep over pen marks must never uncover
+  /// a password.
+  static bool removable(SceneObject o) =>
+      o is! ImageObject && o is! TextObject && o is! HideObject;
+
+  /// Mark everything removable within reach of the stretch from [a] to [b]
+  /// (page coordinates). True if anything new was marked.
+  bool brushRemove(Offset a, Offset b) {
+    final r = removeRadius / zoom;
+    final steps = math.max(1, ((b - a).distance / (r / 2)).ceil());
+    var added = false;
+    for (final layer in doc.layers) {
+      if (!layer.visible || layer.locked) continue;
+      for (final o in layer.objects) {
+        if (!o.visible || o.locked || !removable(o)) continue;
+        if (removing.contains(o.id)) continue;
+        if (!o.bounds.inflate(r).overlaps(Rect.fromPoints(a, b).inflate(r))) {
+          continue;
+        }
+        for (int i = 0; i <= steps; i++) {
+          if (o.hitTest(Offset.lerp(a, b, i / steps)!, r, assets)) {
+            removing.add(o.id);
+            added = true;
+            break;
+          }
+        }
+      }
+    }
+    return added;
+  }
+
+  /// Take away what the drag marked. False if nothing was.
+  bool finishRemove() {
+    if (removing.isEmpty) return false;
+    final gone = Set.of(removing);
+    removing.clear();
+    for (final layer in doc.layers) {
+      layer.objects.removeWhere((o) => gone.contains(o.id));
+    }
+    selection = selection.where((id) => !gone.contains(id)).toList();
+    return true;
+  }
+
+  // ===== eyedropper ========================================================
+
+  Completer<int?>? _colourPick;
+  ByteData? _pickPixels;
+  int _pickW = 0, _pickH = 0;
+
+  /// Waiting for a click on the page to take a colour from.
+  bool get pickingColour => _colourPick != null;
+
+  /// Where the pointer is on screen, while the eyedropper or Remove marks
+  /// draws its own pointer; and the colour under it while picking.
+  Offset? pointerScreen;
+  int? pickHoverColour;
+
+  /// The eyedropper: the next click on the page answers with the colour
+  /// there, as the page looks (every visible layer together). Escape, or a
+  /// click off the page, answers null. The page is drawn once up front so
+  /// the colour under the pointer can be shown as it moves.
+  Future<int?> pickColourFromPage() {
+    finishColourPick(null);
+    final done = Completer<int?>();
+    _colourPick = done;
+    showToast('Click on the page to take its colour (Esc to cancel)');
+    () async {
+      final img = await renderDocument(doc, assets);
+      final px = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (_colourPick == done) {
+        _pickPixels = px;
+        _pickW = img.width;
+        _pickH = img.height;
+      }
+      img.dispose();
+      notifyListeners();
+    }();
+    notifyListeners();
+    return done.future;
+  }
+
+  /// The colour the page shows at [scene], or null off the page or before it
+  /// has been drawn. Where nothing is painted the page counts as white, as
+  /// on screen.
+  int? colourAt(Offset scene) {
+    final px = _pickPixels;
+    final x = scene.dx.floor(), y = scene.dy.floor();
+    if (px == null || x < 0 || y < 0 || x >= _pickW || y >= _pickH) {
+      return null;
+    }
+    final i = (y * _pickW + x) * 4;
+    // Raw RGBA is premultiplied: over white, each channel gains (255 - a).
+    final a = px.getUint8(i + 3);
+    int ch(int k) => (px.getUint8(i + k) + 255 - a).clamp(0, 255);
+    return 0xFF000000 | ch(0) << 16 | ch(1) << 8 | ch(2);
+  }
+
+  void finishColourPick(int? argb) {
+    final done = _colourPick;
+    if (done == null) return;
+    _colourPick = null;
+    _pickPixels = null;
+    pointerScreen = null;
+    pickHoverColour = null;
+    done.complete(argb);
+    notifyListeners();
+  }
+
   void setTool(Tool t, {bool lock = false}) {
     finishTextEdit();
+    finishColourPick(null);
+    removing.clear();
+    // Nothing is picked while removing marks: a selection box around a mark
+    // that is fading away only confuses.
+    if (t == Tool.remove) selection = [];
     // Choosing the cut-out tool opens its options first, so the choices
     // (what shape, cut or copy, what to leave behind) are made before drawing.
     if (t == Tool.cutout && tool != Tool.cutout) cutoutOptionsOpen = true;
@@ -553,6 +832,9 @@ class EditorController extends ChangeNotifier {
       return [
         HandleSpot(HandleKind.lineStart, o.p1),
         HandleSpot(HandleKind.lineEnd, o.p2),
+        // Too short on screen and the middle would crowd the ends.
+        if (o.curved || o.length * zoom >= 40)
+          HandleSpot(HandleKind.lineBend, o.mid),
       ];
     }
     if (o is BoxObject) {
@@ -681,12 +963,25 @@ class EditorController extends ChangeNotifier {
 
   // ===== layers ============================================================
 
+  /// The layer just made (added or duplicated), and a count that goes up
+  /// each time, so the layers panel can bring it into view, point it out and
+  /// offer its name for typing: a new layer lands just above the current one,
+  /// which is not always where the eye is.
+  String? freshLayerId;
+  int freshLayerCount = 0;
+
+  void _madeLayer(Layer l) {
+    currentLayerId = l.id;
+    freshLayerId = l.id;
+    freshLayerCount++;
+  }
+
   void addLayer() => transact('add layer', () {
     final idx = doc.layers.indexWhere((l) => l.id == currentLayerId);
     final n = doc.layers.length + 1;
     final layer = Layer(id: doc.newId('l'), name: 'Layer $n');
     doc.layers.insert(idx < 0 ? doc.layers.length : idx + 1, layer);
-    currentLayerId = layer.id;
+    _madeLayer(layer);
   });
 
   void deleteLayer(String id) {
@@ -756,7 +1051,7 @@ class EditorController extends ChangeNotifier {
         objects: [for (final o in src.objects) o.copyWith(id: doc.newId('o'))],
       );
       doc.layers.insert(doc.layers.indexOf(src) + 1, copy);
-      currentLayerId = copy.id;
+      _madeLayer(copy);
       selection = [for (final o in copy.objects) o.id];
     });
   }
@@ -876,6 +1171,20 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether the selection counts as locked: any of it is.
+  bool get selectionLocked => selectedObjects.any((o) => o.locked);
+
+  /// Lock the selection in place, or unlock it if any of it is locked (so a
+  /// mixed selection unlocks first, then locks). Locked things ignore clicks,
+  /// so whatever is above or beside them is easy to work on; they stay
+  /// selected until something else is.
+  void toggleLockSelection() {
+    final objs = selectedObjects;
+    if (objs.isEmpty) return;
+    final lock = !selectionLocked;
+    editSelected(lock ? 'lock' : 'unlock', (o) => o.locked = lock);
+  }
+
   void renameObject(String id, String name) => transact('rename', () {
     if (name.trim().isNotEmpty) doc.objectById(id)?.name = name.trim();
   });
@@ -919,7 +1228,6 @@ class EditorController extends ChangeNotifier {
 
   /// The size new markers are placed at: whatever size a marker was last given,
   /// so a row of markers comes out the same without resizing each one.
-  double markerSize = 44;
 
   /// Give every marker the size of [like] (one undo step), and remember it.
   void matchMarkerSizes(BadgeObject like) {
@@ -1394,9 +1702,7 @@ class EditorController extends ChangeNotifier {
       final rec = ui.PictureRecorder();
       final c = ui.Canvas(rec);
       c.translate(-b.left, -b.top);
-      for (final o in objs) {
-        paintObject(c, o, assets);
-      }
+      paintObjects(c, objs, assets);
       final img = await rec.endRecording().toImage(
         b.width.ceil(),
         b.height.ceil(),
@@ -1499,9 +1805,10 @@ class EditorController extends ChangeNotifier {
     final canvas = ui.Canvas(rec);
     canvas.scale(scale);
     canvas.translate(-b.left, -b.top);
-    for (final o in ordered) {
-      if (o.visible) paintObject(canvas, o, assets);
-    }
+    paintObjects(canvas, [
+      for (final o in ordered)
+        if (o.visible) o,
+    ], assets);
     final img = await rec.endRecording().toImage(
       (b.width * scale).ceil(),
       (b.height * scale).ceil(),
@@ -1623,8 +1930,10 @@ class EditorController extends ChangeNotifier {
               p.strokeWidth *= k;
             }
           case LineObject():
+            final mid = map(p.mid);
             p.p1 = map(p.p1);
             p.p2 = map(p.p2);
+            p.mid = mid;
             p.width *= k;
           case StrokeObject():
             p.points = [for (final q in p.points) map(q)];
@@ -1890,6 +2199,7 @@ class EditorController extends ChangeNotifier {
     _redo.clear();
     editingTextId = null;
     filePath = path;
+    if (path != null) noteRecent(path);
     markSaved();
     fitToView(notify: false);
     notifyListeners();
@@ -1928,6 +2238,7 @@ class EditorController extends ChangeNotifier {
       return false;
     }
     filePath = path;
+    noteRecent(path);
     markSaved();
     clearRecovery();
     showToast('Saved ${fileNameOf(path)}');

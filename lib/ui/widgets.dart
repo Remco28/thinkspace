@@ -597,3 +597,97 @@ class _HighlighterPainter extends CustomPainter {
   @override
   bool shouldRepaint(_HighlighterPainter old) => old.color != color;
 }
+
+/// A pen squiggle with a small cross badge at its corner: Remove marks. The
+/// cross is a badge, not the whole icon, so it doesn't read as "close".
+class RemoveMarksGlyph extends StatelessWidget {
+  const RemoveMarksGlyph(this.size, this.color, {super.key});
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size.square(size), painter: _RemoveMarksPainter(color));
+}
+
+class _RemoveMarksPainter extends CustomPainter {
+  _RemoveMarksPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final u = s.width / 18; // drawn on an 18-unit grid
+    final line = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6 * u
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    // The mark: a loose squiggle across the lower left.
+    final squiggle = Path()
+      ..moveTo(1.8 * u, 13.2 * u)
+      ..cubicTo(3.5 * u, 6.5 * u, 6.5 * u, 6.0 * u, 6.8 * u, 10.2 * u)
+      ..cubicTo(7.1 * u, 14.6 * u, 10.2 * u, 14.8 * u, 11.2 * u, 9.6 * u);
+    canvas.drawPath(squiggle, line);
+    // The badge: a cross in a filled circle, top right.
+    final centre = Offset(13.4 * u, 4.6 * u);
+    canvas.drawCircle(centre, 4.2 * u, Paint()..color = color);
+    final cross = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 1.3 * u
+      ..strokeCap = StrokeCap.round;
+    const k = 1.7;
+    canvas.drawLine(
+      centre + Offset(-k * u, -k * u),
+      centre + Offset(k * u, k * u),
+      cross,
+    );
+    canvas.drawLine(
+      centre + Offset(-k * u, k * u),
+      centre + Offset(k * u, -k * u),
+      cross,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RemoveMarksPainter old) => old.color != color;
+}
+
+/// Hide details: a little mosaic, which is what the tool leaves behind.
+class HideDetailsGlyph extends StatelessWidget {
+  const HideDetailsGlyph(this.size, this.color, {super.key});
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size.square(size), painter: _HideDetailsPainter(color));
+}
+
+class _HideDetailsPainter extends CustomPainter {
+  _HideDetailsPainter(this.color);
+  final Color color;
+
+  // How strongly each tile of the 3 × 3 mosaic is inked, row by row.
+  static const _shades = [1.0, 0.35, 0.7, 0.5, 1.0, 0.3, 0.8, 0.45, 1.0];
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final u = s.width / 18; // drawn on an 18-unit grid
+    const tile = 4.4, gap = 0.7, start = 2.3;
+    for (var i = 0; i < 9; i++) {
+      final x = start + (i % 3) * (tile + gap),
+          y = start + (i ~/ 3) * (tile + gap);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x * u, y * u, tile * u, tile * u),
+          Radius.circular(0.8 * u),
+        ),
+        Paint()..color = color.withValues(alpha: color.a * _shades[i]),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_HideDetailsPainter old) => old.color != color;
+}

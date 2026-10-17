@@ -21,7 +21,11 @@ class PropertiesPanel extends StatelessWidget {
       builder: (context, _) {
         final objs = c.selectedObjects;
         final title = objs.isEmpty
-            ? (c.tool == Tool.select ? 'Page' : 'New ${_toolLabel(c.tool)}')
+            ? (c.tool == Tool.select
+                  ? 'Page'
+                  : c.tool == Tool.remove
+                  ? 'Remove marks'
+                  : 'New ${_toolLabel(c.tool)}')
             : (objs.length == 1
                   ? _kindLabel(objs.first)
                   : '${objs.length} selected');
@@ -52,6 +56,7 @@ class PropertiesPanel extends StatelessWidget {
     Tool.rect => 'rectangle',
     Tool.pen => 'pen stroke',
     Tool.highlight => 'highlight',
+    Tool.hide => 'hidden area',
     _ => t.name,
   };
 
@@ -69,12 +74,14 @@ class PropertiesPanel extends StatelessWidget {
     ObjectKind.line => o is LineObject && o.headEnd ? 'Arrow' : 'Line',
     ObjectKind.stroke => 'Pen stroke',
     ObjectKind.badge => 'Marker',
+    ObjectKind.hide => 'Hide details',
   };
 
   // ---- nothing selected ---------------------------------------------------
 
   Widget _page(BuildContext context) {
-    final drawing = c.tool != Tool.select && c.tool != Tool.cutout;
+    final drawing =
+        c.tool != Tool.select && c.tool != Tool.cutout && c.tool != Tool.remove;
     final d = c.doc;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,10 +216,13 @@ class PropertiesPanel extends StatelessWidget {
           }),
         ),
       ]);
+    } else if (c.tool == Tool.hide) {
+      rows.addAll(_hideDefaults());
     } else {
+      final s = c.styleOf(c.tool);
       rows.add(
-        _colour('Colour', c.penColor, (v) {
-          c.penColor = v;
+        _colour('Colour', s.color, (v) {
+          s.color = v;
           c.notify();
         }),
       );
@@ -230,8 +240,8 @@ class PropertiesPanel extends StatelessWidget {
         rows.add(
           PropRow(
             'Width',
-            _plainSlider(c.penWidth, 1, 30, (v) {
-              c.penWidth = v.roundToDouble();
+            _plainSlider(s.width, 1, 30, (v) {
+              s.width = v.roundToDouble();
               c.notify();
             }),
           ),
@@ -239,14 +249,99 @@ class PropertiesPanel extends StatelessWidget {
       }
       if (c.tool == Tool.rect || c.tool == Tool.ellipse) {
         rows.add(
-          _colour('Fill', c.fillColor, (v) {
-            c.fillColor = v;
+          _colour('Fill', s.fill, (v) {
+            s.fill = v;
             c.notify();
           }, allowNone: true),
         );
       }
     }
+    // Each tool remembers its last look, even after a restart; this is the
+    // way back to how it started. Always there, so it is known before it is
+    // needed and the panel does not shift; greyed while there is nothing to
+    // reset.
+    if (defaultToolStyles().containsKey(c.tool)) {
+      rows.add(
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const ValueKey('reset-tool-style'),
+            onPressed: c.styleIsDefault(c.tool)
+                ? null
+                : () => c.resetToolStyle(c.tool),
+            icon: const Icon(Icons.restart_alt, size: 15),
+            label: const Text('Reset to default'),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              textStyle: const TextStyle(fontSize: 12),
+              foregroundColor: kAccent,
+            ),
+          ),
+        ),
+      );
+    }
     return Section(first: true, children: rows);
+  }
+
+  // ---- hide details ---------------------------------------------------------
+
+  /// Pixelate or cover: the one choice, then how chunky or what colour.
+  List<Widget> _hideLook({
+    required bool solid,
+    required int color,
+    required ValueChanged<bool> onSolid,
+    required ValueChanged<int> onColor,
+    required Widget blockSlider,
+  }) => [
+    PropRow(
+      'Look',
+      SizedBox(
+        width: 200,
+        child: ButtonRow([
+          ActionButton(
+            key: const ValueKey('hide-pixelate'),
+            label: 'Pixelate',
+            icon: Icons.grid_on,
+            selected: !solid,
+            tooltip: 'Break what is underneath into big blocks',
+            onPressed: () => onSolid(false),
+          ),
+          ActionButton(
+            key: const ValueKey('hide-solid'),
+            label: 'Solid',
+            icon: Icons.square,
+            selected: solid,
+            tooltip: 'Cover it with one plain colour',
+            onPressed: () => onSolid(true),
+          ),
+        ]),
+      ),
+    ),
+    if (solid)
+      _colour('Colour', color, onColor)
+    else
+      PropRow('Blocks', blockSlider),
+  ];
+
+  List<Widget> _hideDefaults() {
+    final s = c.styleOf(Tool.hide);
+    return _hideLook(
+      solid: s.solid,
+      color: s.color,
+      onSolid: (v) {
+        s.solid = v;
+        c.notify();
+      },
+      onColor: (v) {
+        s.color = v;
+        c.notify();
+      },
+      blockSlider: _plainSlider(s.size, 6, 40, (v) {
+        s.size = v.roundToDouble();
+        c.notify();
+      }),
+    );
   }
 
   Widget _plainSlider(
@@ -608,13 +703,10 @@ class PropertiesPanel extends StatelessWidget {
                     GroupButton(
                       icon: locked ? Icons.lock : Icons.lock_outline,
                       tooltip: locked
-                          ? 'Unlock so it can be grabbed again'
-                          : 'Lock so it can’t be grabbed',
+                          ? 'Unlock so it can be grabbed again  Ctrl+L'
+                          : 'Lock so it can’t be grabbed  Ctrl+L',
                       active: locked,
-                      onPressed: () => c.editSelected(
-                        locked ? 'unlock' : 'lock',
-                        (o) => o.locked = !locked,
-                      ),
+                      onPressed: c.toggleLockSelection,
                     ),
                     if (objs.any((o) => o is ImageObject))
                       GroupButton(
@@ -789,7 +881,7 @@ class PropertiesPanel extends StatelessWidget {
     if (o is LineObject) o.color = v;
     if (o is StrokeObject) o.color = v;
     if (o is ShapeObject) o.stroke = v;
-    c.penColor = v;
+    c.rememberStyle(o, (s) => s.color = v);
   }
 
   Widget? _typeSectionMulti(List<SceneObject> objs) {
@@ -831,7 +923,7 @@ class PropertiesPanel extends StatelessWidget {
           ),
           _colour('Colour', o.color, (v) {
             c.editSelected('colour', (x) => (x as BadgeObject).color = v);
-            c.penColor = v;
+            c.styleOf(Tool.badge).color = v;
           }),
           if (c.markersUnlike(o) > 0)
             ActionButton(
@@ -843,6 +935,35 @@ class PropertiesPanel extends StatelessWidget {
               onPressed: () => c.matchMarkerSizes(o),
             ),
         ],
+      );
+    }
+    if (o is HideObject) {
+      return Section(
+        title: 'Hide details',
+        children: _hideLook(
+          solid: o.solid,
+          color: o.color,
+          onSolid: (v) {
+            c.editSelected('hide look', (x) => (x as HideObject).solid = v);
+            c.styleOf(Tool.hide).solid = v;
+          },
+          onColor: (v) {
+            c.editSelected('hide colour', (x) => (x as HideObject).color = v);
+            c.styleOf(Tool.hide).color = v;
+          },
+          blockSlider: LiveSlider(
+            key: const ValueKey('hide-blocks'),
+            controller: c,
+            value: o.block,
+            min: 6,
+            max: 40,
+            label: 'block size',
+            apply: (v) => c.liveEditSelected((x) {
+              (x as HideObject).block = v.roundToDouble();
+              c.styleOf(Tool.hide).size = v.roundToDouble();
+            }),
+          ),
+        ),
       );
     }
     if (o is LineObject) {
@@ -864,7 +985,7 @@ class PropertiesPanel extends StatelessWidget {
               label: 'width',
               apply: (v) => c.liveEditSelected((x) {
                 (x as LineObject).width = v.roundToDouble();
-                c.penWidth = v.roundToDouble();
+                c.rememberStyle(x, (s) => s.width = v.roundToDouble());
               }),
             ),
           ),
@@ -902,6 +1023,31 @@ class PropertiesPanel extends StatelessWidget {
               ],
             ),
           ),
+          PropRow(
+            'Shape',
+            IconGroup(
+              buttons: [
+                GroupButton(
+                  icon: Icons.horizontal_rule,
+                  tooltip: 'Straight',
+                  active: !o.curved,
+                  onPressed: () => c.editSelected(
+                    'straighten',
+                    (x) => (x as LineObject).bend = Offset.zero,
+                  ),
+                ),
+                GroupButton(
+                  icon: Icons.looks,
+                  tooltip: 'Curved — drag the diamond in the middle to bend it',
+                  active: o.curved,
+                  onPressed: () => c.editSelected('bend', (x) {
+                    final l = x as LineObject;
+                    if (!l.curved) l.bend = const Offset(0, -0.25);
+                  }),
+                ),
+              ],
+            ),
+          ),
         ],
       );
     }
@@ -924,6 +1070,7 @@ class PropertiesPanel extends StatelessWidget {
               label: 'width',
               apply: (v) => c.liveEditSelected((x) {
                 (x as StrokeObject).width = v.roundToDouble();
+                c.rememberStyle(x, (s) => s.width = v.roundToDouble());
               }),
             ),
           ),
@@ -941,7 +1088,7 @@ class PropertiesPanel extends StatelessWidget {
           ),
           _colour('Fill', o.fill, (v) {
             c.editSelected('fill', (x) => (x as ShapeObject).fill = v);
-            c.fillColor = v;
+            c.rememberStyle(o, (s) => s.fill = v);
           }, allowNone: true),
           PropRow(
             'Width',
@@ -953,6 +1100,7 @@ class PropertiesPanel extends StatelessWidget {
               label: 'width',
               apply: (v) => c.liveEditSelected((x) {
                 (x as ShapeObject).strokeWidth = v.roundToDouble();
+                c.rememberStyle(x, (s) => s.width = v.roundToDouble());
               }),
             ),
           ),

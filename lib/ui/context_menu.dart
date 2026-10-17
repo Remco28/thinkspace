@@ -135,10 +135,9 @@ Future<void> showObjectMenu(
         ),
       menuItem(
         value: _Act.lock,
-        label: sel.every((o) => o.locked) ? 'Unlock' : 'Lock in place',
-        icon: sel.every((o) => o.locked)
-            ? Icons.lock_open_outlined
-            : Icons.lock_outline,
+        label: c.selectionLocked ? 'Unlock' : 'Lock in place',
+        icon: c.selectionLocked ? Icons.lock_open_outlined : Icons.lock_outline,
+        shortcut: 'Ctrl+L',
         width: w,
       ),
     ] else ...[
@@ -189,8 +188,7 @@ Future<void> showObjectMenu(
     case _Act.back:
       c.reorderSelection('back');
     case _Act.lock:
-      final lock = !sel.every((o) => o.locked);
-      c.editSelected(lock ? 'lock' : 'unlock', (o) => o.locked = lock);
+      c.toggleLockSelection();
     case _Act.cutout:
       c.setTool(Tool.cutout);
     case _Act.removeBg:

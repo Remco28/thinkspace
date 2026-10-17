@@ -829,8 +829,8 @@ void main() {
     c.select(c.doc.allObjects.map((o) => o.id).toList());
     await tester.pump();
     Future<void> lockButton() async {
-      final b = find.byTooltip('Unlock so it can be grabbed again');
-      final alt = find.byTooltip('Lock so it can’t be grabbed');
+      final b = find.byTooltip('Unlock so it can be grabbed again  Ctrl+L');
+      final alt = find.byTooltip('Lock so it can’t be grabbed  Ctrl+L');
       await tester.tap(b.evaluate().isNotEmpty ? b : alt);
       await tester.pump();
     }
@@ -1113,6 +1113,35 @@ void main() {
     expect(c.doc.layerOf(c.selection.single)!.name, 'Layer 2');
   });
 
+  appTest('a new layer opens its name for typing; Escape keeps it', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    await tester.tap(find.byTooltip('Add layer'));
+    await tester.pumpAndSettle();
+    final id = c.currentLayerId;
+    final field = find.byKey(ValueKey('layer-name-$id'));
+    expect(field, findsOneWidget);
+    await tester.enterText(field, 'Notes');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(c.currentLayer.name, 'Notes');
+    expect(field, findsNothing);
+    // The keys are the editor's again.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
+    await tester.pump();
+    expect(c.tool, Tool.rect);
+
+    await tester.tap(find.byTooltip('Add layer'));
+    await tester.pumpAndSettle();
+    final again = find.byKey(ValueKey('layer-name-${c.currentLayerId}'));
+    await tester.enterText(again, 'Oops');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(again, findsNothing);
+    expect(c.currentLayer.name, 'Layer 3');
+  });
+
   appTest('text tool: click, type on the page, click away', (tester) async {
     final c = await pumpApp(tester);
     await tester.tap(find.byKey(const ValueKey('tool-text')));
@@ -1245,6 +1274,105 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('toggle-collection')));
     await tester.pump();
     expect(find.text('COLLECTION'), findsNothing);
+  });
+
+  appTest('the padlock on the name tag and Ctrl+L lock in place', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    c.addObject(
+      ShapeObject(
+        id: 'pic',
+        name: 'pic',
+        ellipse: false,
+        center: const Offset(300, 300),
+        size: const Size(120, 80),
+        fill: 0xFF43A047,
+      ),
+    );
+    c.select(['pic']);
+    await tester.pump();
+    final lock = find.byKey(const ValueKey('tag-lock'));
+    expect(lock, findsOneWidget);
+    await tester.tap(lock);
+    await tester.pump();
+    expect(c.doc.objectById('pic')!.locked, isTrue);
+    expect(c.selection, ['pic'], reason: 'still there to unlock');
+    expect(find.byKey(const ValueKey('tag-lock')), findsOneWidget);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(c.doc.objectById('pic')!.locked, isFalse);
+    // The line tool's L still works after.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+    await tester.pump();
+    expect(c.tool, Tool.line);
+  });
+
+  appTest('a changed tool look offers a way back to the default', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    c.setTool(Tool.arrow);
+    await tester.pump();
+    final reset = find.byKey(const ValueKey('reset-tool-style'));
+    bool enabled() => tester.widget<TextButton>(reset).onPressed != null;
+    expect(enabled(), isFalse, reason: 'shown, greyed: nothing to reset');
+    c.styleOf(Tool.arrow).width = 20;
+    c.notify();
+    await tester.pump();
+    expect(enabled(), isTrue);
+    await tester.tap(reset);
+    await tester.pump();
+    expect(c.styleOf(Tool.arrow).width, 5);
+    expect(enabled(), isFalse);
+  });
+
+  appTest('F11 asks the window for full screen and back; Esc does not', (
+    tester,
+  ) async {
+    final asked = <Object?>[];
+    const channel = MethodChannel('thinkspace/window');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      if (call.method != 'setFullscreen') return null;
+      asked.add(call.arguments);
+      return call.arguments;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    final c = await pumpApp(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f11);
+    await tester.pump();
+    expect(asked, [true]);
+    expect(c.toastMessage, contains('F11'));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(asked, [true], reason: 'Esc is for tools and selections');
+    await tester.sendKeyEvent(LogicalKeyboardKey.f11);
+    await tester.pump();
+    expect(asked, [true, false]);
+  });
+
+  appTest('Hide details sits with Cut out and has no key', (tester) async {
+    final c = await pumpApp(tester);
+    final hide = find.byKey(const ValueKey('tool-hide'));
+    final cut = find.byKey(const ValueKey('tool-cutout'));
+    expect(tester.getCenter(hide).dx, greaterThan(tester.getCenter(cut).dx));
+    await tester.tap(hide);
+    await tester.pump();
+    expect(c.tool, Tool.hide);
+    expect(find.byKey(const ValueKey('tool-key-hide')), findsNothing);
+    expect(find.byKey(const ValueKey('hide-pixelate')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('hide-solid')));
+    await tester.pump();
+    expect(c.styleOf(Tool.hide).solid, isTrue);
   });
 }
 

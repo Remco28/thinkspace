@@ -7,6 +7,10 @@ import 'widgets.dart' show kBorder, fieldBorder;
 /// that was just mixed can be used again without mixing it again.
 final List<int> recentColours = [];
 
+/// Asks the editor for a colour off the page (the eyedropper); null when
+/// there is no page to pick from. Answers null if the pick is cancelled.
+Future<int?> Function()? pickFromPage;
+
 void _remember(int argb) {
   recentColours.remove(argb);
   recentColours.insert(0, argb);
@@ -132,6 +136,18 @@ class _ColorPickerState extends State<ColorPicker> {
     _hexFocus.unfocus();
   }
 
+  /// The popover gets out of the way so the page can be clicked; the colour
+  /// taken there is used just as one mixed here would be.
+  Future<void> _pickFromPage() async {
+    final pick = pickFromPage, onChanged = widget.onChanged;
+    if (pick == null) return;
+    Navigator.of(context).pop();
+    final argb = await pick();
+    if (argb == null) return;
+    _remember(argb);
+    onChanged(argb);
+  }
+
   void _commitHex() {
     var t = _hex.text.trim().replaceFirst('#', '');
     if (t.length == 3) t = t.split('').map((ch) => ch + ch).join();
@@ -199,6 +215,33 @@ class _ColorPickerState extends State<ColorPicker> {
                 ),
               ),
             ),
+            if (pickFromPage != null) ...[
+              const SizedBox(width: 6),
+              Tooltip(
+                message: 'Take a colour from the page',
+                waitDuration: const Duration(milliseconds: 500),
+                child: SizedBox(
+                  width: kControlHeight,
+                  height: kControlHeight,
+                  child: OutlinedButton(
+                    key: const ValueKey('color-eyedropper'),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      side: const BorderSide(color: kBorder),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                    ),
+                    onPressed: _pickFromPage,
+                    child: const Icon(
+                      Icons.colorize,
+                      size: 16,
+                      color: Color(0xFF4A5060),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         if (recentColours.isNotEmpty) ...[

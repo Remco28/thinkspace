@@ -9,6 +9,7 @@ import 'widgets.dart';
 enum MenuAction {
   newDoc,
   open,
+  openRecent,
   save,
   saveAs,
   importImage,
@@ -19,6 +20,7 @@ enum MenuAction {
   pasteLayer,
   pasteCollection,
   autoGrow,
+  fullscreen,
   shortcuts,
 }
 
@@ -29,21 +31,41 @@ Tool? _lastToolTapped;
 const double kTopBarHeight = 46;
 
 class TopBar extends StatelessWidget {
-  const TopBar({super.key, required this.c, required this.onMenu});
+  const TopBar({
+    super.key,
+    required this.c,
+    required this.onMenu,
+    this.fullscreen = false,
+  });
   final EditorController c;
   final void Function(MenuAction) onMenu;
+  final bool fullscreen;
 
-  static const _tools = <(Tool, IconData, String, String)>[
-    (Tool.select, Icons.near_me_outlined, 'Select & move', 'V'),
-    (Tool.line, Icons.horizontal_rule, 'Straight line', 'L'),
-    (Tool.arrow, Icons.north_east, 'Arrow', 'A'),
-    (Tool.rect, Icons.crop_square, 'Rectangle', 'R'),
-    (Tool.ellipse, Icons.circle_outlined, 'Ellipse', 'E'),
-    (Tool.text, Icons.title, 'Text', 'T'),
-    (Tool.pen, Icons.edit_outlined, 'Pen', 'P'),
-    (Tool.highlight, Icons.border_color_outlined, 'Highlighter', 'H'),
-    (Tool.badge, Icons.looks_one_outlined, 'Numbered marker', 'N'),
-    (Tool.cutout, Icons.content_cut, 'Cut out', 'C'),
+  /// The tools in groups by what they are for: pointing at things, labels,
+  /// freehand marks, and working on pictures, with the same divider between
+  /// groups as between the tools and undo. A tool without a key is used too
+  /// rarely to need one.
+  static const _toolGroups = <List<(Tool, IconData, String, String?)>>[
+    [(Tool.select, Icons.near_me_outlined, 'Select & move', 'V')],
+    [
+      (Tool.arrow, Icons.north_east, 'Arrow', 'A'),
+      (Tool.line, Icons.horizontal_rule, 'Straight line', 'L'),
+      (Tool.rect, Icons.crop_square, 'Rectangle', 'R'),
+      (Tool.ellipse, Icons.circle_outlined, 'Ellipse', 'E'),
+    ],
+    [
+      (Tool.text, Icons.title, 'Text', 'T'),
+      (Tool.badge, Icons.looks_one_outlined, 'Numbered marker', 'N'),
+    ],
+    [
+      (Tool.pen, Icons.edit_outlined, 'Pen', 'P'),
+      (Tool.highlight, Icons.border_color_outlined, 'Highlighter', 'H'),
+      (Tool.remove, Icons.clear, 'Remove marks', 'X'),
+    ],
+    [
+      (Tool.cutout, Icons.content_cut, 'Cut out', 'C'),
+      (Tool.hide, Icons.grid_on, 'Hide details', null),
+    ],
   ];
 
   static PopupMenuEntry<MenuAction> _item(
@@ -103,6 +125,14 @@ class TopBar extends StatelessWidget {
                   'Open…',
                   'Ctrl+O',
                   icon: Icons.folder_open_outlined,
+                ),
+                menuItem(
+                  value: MenuAction.openRecent,
+                  label: 'Open recent',
+                  icon: Icons.history,
+                  shortcut: c.recentFiles.isEmpty ? '' : '›',
+                  enabled: c.recentFiles.isNotEmpty,
+                  width: 250,
                 ),
                 _item(
                   MenuAction.save,
@@ -167,6 +197,12 @@ class TopBar extends StatelessWidget {
                 ),
                 menuDivider(),
                 _item(
+                  MenuAction.fullscreen,
+                  fullscreen ? 'Leave full screen' : 'Full screen',
+                  'F11',
+                  icon: fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                ),
+                _item(
                   MenuAction.shortcuts,
                   'Keyboard shortcuts',
                   '?',
@@ -192,43 +228,10 @@ class TopBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-            for (final t in _tools)
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  SmallIconButton(
-                    key: ValueKey('tool-${t.$1.name}'),
-                    icon: t.$2,
-                    glyph: switch (t.$1) {
-                      Tool.line => LineGlyph.new,
-                      Tool.highlight => HighlighterGlyph.new,
-                      _ => null,
-                    },
-                    tooltip:
-                        '${t.$3}  (${t.$4})${t.$1 == Tool.select ? '' : ' — double-click to keep it active'}',
-                    active: c.tool == t.$1,
-                    onPressed: () => _toolTap(t.$1),
-                  ),
-                  // The active tool shows its key as a little keycap hanging
-                  // over the bar's lower edge, so the shortcuts get learned
-                  // without anyone reading a list and the row stays level.
-                  if (c.tool == t.$1)
-                    Positioned(
-                      left: -8,
-                      right: -8,
-                      top: 30,
-                      child: IgnorePointer(
-                        child: Center(
-                          child: KeyCap(
-                            t.$4,
-                            key: ValueKey('tool-key-${t.$1.name}'),
-                            compact: true,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+            for (final (i, group) in _toolGroups.indexed) ...[
+              if (i > 0) _sep(),
+              for (final t in group) _toolButton(t),
+            ],
             if (c.toolLocked)
               const Padding(
                 padding: EdgeInsets.only(left: 4),
@@ -284,6 +287,55 @@ class TopBar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _toolButton((Tool, IconData, String, String?) t) {
+    final (tool, icon, label, key) = t;
+    final name = key == null ? label : '$label  ($key)';
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        SmallIconButton(
+          key: ValueKey('tool-${tool.name}'),
+          icon: icon,
+          glyph: switch (tool) {
+            Tool.line => LineGlyph.new,
+            Tool.highlight => HighlighterGlyph.new,
+            Tool.remove => RemoveMarksGlyph.new,
+            Tool.hide => HideDetailsGlyph.new,
+            _ => null,
+          },
+          tooltip: switch (tool) {
+            Tool.select => name,
+            Tool.remove =>
+              '$name — drag across pen marks, lines and shapes to remove them. Pictures and text stay.',
+            Tool.hide =>
+              '$name — drag a box over names, passwords or numbers to pixelate them. Double-click to keep it active',
+            _ => '$name — double-click to keep it active',
+          },
+          active: c.tool == tool,
+          onPressed: () => _toolTap(tool),
+        ),
+        // The active tool shows its key as a little keycap hanging over the
+        // bar's lower edge, so the shortcuts get learned without anyone
+        // reading a list and the row stays level.
+        if (c.tool == tool && key != null)
+          Positioned(
+            left: -8,
+            right: -8,
+            top: 30,
+            child: IgnorePointer(
+              child: Center(
+                child: KeyCap(
+                  key,
+                  key: ValueKey('tool-key-${tool.name}'),
+                  compact: true,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

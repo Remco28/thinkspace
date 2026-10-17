@@ -14,7 +14,8 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
-// Lets the Dart side put the project name in the window title.
+// Lets the Dart side put the project name in the window title, and switch
+// full screen on and off (it answers with whether it is now full screen).
 static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
                              gpointer user_data) {
   GtkWindow* window = GTK_WINDOW(user_data);
@@ -29,6 +30,17 @@ static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
       gtk_window_set_title(window, title);
     }
     fl_method_call_respond_success(call, nullptr, nullptr);
+  } else if (g_strcmp0(fl_method_call_get_name(call), "setFullscreen") == 0) {
+    FlValue* args = fl_method_call_get_args(call);
+    gboolean on = fl_value_get_type(args) == FL_VALUE_TYPE_BOOL &&
+                  fl_value_get_bool(args);
+    if (on) {
+      gtk_window_fullscreen(window);
+    } else {
+      gtk_window_unfullscreen(window);
+    }
+    g_autoptr(FlValue) state = fl_value_new_bool(on);
+    fl_method_call_respond_success(call, state, nullptr);
   } else {
     fl_method_call_respond_not_implemented(call, nullptr);
   }

@@ -18,6 +18,7 @@ enum _Mode {
   create,
   pen,
   highlight,
+  remove,
   lasso,
   cutBox,
   gripResize,
@@ -34,6 +35,10 @@ class Modifiers {
 class CanvasInteractor {
   CanvasInteractor(this.c);
   final EditorController c;
+
+  /// Where the Remove marks sweep was last seen, so a fast drag catches
+  /// everything between two pointer events.
+  Offset _removeLast = Offset.zero;
 
   _Mode _mode = _Mode.none;
   EditToken? _token;
@@ -132,6 +137,10 @@ class CanvasInteractor {
 
   MouseCursor cursorAt(Offset screen, {bool spaceDown = false}) {
     if (_mode == _Mode.pan || spaceDown) return SystemMouseCursors.grab;
+    // The eyedropper and Remove marks draw their own pointers.
+    if (c.pickingColour || c.tool == Tool.remove) {
+      return SystemMouseCursors.none;
+    }
     if (c.tool != Tool.select) return SystemMouseCursors.precise;
     final p = c.toScene(screen);
     final h = _hitHandle(p);
@@ -212,6 +221,8 @@ class CanvasInteractor {
       case Tool.rect:
       case Tool.ellipse:
         _downShape(p, m);
+      case Tool.hide:
+        _downHide(p, m);
       case Tool.text:
         _mode = _Mode.textBox;
         _token = c.beginEdit('add text');
@@ -219,6 +230,13 @@ class CanvasInteractor {
         _downPen(p);
       case Tool.highlight:
         _downHighlight(p);
+      case Tool.remove:
+        _token = c.beginEdit('remove marks');
+        c.removing.clear();
+        c.brushRemove(p, p);
+        _removeLast = p;
+        _mode = _Mode.remove;
+        c.notify();
       case Tool.badge:
         _downBadge(p, m);
       case Tool.cutout:
@@ -232,9 +250,11 @@ class CanvasInteractor {
       final obj = c.single!;
       _handle = handle;
       _startObj = obj.copyWith();
-      _token = c.beginEdit(
-        handle.kind == HandleKind.rotate ? 'rotate' : 'resize',
-      );
+      _token = c.beginEdit(switch (handle.kind) {
+        HandleKind.rotate => 'rotate',
+        HandleKind.lineBend => 'bend',
+        _ => 'resize',
+      });
       _mode = switch (handle.kind) {
         HandleKind.rotate => _Mode.rotate,
         HandleKind.resize => _Mode.resize,
@@ -315,13 +335,14 @@ class CanvasInteractor {
   void _downLine(Offset p, Modifiers m) {
     _token = c.beginEdit(c.tool == Tool.arrow ? 'draw arrow' : 'draw line');
     final a = _snapPoint(p, m);
+    final style = c.styleOf(c.tool);
     final l = LineObject(
       id: c.doc.newId('o'),
       name: c.uniqueName(c.tool == Tool.arrow ? 'arrow' : 'line'),
       p1: a,
       p2: a,
-      color: c.penColor,
-      width: c.penWidth,
+      color: style.color,
+      width: style.width,
       headEnd: c.tool == Tool.arrow,
     );
     c.currentLayer.objects.add(l);
@@ -336,19 +357,39 @@ class CanvasInteractor {
       c.tool == Tool.ellipse ? 'draw ellipse' : 'draw rectangle',
     );
     final a = _snapPoint(p, m);
+    final style = c.styleOf(c.tool);
     final s = ShapeObject(
       id: c.doc.newId('o'),
       name: c.uniqueName(c.tool == Tool.ellipse ? 'ellipse' : 'rectangle'),
       ellipse: c.tool == Tool.ellipse,
       center: a,
       size: const Size(1, 1),
-      stroke: c.penColor,
-      fill: c.fillColor,
-      strokeWidth: c.penWidth,
+      stroke: style.color,
+      fill: style.fill,
+      strokeWidth: style.width,
     );
     c.currentLayer.objects.add(s);
     c.selection = [s.id];
     _createId = s.id;
+    _mode = _Mode.create;
+    c.notify();
+  }
+
+  void _downHide(Offset p, Modifiers m) {
+    _token = c.beginEdit('hide details');
+    final style = c.styleOf(Tool.hide);
+    final h = HideObject(
+      id: c.doc.newId('o'),
+      name: c.uniqueName('hidden'),
+      center: _snapPoint(p, m),
+      size: const Size(1, 1),
+      solid: style.solid,
+      color: style.color,
+      block: style.size,
+    );
+    c.currentLayer.objects.add(h);
+    c.selection = [h.id];
+    _createId = h.id;
     _mode = _Mode.create;
     c.notify();
   }
@@ -363,7 +404,7 @@ class CanvasInteractor {
       number: n,
       center: at,
       size: Size(c.markerSize, c.markerSize),
-      color: c.penColor,
+      color: c.styleOf(Tool.badge).color,
     );
     c.currentLayer.objects.add(b);
     c.selection = [b.id];
@@ -454,6 +495,9 @@ class CanvasInteractor {
         _doPen(p, m);
       case _Mode.highlight:
         _doHighlight(p, m);
+      case _Mode.remove:
+        if (c.brushRemove(_removeLast, p)) c.notify();
+        _removeLast = p;
       case _Mode.lasso:
         final pts = c.lasso!;
         if ((pts.last - p).distance * c.zoom > 2) pts.add(p);
@@ -556,12 +600,33 @@ class CanvasInteractor {
     final start = _startObj as LineObject;
     final live = c.doc.objectById(start.id) as LineObject?;
     if (live == null) return;
+    if (h.kind == HandleKind.lineBend) {
+      _doBend(live, p, m);
+      return;
+    }
     final fixed = h.kind == HandleKind.lineStart ? start.p2 : start.p1;
     final np = _constrain(fixed, _snapPoint(p, m), m);
     if (h.kind == HandleKind.lineStart) {
       live.p1 = np;
     } else {
       live.p2 = np;
+    }
+    c.notify();
+  }
+
+  /// Dragging the middle of a line bends it. Close to the straight line it
+  /// snaps straight again, and close to the middle it snaps to an even arc
+  /// (Shift keeps it even; Ctrl turns the snapping off).
+  void _doBend(LineObject live, Offset p, Modifiers m) {
+    live.mid = p;
+    final len = live.length;
+    if (!m.ctrl && len > 0) {
+      final slack = (c.touchInput ? 12 : 6) / c.zoom;
+      if ((live.bend.dy * len).abs() < slack) {
+        live.bend = Offset.zero;
+      } else if (m.shift || (live.bend.dx * len).abs() < slack) {
+        live.bend = Offset(0, live.bend.dy);
+      }
     }
     c.notify();
   }
@@ -580,7 +645,8 @@ class CanvasInteractor {
     final o = c.doc.objectById(_createId!);
     if (o is LineObject) {
       o.p2 = _constrain(o.p1, _snapPoint(p, m), m);
-    } else if (o is ShapeObject) {
+    } else if (o is ShapeObject || o is HideObject) {
+      o as BoxObject;
       final a = _snapPoint(_startScene, m);
       var b = _snapPoint(p, m);
       if (m.shift) {
@@ -602,8 +668,8 @@ class CanvasInteractor {
         id: c.doc.newId('o'),
         name: c.uniqueName('pen'),
         points: [_penPoints.first],
-        color: c.penColor,
-        width: c.penWidth,
+        color: c.styleOf(Tool.pen).color,
+        width: c.styleOf(Tool.pen).width,
       );
       c.currentLayer.objects.add(s);
       c.selection = [s.id];
@@ -778,6 +844,11 @@ class CanvasInteractor {
         _finishPen(token);
       case _Mode.highlight:
         _finishHighlight(token);
+      case _Mode.remove:
+        // Like the pen, the tool stays: tidying up is usually several sweeps.
+        final removed = c.finishRemove();
+        if (token != null) removed ? c.endEdit(token) : c.abortEdit(token);
+        c.notify();
       case _Mode.textBox:
         _finishTextBox(token, p, m);
       case _Mode.lasso:
@@ -829,6 +900,10 @@ class CanvasInteractor {
     final o = c.doc.objectById(_createId!);
     var keep = true;
     if (o is LineObject && o.length < 4) keep = false;
+    // A click is not a box worth hiding anything with.
+    if (o is HideObject && (o.size.width < 6 || o.size.height < 6)) {
+      keep = false;
+    }
     if (o is ShapeObject && (o.size.width < 6 && o.size.height < 6)) {
       // A plain click makes a default-sized shape.
       o.size = const Size(180, 120);
@@ -889,6 +964,7 @@ class CanvasInteractor {
     c.marquee = null;
     c.lasso = null;
     c.cutBox = null;
+    c.removing.clear();
     if (t != null) c.abortEdit(t);
   }
 

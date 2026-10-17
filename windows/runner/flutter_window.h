@@ -31,8 +31,15 @@ class FlutterWindow : public Win32Window {
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
 
+  // Covers the whole monitor without a frame, or goes back to how it was.
+  void SetFullscreen(bool on);
+
+  bool fullscreen_ = false;
+  LONG saved_style_ = 0;
+  WINDOWPLACEMENT saved_placement_ = {sizeof(WINDOWPLACEMENT)};
+
   // "thinkspace/window": lets the app put the file name and an unsaved dot
-  // in the title bar.
+  // in the title bar, and switch full screen.
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> title_channel_;
 };
 

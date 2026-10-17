@@ -52,6 +52,12 @@ bool FlutterWindow::OnCreate() {
             }
           }
           result->Success();
+        } else if (call.method_name() == "setFullscreen") {
+          const auto* on = call.arguments()
+                               ? std::get_if<bool>(call.arguments())
+                               : nullptr;
+          SetFullscreen(on != nullptr && *on);
+          result->Success(flutter::EncodableValue(fullscreen_));
         } else {
           result->NotImplemented();
         }
@@ -68,6 +74,36 @@ bool FlutterWindow::OnCreate() {
   flutter_controller_->ForceRedraw();
 
   return true;
+}
+
+// Full screen the usual Win32 way: remember where the window was, drop its
+// frame and stretch it over the monitor it is on; put it all back on the way
+// out.
+void FlutterWindow::SetFullscreen(bool on) {
+  HWND hwnd = GetHandle();
+  if (hwnd == nullptr || on == fullscreen_) {
+    return;
+  }
+  if (on) {
+    MONITORINFO monitor = {sizeof(monitor)};
+    saved_style_ = ::GetWindowLong(hwnd, GWL_STYLE);
+    if (!::GetWindowPlacement(hwnd, &saved_placement_) ||
+        !::GetMonitorInfo(::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST),
+                          &monitor)) {
+      return;
+    }
+    ::SetWindowLong(hwnd, GWL_STYLE, saved_style_ & ~WS_OVERLAPPEDWINDOW);
+    const RECT& r = monitor.rcMonitor;
+    ::SetWindowPos(hwnd, HWND_TOP, r.left, r.top, r.right - r.left,
+                   r.bottom - r.top, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+  } else {
+    ::SetWindowLong(hwnd, GWL_STYLE, saved_style_);
+    ::SetWindowPlacement(hwnd, &saved_placement_);
+    ::SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                   SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                       SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+  }
+  fullscreen_ = on;
 }
 
 void FlutterWindow::OnDestroy() {

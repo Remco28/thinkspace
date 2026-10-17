@@ -56,6 +56,9 @@ class _CanvasViewState extends State<CanvasView> {
   Offset? _rightDown;
   bool _rightMoved = false;
 
+  /// The press that answered the eyedropper; its release is not a click.
+  int? _pickPointer;
+
   // ---- fingers --------------------------------------------------------------
   // One finger does what the mouse does. A second finger turns the gesture
   // into moving and zooming the page (whatever the first one started is
@@ -105,7 +108,17 @@ class _CanvasViewState extends State<CanvasView> {
     showObjectMenu(context, c, global);
   }
 
+  /// The eyedropper and Remove marks draw their own pointer, so the painter
+  /// needs to know where it is.
+  void _trackPointer(Offset at) {
+    if (!c.pickingColour && c.tool != Tool.remove) return;
+    c.pointerScreen = at;
+    if (c.pickingColour) c.pickHoverColour = c.colourAt(c.toScene(at));
+    c.notify();
+  }
+
   void _hover(PointerHoverEvent e) {
+    _trackPointer(e.localPosition);
     final g = ix.gripAt(e.localPosition);
     if (g != c.hoverGrip) {
       c.hoverGrip = g;
@@ -148,6 +161,11 @@ class _CanvasViewState extends State<CanvasView> {
                   child: MouseRegion(
                     cursor: _cursor,
                     onHover: _hover,
+                    onExit: (_) {
+                      if (c.pointerScreen == null) return;
+                      c.pointerScreen = null;
+                      c.notify();
+                    },
                     child: Listener(
                       behavior: HitTestBehavior.opaque,
                       onPointerDown: (e) {
@@ -165,6 +183,17 @@ class _CanvasViewState extends State<CanvasView> {
                             }
                             return;
                           }
+                        }
+                        if (c.pickingColour) {
+                          // The eyedropper takes this click: the selection
+                          // and the tool stay as they were.
+                          _pickPointer = e.pointer;
+                          c.finishColourPick(
+                            e.buttons == kPrimaryButton
+                                ? c.colourAt(c.toScene(e.localPosition))
+                                : null,
+                          );
+                          return;
                         }
                         c.endListWalk();
                         // Starting to draw is also "Start" for the cut-out options.
@@ -198,6 +227,7 @@ class _CanvasViewState extends State<CanvasView> {
                         }
                       },
                       onPointerMove: (e) {
+                        if (e.pointer == _pickPointer) return;
                         if (e.kind == PointerDeviceKind.touch) {
                           _touches[e.pointer] = e.localPosition;
                           if (_navigating) {
@@ -214,6 +244,7 @@ class _CanvasViewState extends State<CanvasView> {
                           _rightMoved = true;
                         }
                         ix.pointerMove(e.localPosition, currentModifiers());
+                        _trackPointer(e.localPosition);
                         final cur = ix.cursorAt(
                           e.localPosition,
                           spaceDown: widget.spaceDown.value,
@@ -221,6 +252,10 @@ class _CanvasViewState extends State<CanvasView> {
                         if (cur != _cursor) setState(() => _cursor = cur);
                       },
                       onPointerUp: (e) {
+                        if (e.pointer == _pickPointer) {
+                          _pickPointer = null;
+                          return;
+                        }
                         if (e.kind == PointerDeviceKind.touch) {
                           _touches.remove(e.pointer);
                           _longPress?.cancel();
@@ -280,6 +315,12 @@ class _CanvasViewState extends State<CanvasView> {
                   _SelectionActions(
                     c: c,
                     area: box.biggest,
+                    refocus: () => widget.focusNode?.requestFocus(),
+                  ),
+                if (selectionTag(c, box.biggest) case final tag?)
+                  _TagLock(
+                    c: c,
+                    rect: tag.lock,
                     refocus: () => widget.focusNode?.requestFocus(),
                   ),
                 if (c.editingTextId != null)
@@ -461,6 +502,48 @@ class _SelectionActions extends StatelessWidget {
                 ),
                 KeyCap(merge ? 'M' : 'U', compact: true),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The padlock at the end of the selection's name tag: one click locks it in
+/// place (or unlocks it), without the right-click menu.
+class _TagLock extends StatelessWidget {
+  const _TagLock({required this.c, required this.rect, required this.refocus});
+  final EditorController c;
+  final Rect rect;
+  final VoidCallback refocus;
+
+  @override
+  Widget build(BuildContext context) {
+    final locked = c.selectionLocked;
+    return Positioned.fromRect(
+      rect: rect,
+      child: Tooltip(
+        message: locked ? 'Unlock  (Ctrl+L)' : 'Lock in place  (Ctrl+L)',
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            key: const ValueKey('tag-lock'),
+            canRequestFocus: false,
+            borderRadius: const BorderRadius.horizontal(
+              right: Radius.circular(5),
+            ),
+            hoverColor: const Color(0x33FFFFFF),
+            onTap: () {
+              c.toggleLockSelection();
+              refocus();
+            },
+            child: Center(
+              child: Icon(
+                locked ? Icons.lock : Icons.lock_open_outlined,
+                size: 13,
+                color: Colors.white,
+              ),
             ),
           ),
         ),

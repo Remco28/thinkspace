@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -15,9 +17,11 @@ import '../io/paths.dart';
 import '../io/prefs.dart';
 import '../model/scene.dart';
 import 'collection_panel.dart';
+import 'color_picker.dart' show pickFromPage;
 import 'cutout_card.dart';
 import 'kit.dart' show kMuted;
 import 'layers_panel.dart';
+import 'menus.dart' show menuLabel;
 import 'properties_panel.dart';
 import 'shortcuts.dart';
 import 'top_bar.dart';
@@ -65,6 +69,25 @@ class _EditorShellState extends State<EditorShell> {
   String? _lastTitle;
   static const _windowChannel = MethodChannel('thinkspace/window');
 
+  /// Full screen hides the title bar and the taskbar; the toolbar and the
+  /// panels stay. F11 or the ☰ menu switch it, and Esc deliberately does
+  /// not: it is the key for leaving a tool or a selection.
+  bool fullscreen = false;
+
+  Future<void> _toggleFullscreen() async {
+    final want = !fullscreen;
+    final bool? now;
+    try {
+      now = await _windowChannel.invokeMethod<bool>('setFullscreen', want);
+    } catch (_) {
+      c.showToast('Full screen isn’t available here');
+      return;
+    }
+    if (!mounted || now == null) return;
+    setState(() => fullscreen = now!);
+    if (now) c.showToast('Full screen — press F11 to leave');
+  }
+
   void _syncTitle() {
     final t =
         '${c.dirty ? '• ' : ''}${c.filePath == null ? 'Untitled' : baseName(c.filePath!)} — Thinkspace';
@@ -78,6 +101,7 @@ class _EditorShellState extends State<EditorShell> {
   @override
   void initState() {
     super.initState();
+    pickFromPage = c.pickColourFromPage;
     if (widget.enableRecovery) c.addListener(_syncTitle);
     if (widget.enableRecovery) {
       final data = appDataDir(
@@ -87,6 +111,10 @@ class _EditorShellState extends State<EditorShell> {
       if (data != null) {
         _prefs = Prefs(File('$data${Platform.pathSeparator}prefs.json'));
         layersFraction = _prefs.layersFraction ?? layersFraction;
+        c.readToolStyles(_prefs.toolStyles);
+        c.recentFiles = List.of(_prefs.recentFiles);
+        _keptSig = _keptPrefsSig();
+        c.addListener(_keepPrefs);
       }
       c.recoveryFile =
           widget.recoveryFile ??
@@ -201,7 +229,10 @@ class _EditorShellState extends State<EditorShell> {
 
   @override
   void dispose() {
+    if (pickFromPage == c.pickColourFromPage) pickFromPage = null;
     c.removeListener(_syncTitle);
+    c.removeListener(_keepPrefs);
+    _prefsTimer?.cancel();
     _lifecycle?.dispose();
     _inspector?.stop();
     _focus.dispose();
@@ -278,6 +309,8 @@ class _EditorShellState extends State<EditorShell> {
           _importImages();
         case LogicalKeyboardKey.keyN:
           _new();
+        case LogicalKeyboardKey.keyL:
+          c.toggleLockSelection();
         case LogicalKeyboardKey.digit0:
           c.fitToView();
         case LogicalKeyboardKey.digit1:
@@ -298,6 +331,11 @@ class _EditorShellState extends State<EditorShell> {
       return KeyEventResult.handled;
     }
 
+    if (k == LogicalKeyboardKey.f11) {
+      _toggleFullscreen();
+      return KeyEventResult.handled;
+    }
+
     if (e.character == '?' || k == LogicalKeyboardKey.f1) {
       showShortcuts(context);
       return KeyEventResult.handled;
@@ -306,7 +344,9 @@ class _EditorShellState extends State<EditorShell> {
     final step = c.snapOn ? c.doc.gridSize : (shift ? 10.0 : 1.0);
     switch (k) {
       case LogicalKeyboardKey.escape:
-        if (ix.active) {
+        if (c.pickingColour) {
+          c.finishColourPick(null);
+        } else if (ix.active) {
           ix.cancel();
         } else if (c.bgSessionObject != null) {
           c.endBgSession();
@@ -357,6 +397,8 @@ class _EditorShellState extends State<EditorShell> {
         c.setTool(Tool.pen);
       case LogicalKeyboardKey.keyH:
         c.setTool(Tool.highlight);
+      case LogicalKeyboardKey.keyX:
+        c.setTool(Tool.remove);
       case LogicalKeyboardKey.keyN:
         c.setTool(Tool.badge);
       case LogicalKeyboardKey.keyC:
@@ -451,6 +493,34 @@ class _EditorShellState extends State<EditorShell> {
     }
   }
 
+  /// The recent projects, in a menu of their own under the ☰ button. One
+  /// that has moved or gone is shown greyed; choosing it drops it.
+  Future<void> _openRecentMenu() async {
+    if (c.recentFiles.isEmpty) return;
+    final path = await showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(8, kTopBarHeight + 4, 8, 0),
+      items: [
+        menuLabel('Open recent', width: 260),
+        for (final p in c.recentFiles)
+          PopupMenuItem<String>(
+            value: p,
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: _RecentRow(path: p, current: p == c.filePath),
+          ),
+      ],
+    );
+    if (path == null || !mounted) return;
+    if (!File(path).existsSync()) {
+      c.forgetRecent(path);
+      c.showToast('${baseName(path)} isn’t there any more');
+      return;
+    }
+    if (!await _confirmDiscard()) return;
+    await _openProject(path);
+  }
+
   Future<void> _save() async {
     if (c.filePath == null) return _saveAs();
     await c.saveTo(c.filePath!);
@@ -507,6 +577,8 @@ class _EditorShellState extends State<EditorShell> {
         _new();
       case MenuAction.open:
         _open();
+      case MenuAction.openRecent:
+        _openRecentMenu();
       case MenuAction.save:
         _save();
       case MenuAction.saveAs:
@@ -531,6 +603,8 @@ class _EditorShellState extends State<EditorShell> {
       case MenuAction.autoGrow:
         c.autoGrow = !c.autoGrow;
         c.notify();
+      case MenuAction.fullscreen:
+        _toggleFullscreen();
       case MenuAction.shortcuts:
         showShortcuts(context);
     }
@@ -662,7 +736,7 @@ class _EditorShellState extends State<EditorShell> {
                 left: 0,
                 right: 0,
                 height: kTopBarHeight,
-                child: TopBar(c: c, onMenu: _menu),
+                child: TopBar(c: c, onMenu: _menu, fullscreen: fullscreen),
               ),
             ],
           ),
@@ -673,7 +747,25 @@ class _EditorShellState extends State<EditorShell> {
 
   void _savePrefs() {
     _prefs.layersFraction = layersFraction;
+    _prefs.toolStyles = c.toolStylesJson();
+    _prefs.recentFiles = c.recentFiles;
     _prefs.save();
+  }
+
+  // Tool looks and recent projects change in many places; rather than each
+  // one remembering to save, the shell notices and writes them a moment later
+  // (a slider being dragged is one write, not fifty).
+  String _keptSig = '';
+  Timer? _prefsTimer;
+
+  String _keptPrefsSig() => jsonEncode([c.toolStylesJson(), c.recentFiles]);
+
+  void _keepPrefs() {
+    final sig = _keptPrefsSig();
+    if (sig == _keptSig) return;
+    _keptSig = sig;
+    _prefsTimer?.cancel();
+    _prefsTimer = Timer(const Duration(milliseconds: 600), _savePrefs);
   }
 
   /// The hint sits in the middle of the part of the page you can see, so it
@@ -1178,4 +1270,63 @@ class _BackgroundBar extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// A recent project: its name, and the folder it is in underneath.
+class _RecentRow extends StatelessWidget {
+  const _RecentRow({required this.path, required this.current});
+  final String path;
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) {
+    final there = File(path).existsSync();
+    final folder = File(path).parent.path;
+    final home =
+        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    final shown = home != null && folder.startsWith(home)
+        ? '~${folder.substring(home.length)}'
+        : folder;
+    return SizedBox(
+      width: 260,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 22,
+            child: Icon(
+              there ? Icons.description_outlined : Icons.help_outline,
+              size: 16,
+              color: const Color(0xFF5B6272),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  baseName(path) + (current ? '  (open now)' : ''),
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: there
+                        ? const Color(0xFF222733)
+                        : const Color(0xFFB4B8C2),
+                  ),
+                ),
+                Text(
+                  there ? shown : 'Not found · click to remove',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF8A90A0),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
