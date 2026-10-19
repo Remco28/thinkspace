@@ -449,7 +449,7 @@ class PropertiesPanel extends StatelessWidget {
         : (o as ShapeObject).highlight;
     final colour = o is StrokeObject ? o.color : (o as ShapeObject).fill;
     return Section(
-      title: 'Highlight',
+      title: 'Style',
       children: [
         _colour('Colour', colour, (v) {
           c.editSelected('highlight colour', (x) {
@@ -922,7 +922,7 @@ class PropertiesPanel extends StatelessWidget {
     }
     if (o is BadgeObject) {
       return Section(
-        title: 'Marker',
+        title: 'Style',
         children: [
           PropRow(
             'Number',
@@ -954,7 +954,7 @@ class PropertiesPanel extends StatelessWidget {
     }
     if (o is HideObject) {
       return Section(
-        title: 'Hide details',
+        title: 'Style',
         children: _hideLook(
           solid: o.solid,
           color: o.color,
@@ -983,7 +983,7 @@ class PropertiesPanel extends StatelessWidget {
     }
     if (o is LineObject) {
       return Section(
-        title: o.headEnd ? 'Arrow' : 'Line',
+        title: 'Style',
         children: [
           _colour(
             'Colour',
@@ -1068,7 +1068,7 @@ class PropertiesPanel extends StatelessWidget {
     }
     if (o is StrokeObject) {
       return Section(
-        title: 'Pen stroke',
+        title: 'Style',
         children: [
           _colour(
             'Colour',
@@ -1094,7 +1094,7 @@ class PropertiesPanel extends StatelessWidget {
     }
     if (o is ShapeObject) {
       return Section(
-        title: o.ellipse ? 'Ellipse' : 'Rectangle',
+        title: 'Style',
         children: [
           _colour(
             'Outline',
@@ -1124,7 +1124,7 @@ class PropertiesPanel extends StatelessWidget {
     }
     if (o is TextObject) {
       return Section(
-        title: 'Text',
+        title: 'Style',
         children: [
           _colour('Colour', o.color, (v) {
             c.editSelected('text colour', (x) => (x as TextObject).color = v);
@@ -1169,7 +1169,7 @@ class PropertiesPanel extends StatelessWidget {
             ),
           ),
           PropRow(
-            'Style',
+            'Format',
             Wrap(
               spacing: kSpace8,
               runSpacing: kSpace8,
@@ -1238,7 +1238,7 @@ class PropertiesPanel extends StatelessWidget {
     }
     if (o is ImageObject) {
       return Section(
-        title: 'Image',
+        title: 'Edit',
         children: [
           ActionButton(
             key: const ValueKey('cutout-button'),

@@ -991,7 +991,7 @@ void main() {
     await g.up();
     await tester.pump();
     final s = c.doc.allObjects.single as StrokeObject;
-    expect(find.text('Highlight'), findsWidgets);
+    expect(find.text('HIGHLIGHT'), findsOneWidget, reason: 'the panel header');
     c.setTool(Tool.select);
     c.select([s.id]);
     await tester.pump();
