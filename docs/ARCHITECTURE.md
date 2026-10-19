@@ -14,6 +14,7 @@ Zoom changes the view, never an object's position in the document. A drag update
 lib/model     plain data         no Flutter widgets, no I/O
 lib/editor    behaviour          controller, interactor, painting, image maths
 lib/ui        windows & panels   read the controller, call its methods
+                                 (every colour, size and timing: lib/ui/design.dart)
 lib/io        the outside world  clipboard, dialogs, samples
 lib/dev       inspection         HTTP door, enabled by an environment variable
 ```

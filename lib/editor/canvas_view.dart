@@ -12,6 +12,7 @@ import 'interactor.dart';
 import '../ui/context_menu.dart';
 import '../ui/widgets.dart' show KeyCap;
 import 'render.dart';
+import '../ui/design.dart';
 
 class CollectionDrag {
   const CollectionDrag(this.itemId);
@@ -460,7 +461,7 @@ class _SelectionActions extends StatelessWidget {
         key: const ValueKey('selection-actions'),
         color: Colors.white,
         elevation: 3,
-        shadowColor: const Color(0x55000000),
+        shadowColor: kShadow,
         borderRadius: BorderRadius.circular(_h / 2),
         child: InkWell(
           key: ValueKey(merge ? 'quick-merge' : 'quick-unmerge'),
@@ -477,26 +478,26 @@ class _SelectionActions extends StatelessWidget {
           child: Container(
             width: w,
             height: _h,
-            padding: const EdgeInsets.only(left: 12, right: 8),
+            padding: const EdgeInsets.only(left: kSpace12, right: kSpace8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(_h / 2),
-              border: Border.all(color: const Color(0xFFD8DBE3)),
+              border: Border.all(color: kBorder),
             ),
             child: Row(
               children: [
                 Icon(
                   merge ? Icons.layers_clear_outlined : Icons.call_split,
-                  size: 15,
+                  size: kIcon,
                   color: kAccent,
                 ),
-                const SizedBox(width: 7),
+                const SizedBox(width: kSpace8),
                 Expanded(
                   child: Text(
                     merge ? 'Merge into one image' : 'Unmerge',
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: kTextBody,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF2B3140),
+                      color: kInk,
                     ),
                   ),
                 ),
@@ -531,9 +532,9 @@ class _TagLock extends StatelessWidget {
             key: const ValueKey('tag-lock'),
             canRequestFocus: false,
             borderRadius: const BorderRadius.horizontal(
-              right: Radius.circular(5),
+              right: Radius.circular(kRadius),
             ),
-            hoverColor: const Color(0x33FFFFFF),
+            hoverColor: kOnAccentHover,
             onTap: () {
               c.toggleLockSelection();
               refocus();
@@ -541,7 +542,7 @@ class _TagLock extends StatelessWidget {
             child: Center(
               child: Icon(
                 locked ? Icons.lock : Icons.lock_open_outlined,
-                size: 13,
+                size: kIconSmall,
                 color: Colors.white,
               ),
             ),

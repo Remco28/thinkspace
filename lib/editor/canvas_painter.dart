@@ -6,9 +6,7 @@ import 'package:flutter/material.dart';
 import '../model/scene.dart';
 import 'controller.dart';
 import 'render.dart';
-
-const Color kAccent = Color(0xFF2F6BFF);
-const Color kWorkspace = Color(0xFFE4E6EB);
+import '../ui/design.dart';
 
 /// Paints the page from the document, then the editing overlays on top.
 class CanvasPainter extends CustomPainter {
@@ -29,7 +27,7 @@ class CanvasPainter extends CustomPainter {
     canvas.drawRect(
       page.shift(Offset(0, 3 / c.zoom)).inflate(1 / c.zoom),
       Paint()
-        ..color = const Color(0x33000000)
+        ..color = kShadowSoft
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6 / c.zoom),
     );
     paintPageBackground(canvas, doc);
@@ -46,7 +44,7 @@ class CanvasPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1 / c.zoom
-        ..color = const Color(0x33000000),
+        ..color = kShadowSoft,
     );
     canvas.restore();
 
@@ -59,7 +57,7 @@ class CanvasPainter extends CustomPainter {
     final g = c.doc.gridSize;
     if (g * c.zoom < 6) return;
     final p = Paint()
-      ..color = const Color(0x1F000000)
+      ..color = kShadowFaint
       ..strokeWidth = 1 / c.zoom;
     for (double x = g; x < page.width; x += g) {
       canvas.drawLine(Offset(x, 0), Offset(x, page.height), p);
@@ -124,7 +122,7 @@ class CanvasPainter extends CustomPainter {
         canvas,
         r,
         Paint()
-          ..color = const Color(0xFFFF6D00)
+          ..color = kCutLine
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
@@ -137,12 +135,12 @@ class CanvasPainter extends CustomPainter {
         path.lineTo(p.dx, p.dy);
       }
       path.close();
-      canvas.drawPath(path, Paint()..color = const Color(0x22FF6D00));
+      canvas.drawPath(path, Paint()..color = kCutFill);
       _dashedPath(
         canvas,
         path,
         Paint()
-          ..color = const Color(0xFFFF6D00)
+          ..color = kCutLine
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
@@ -184,11 +182,11 @@ class CanvasPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5;
     final ink = Paint()
-      ..color = const Color(0xFF2B3140)
+      ..color = kInk
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4
       ..strokeCap = StrokeCap.round;
-    canvas.drawCircle(at, r, Paint()..color = const Color(0x22FFFFFF));
+    canvas.drawCircle(at, r, Paint()..color = kWash);
     canvas.drawCircle(at, r, halo);
     canvas.drawCircle(at, r, ink);
     const k = 3.2;
@@ -215,7 +213,7 @@ class CanvasPainter extends CustomPainter {
         centre,
         17,
         Paint()
-          ..color = const Color(0x55000000)
+          ..color = kShadow
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
       );
       canvas.drawCircle(centre, 16, Paint()..color = Colors.white);
@@ -224,7 +222,7 @@ class CanvasPainter extends CustomPainter {
         centre,
         12.5,
         Paint()
-          ..color = const Color(0x33000000)
+          ..color = kShadowSoft
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1,
       );
@@ -248,7 +246,7 @@ class CanvasPainter extends CustomPainter {
                     ..strokeWidth = 3
                     ..strokeJoin = StrokeJoin.round
                     ..color = Colors.white)
-                : (Paint()..color = const Color(0xFF2B3140)),
+                : (Paint()..color = kInk),
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -312,16 +310,15 @@ class CanvasPainter extends CustomPainter {
     for (final e in c.gripPositions.entries) {
       final p = _s(e.value);
       final hot = c.hoverGrip == e.key || c.draggingGrip == e.key;
-      final edge = hot ? kAccent : const Color(0xFFB4BAC7);
-      final ink = hot ? kAccent : const Color(0xFF8C93A3);
-      final fill = Paint()
-        ..color = hot ? const Color(0xFFEAF0FF) : Colors.white;
+      final edge = hot ? kAccent : kOutline;
+      final ink = hot ? kAccent : kInkFaint;
+      final fill = Paint()..color = hot ? kAccentSoft : Colors.white;
       final line = Paint()
         ..color = edge
         ..style = PaintingStyle.stroke
         ..strokeWidth = hot ? 1.4 : 1;
       final shadow = Paint()
-        ..color = const Color(0x2E000000)
+        ..color = kShadowSoft
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
       final dot = Paint()..color = ink;
       switch (e.key) {
@@ -332,7 +329,7 @@ class CanvasPainter extends CustomPainter {
             width: vertical ? 10 : 42,
             height: vertical ? 42 : 10,
           );
-          final rr = RRect.fromRectAndRadius(r, const Radius.circular(5));
+          final rr = RRect.fromRectAndRadius(r, const Radius.circular(kRadius));
           canvas.drawRRect(rr.shift(const Offset(0, 1)), shadow);
           canvas.drawRRect(rr, fill);
           canvas.drawRRect(rr, line);
@@ -372,7 +369,7 @@ class CanvasPainter extends CustomPainter {
     if (tag == null) return;
     final tp = _tagText(tag.text)..layout(maxWidth: _tagTextMax);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(tag.tag, const Radius.circular(5)),
+      RRect.fromRectAndRadius(tag.tag, const Radius.circular(kRadius)),
       Paint()..color = kAccent,
     );
     tp.paint(canvas, tag.tag.topLeft + const Offset(7, 3));
@@ -383,7 +380,7 @@ class CanvasPainter extends CustomPainter {
       Offset(tag.lock.left, tag.tag.top + 4),
       Offset(tag.lock.left, tag.tag.bottom - 4),
       Paint()
-        ..color = const Color(0x55FFFFFF)
+        ..color = kOnAccentLine
         ..strokeWidth = 1,
     );
   }
@@ -413,7 +410,7 @@ TextPainter _tagText(String text) => TextPainter(
     text: text,
     style: const TextStyle(
       color: Colors.white,
-      fontSize: 11.5,
+      fontSize: kTextCaption,
       fontWeight: FontWeight.w600,
     ),
   ),

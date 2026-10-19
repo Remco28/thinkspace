@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'kit.dart';
-import 'widgets.dart' show kBorder, fieldBorder;
+import 'widgets.dart' show fieldBorder;
+import 'design.dart';
 
 /// Colours picked with the picker this session, newest first, so a colour
 /// that was just mixed can be used again without mixing it again.
@@ -33,7 +34,7 @@ Future<void> showColorPopover(
     barrierDismissible: true,
     barrierLabel: 'Close the colour picker',
     barrierColor: Colors.transparent,
-    transitionDuration: const Duration(milliseconds: 90),
+    transitionDuration: kQuick,
     transitionBuilder: (context, anim, _, child) =>
         FadeTransition(opacity: anim, child: child),
     pageBuilder: (context, _, _) {
@@ -54,14 +55,14 @@ Future<void> showColorPopover(
               key: const ValueKey('color-popover'),
               color: Colors.white,
               elevation: 10,
-              shadowColor: const Color(0x44000000),
-              borderRadius: BorderRadius.circular(12),
+              shadowColor: kShadow,
+              borderRadius: BorderRadius.circular(kRadiusLarge),
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(kRadiusLarge),
                   border: Border.all(color: kBorder),
                 ),
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(kSpace12),
                 child: ColorPicker(initial: initial, onChanged: onChanged),
               ),
             ),
@@ -170,13 +171,13 @@ class _ColorPickerState extends State<ColorPicker> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SvSquare(hsv: _hsv, onChanged: (v) => _set(v), onEnd: _settle),
-        const SizedBox(height: 12),
+        const SizedBox(height: kSpace12),
         _HueStrip(
           hue: _hsv.hue,
           onChanged: (h) => _set(_hsv.withHue(h)),
           onEnd: _settle,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: kSpace12),
         Row(
           children: [
             Container(
@@ -184,11 +185,11 @@ class _ColorPickerState extends State<ColorPicker> {
               height: 30,
               decoration: BoxDecoration(
                 color: current,
-                borderRadius: BorderRadius.circular(7),
-                border: Border.all(color: const Color(0xFFBFC4CF)),
+                borderRadius: BorderRadius.circular(kRadius),
+                border: Border.all(color: kOutline),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: kSpace12),
             Expanded(
               child: SizedBox(
                 height: kControlHeight,
@@ -196,13 +197,16 @@ class _ColorPickerState extends State<ColorPicker> {
                   key: const ValueKey('color-hex'),
                   controller: _hex,
                   focusNode: _hexFocus,
-                  style: const TextStyle(fontSize: 12.5, letterSpacing: 0.6),
+                  style: const TextStyle(
+                    fontSize: kTextBody,
+                    letterSpacing: 0.6,
+                  ),
                   decoration: InputDecoration(
                     isDense: true,
                     prefixText: '#',
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
+                      horizontal: kSpace8,
+                      vertical: kSpace8,
                     ),
                     border: fieldBorder(),
                     enabledBorder: fieldBorder(),
@@ -216,10 +220,10 @@ class _ColorPickerState extends State<ColorPicker> {
               ),
             ),
             if (pickFromPage != null) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: kSpace8),
               Tooltip(
                 message: 'Take a colour from the page',
-                waitDuration: const Duration(milliseconds: 500),
+                waitDuration: kTooltipWait,
                 child: SizedBox(
                   width: kControlHeight,
                   height: kControlHeight,
@@ -229,14 +233,14 @@ class _ColorPickerState extends State<ColorPicker> {
                       padding: EdgeInsets.zero,
                       side: const BorderSide(color: kBorder),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(7),
+                        borderRadius: BorderRadius.circular(kRadius),
                       ),
                     ),
                     onPressed: _pickFromPage,
                     child: const Icon(
                       Icons.colorize,
-                      size: 16,
-                      color: Color(0xFF4A5060),
+                      size: kIcon,
+                      color: kIconInk,
                     ),
                   ),
                 ),
@@ -245,12 +249,15 @@ class _ColorPickerState extends State<ColorPicker> {
           ],
         ),
         if (recentColours.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          const Text('Recent', style: TextStyle(fontSize: 11.5, color: kLabel)),
-          const SizedBox(height: 6),
+          const SizedBox(height: kSpace12),
+          const Text(
+            'Recent',
+            style: TextStyle(fontSize: kTextCaption, color: kInkSoft),
+          ),
+          const SizedBox(height: kSpace8),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: kSpace8,
+            runSpacing: kSpace8,
             children: [
               for (final c in recentColours)
                 GestureDetector(
@@ -264,8 +271,8 @@ class _ColorPickerState extends State<ColorPicker> {
                     height: 20,
                     decoration: BoxDecoration(
                       color: Color(c),
-                      borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: const Color(0xFFBFC4CF)),
+                      borderRadius: BorderRadius.circular(kRadius),
+                      border: Border.all(color: kOutline),
                     ),
                   ),
                 ),
@@ -312,7 +319,7 @@ class _SvSquare extends StatelessWidget {
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(kRadiusLarge),
                     gradient: LinearGradient(
                       colors: [
                         Colors.white,
@@ -322,7 +329,7 @@ class _SvSquare extends StatelessWidget {
                   ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(kRadiusLarge),
                       gradient: const LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -344,7 +351,7 @@ class _SvSquare extends StatelessWidget {
                       color: hsv.toColor(),
                       border: Border.all(color: Colors.white, width: 2.5),
                       boxShadow: const [
-                        BoxShadow(color: Color(0x66000000), blurRadius: 3),
+                        BoxShadow(color: kShadow, blurRadius: 3),
                       ],
                     ),
                   ),
@@ -388,7 +395,7 @@ class _HueStrip extends StatelessWidget {
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(kRadiusLarge),
                     gradient: LinearGradient(
                       colors: [
                         for (int i = 0; i <= 6; i++)
@@ -410,7 +417,7 @@ class _HueStrip extends StatelessWidget {
                       color: HSVColor.fromAHSV(1, hue, 1, 1).toColor(),
                       border: Border.all(color: Colors.white, width: 2.5),
                       boxShadow: const [
-                        BoxShadow(color: Color(0x66000000), blurRadius: 3),
+                        BoxShadow(color: kShadow, blurRadius: 3),
                       ],
                     ),
                   ),

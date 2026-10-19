@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../editor/canvas_painter.dart' show kAccent;
-import 'widgets.dart' show kBorder;
+import 'design.dart';
 
 /// The few building blocks the side panels are made of, so spacing and
 /// alignment come from one place: 14 px side margins, 8 px between a row's
@@ -11,10 +9,6 @@ const double kRowGap = 6;
 const double kSectionGap = 16;
 const double kLabelWidth = 64;
 const double kControlHeight = 30;
-
-const Color kMuted = Color(0xFF6B7385);
-const Color kLabel = Color(0xFF5B6272);
-const Color kInk = Color(0xFF222733);
 
 /// A titled group of rows. Sections are separated by a hairline and room, not
 /// by boxes.
@@ -44,17 +38,17 @@ class Section extends StatelessWidget {
       ],
       if (title != null)
         Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.only(bottom: kSpace8),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   title!,
                   style: const TextStyle(
-                    fontSize: 11.5,
+                    fontSize: kTextCaption,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.2,
-                    color: kLabel,
+                    color: kInkSoft,
                   ),
                 ),
               ),
@@ -83,12 +77,16 @@ class PropRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Text(
       label,
-      style: const TextStyle(fontSize: 12, color: kLabel),
+      style: const TextStyle(fontSize: kTextBody, color: kInkSoft),
     );
     if (stacked) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [text, const SizedBox(height: 6), child],
+        children: [
+          text,
+          const SizedBox(height: kSpace8),
+          child,
+        ],
       );
     }
     return ConstrainedBox(
@@ -116,17 +114,16 @@ class IconGroup extends StatelessWidget {
     height: 28,
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(7),
-      border: Border.all(color: const Color(0xFFD0D4DD)),
+      borderRadius: BorderRadius.circular(kRadius),
+      border: Border.all(color: kControlBorder),
     ),
     child: ClipRRect(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(kRadius),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (int i = 0; i < buttons.length; i++) ...[
-            if (i > 0)
-              Container(width: 1, height: 28, color: const Color(0xFFE3E6EC)),
+            if (i > 0) Container(width: 1, height: 28, color: kBorder),
             buttons[i],
           ],
         ],
@@ -153,7 +150,7 @@ class GroupButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
     message: tooltip,
-    waitDuration: const Duration(milliseconds: 500),
+    waitDuration: kTooltipWait,
     child: InkWell(
       onTap: onPressed,
       child: Container(
@@ -162,14 +159,14 @@ class GroupButton extends StatelessWidget {
         color: active ? kAccent.withValues(alpha: 0.14) : null,
         child: Icon(
           icon,
-          size: 17,
+          size: kIcon,
           color: onPressed == null
-              ? const Color(0xFFB4B8C2)
+              ? kInkDisabled
               : active
               ? kAccent
               : danger
-              ? const Color(0xFFC62828)
-              : const Color(0xFF444B5A),
+              ? kDanger
+              : kIconInk,
         ),
       ),
     ),
@@ -201,27 +198,25 @@ class ActionButton extends StatelessWidget {
       height: kControlHeight,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: icon == null ? const SizedBox.shrink() : Icon(icon, size: 16),
+        icon: icon == null ? const SizedBox.shrink() : Icon(icon, size: kIcon),
         label: Text(label, overflow: TextOverflow.ellipsis),
         style: OutlinedButton.styleFrom(
           visualDensity: VisualDensity.compact,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          textStyle: const TextStyle(fontSize: 12.5),
-          side: BorderSide(color: selected ? kAccent : const Color(0xFFD0D4DD)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+          padding: const EdgeInsets.symmetric(horizontal: kSpace8),
+          textStyle: const TextStyle(fontSize: kTextBody),
+          side: BorderSide(color: selected ? kAccent : kControlBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(kRadius),
+          ),
           backgroundColor: selected ? kAccent.withValues(alpha: 0.12) : null,
           foregroundColor: selected ? kAccent : kInk,
-          iconColor: selected ? kAccent : const Color(0xFF5B6272),
+          iconColor: selected ? kAccent : kInkSoft,
         ),
       ),
     );
     return tooltip == null
         ? button
-        : Tooltip(
-            message: tooltip!,
-            waitDuration: const Duration(milliseconds: 500),
-            child: button,
-          );
+        : Tooltip(message: tooltip!, waitDuration: kTooltipWait, child: button);
   }
 }
 
@@ -234,7 +229,7 @@ class ButtonRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: [
       for (int i = 0; i < children.length; i++) ...[
-        if (i > 0) const SizedBox(width: 8),
+        if (i > 0) const SizedBox(width: kSpace8),
         Expanded(child: children[i]),
       ],
     ],
@@ -258,31 +253,31 @@ class SwitchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: () => onChanged(!value),
-    borderRadius: BorderRadius.circular(6),
+    borderRadius: BorderRadius.circular(kRadius),
     child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: kSpace2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: kSpace4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(fontSize: 12.5, color: kInk),
+                    style: const TextStyle(fontSize: kTextBody, color: kInk),
                   ),
                   if (hint != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
+                      padding: const EdgeInsets.only(top: kSpace2),
                       child: Text(
                         hint!,
                         style: const TextStyle(
-                          fontSize: 11.5,
+                          fontSize: kTextCaption,
                           height: 1.3,
-                          color: kMuted,
+                          color: kInkSoft,
                         ),
                       ),
                     ),
@@ -290,7 +285,7 @@ class SwitchRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: kSpace8),
           Transform.scale(
             scale: 0.72,
             alignment: Alignment.centerRight,
@@ -310,6 +305,10 @@ class Hint extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: const TextStyle(fontSize: 11.5, height: 1.35, color: kMuted),
+    style: const TextStyle(
+      fontSize: kTextCaption,
+      height: 1.35,
+      color: kInkSoft,
+    ),
   );
 }

@@ -2,12 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/controller.dart';
 import '../editor/image_ops.dart' show HoleFill;
 import '../model/scene.dart';
 import 'kit.dart';
 import 'widgets.dart';
+import 'design.dart';
 
 /// The cut-out tool's options, asked in the order the decisions are made:
 /// what to select, what happens to the original, what is left behind. It
@@ -29,16 +29,21 @@ class CutoutCard extends StatelessWidget {
       key: const ValueKey('cutout-card'),
       color: Colors.white,
       elevation: 12,
-      shadowColor: const Color(0x55000000),
-      borderRadius: BorderRadius.circular(14),
+      shadowColor: kShadow,
+      borderRadius: BorderRadius.circular(kRadiusLarge),
       child: Container(
         width: 332,
         constraints: BoxConstraints(
           maxHeight: math.max(200, MediaQuery.sizeOf(context).height - 120),
         ),
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+        padding: const EdgeInsets.fromLTRB(
+          kSpace20,
+          kSpace16,
+          kSpace20,
+          kSpace16,
+        ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(kRadiusLarge),
           border: Border.all(color: kBorder),
         ),
         child: SingleChildScrollView(
@@ -48,13 +53,17 @@ class CutoutCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.content_cut, size: 18, color: kAccent),
-                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.content_cut,
+                    size: kIconLarge,
+                    color: kAccent,
+                  ),
+                  const SizedBox(width: kSpace8),
                   const Expanded(
                     child: Text(
                       'Cut out',
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: kTextTitle,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -66,7 +75,7 @@ class CutoutCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: kSpace12),
               _Question(
                 '1',
                 'What do you want to select?',
@@ -106,7 +115,10 @@ class CutoutCard extends StatelessWidget {
                       children: [
                         const Text(
                           'Less',
-                          style: TextStyle(fontSize: 12, color: kMuted),
+                          style: TextStyle(
+                            fontSize: kTextBody,
+                            color: kInkSoft,
+                          ),
                         ),
                         Expanded(
                           child: Slider(
@@ -122,7 +134,10 @@ class CutoutCard extends StatelessWidget {
                         ),
                         const Text(
                           'More',
-                          style: TextStyle(fontSize: 12, color: kMuted),
+                          style: TextStyle(
+                            fontSize: kTextBody,
+                            color: kInkSoft,
+                          ),
                         ),
                       ],
                     ),
@@ -157,7 +172,7 @@ class CutoutCard extends StatelessWidget {
                               onTap: () => _hole(false),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: kSpace8),
                           Expanded(
                             child: _Choice(
                               key: const ValueKey('cut-cut'),
@@ -190,7 +205,7 @@ class CutoutCard extends StatelessWidget {
                               onTap: () => _fill(HoleFill.empty),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: kSpace8),
                           Expanded(
                             child: _Choice(
                               key: const ValueKey('cut-fill-colour'),
@@ -214,7 +229,7 @@ class CutoutCard extends StatelessWidget {
                     ],
                   ),
               ],
-              const SizedBox(height: 16),
+              const SizedBox(height: kSpace16),
               Row(
                 children: [
                   Expanded(
@@ -223,7 +238,7 @@ class CutoutCard extends StatelessWidget {
                       child: const Text('Cancel'),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: kSpace12),
                   Expanded(
                     child: FilledButton(
                       key: const ValueKey('cut-start'),
@@ -264,7 +279,7 @@ class _Question extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 12),
+    padding: const EdgeInsets.only(top: kSpace12),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -275,33 +290,33 @@ class _Question extends StatelessWidget {
               height: 18,
               alignment: Alignment.center,
               decoration: const BoxDecoration(
-                color: Color(0xFFE6ECFF),
+                color: kAccentSoft,
                 shape: BoxShape.circle,
               ),
               child: Text(
                 number,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: kTextCaption,
                   fontWeight: FontWeight.w700,
                   color: kAccent,
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: kSpace8),
             Expanded(
               child: Text(
                 text,
                 style: const TextStyle(
-                  fontSize: 12.5,
+                  fontSize: kTextBody,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: kSpace8),
         for (int i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(height: 6),
+          if (i > 0) const SizedBox(height: kSpace8),
           children[i],
         ],
       ],
@@ -329,21 +344,24 @@ class _Choice extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
-    borderRadius: BorderRadius.circular(9),
+    borderRadius: BorderRadius.circular(kRadiusLarge),
     child: Container(
-      padding: EdgeInsets.symmetric(horizontal: 10, vertical: compact ? 8 : 7),
+      padding: EdgeInsets.symmetric(
+        horizontal: kSpace12,
+        vertical: compact ? kSpace8 : kSpace8,
+      ),
       decoration: BoxDecoration(
         color: selected ? kAccent.withValues(alpha: 0.09) : null,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(kRadiusLarge),
         border: Border.all(
-          color: selected ? kAccent : const Color(0xFFD0D4DD),
+          color: selected ? kAccent : kControlBorder,
           width: selected ? 1.6 : 1,
         ),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: selected ? kAccent : kLabel),
-          const SizedBox(width: 10),
+          Icon(icon, size: kIconLarge, color: selected ? kAccent : kInkSoft),
+          const SizedBox(width: kSpace12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,14 +369,17 @@ class _Choice extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: kTextBody,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (note != null)
                   Text(
                     note!,
-                    style: const TextStyle(fontSize: 11.5, color: kMuted),
+                    style: const TextStyle(
+                      fontSize: kTextCaption,
+                      color: kInkSoft,
+                    ),
                   ),
               ],
             ),
@@ -388,17 +409,17 @@ class CutoutPill extends StatelessWidget {
     return Material(
       key: const ValueKey('cutout-bar'),
       elevation: 3,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(kRadiusPill),
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+        padding: const EdgeInsets.fromLTRB(kSpace16, kSpace4, kSpace4, kSpace4),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.content_cut, size: 16, color: kAccent),
-            const SizedBox(width: 8),
-            Text(text, style: const TextStyle(fontSize: 12.5)),
-            const SizedBox(width: 10),
+            const Icon(Icons.content_cut, size: kIcon, color: kAccent),
+            const SizedBox(width: kSpace8),
+            Text(text, style: const TextStyle(fontSize: kTextBody)),
+            const SizedBox(width: kSpace12),
             TextButton(
               key: const ValueKey('cutout-options'),
               onPressed: () {
@@ -407,7 +428,7 @@ class CutoutPill extends StatelessWidget {
               },
               style: TextButton.styleFrom(
                 visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: const EdgeInsets.symmetric(horizontal: kSpace12),
               ),
               child: const Text('Options'),
             ),

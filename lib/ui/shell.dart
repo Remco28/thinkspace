@@ -9,7 +9,6 @@ import 'package:flutter/services.dart';
 
 import '../dev/inspector.dart';
 import '../editor/canvas_view.dart';
-import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/controller.dart';
 import '../editor/interactor.dart';
 import '../io/files.dart';
@@ -19,13 +18,13 @@ import '../model/scene.dart';
 import 'collection_panel.dart';
 import 'color_picker.dart' show pickFromPage;
 import 'cutout_card.dart';
-import 'kit.dart' show kMuted;
 import 'layers_panel.dart';
 import 'menus.dart' show menuLabel;
 import 'properties_panel.dart';
 import 'shortcuts.dart';
 import 'top_bar.dart';
 import 'widgets.dart';
+import 'design.dart';
 
 class EditorShell extends StatefulWidget {
   const EditorShell({
@@ -506,7 +505,7 @@ class _EditorShellState extends State<EditorShell> {
           PopupMenuItem<String>(
             value: p,
             height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: kSpace12),
             child: _RecentRow(path: p, current: p == c.filePath),
           ),
       ],
@@ -804,7 +803,7 @@ class _EditorShellState extends State<EditorShell> {
             child: Material(
               color: Colors.white,
               elevation: 1,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(kRadiusLarge),
               child: SmallIconButton(
                 key: const ValueKey('toggle-collection'),
                 icon: collectionOpen
@@ -863,19 +862,19 @@ class _EditorShellState extends State<EditorShell> {
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
+                      horizontal: kSpace16,
+                      vertical: kSpace8,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xE6222733),
-                      borderRadius: BorderRadius.circular(8),
+                      color: kOverlay,
+                      borderRadius: BorderRadius.circular(kRadiusLarge),
                     ),
                     child: Text(
                       c.toastMessage!,
                       key: const ValueKey('toast'),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12.5,
+                        fontSize: kTextBody,
                       ),
                     ),
                   ),
@@ -896,7 +895,7 @@ class _EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) => const Text(
     'Paste a picture (Ctrl+V), drop a file here,\nor press A to draw an arrow',
     textAlign: TextAlign.center,
-    style: TextStyle(fontSize: 15, height: 1.5, color: Color(0xFFA0A6B5)),
+    style: TextStyle(fontSize: kTextTitle, height: 1.5, color: kInkFaint),
   );
 }
 
@@ -937,16 +936,14 @@ class _HSplitterState extends State<_HSplitter> {
             const Divider(height: 1, color: kBorder),
             // A little grip, so it reads as something to hold.
             AnimatedOpacity(
-              duration: const Duration(milliseconds: 120),
+              duration: kQuick,
               opacity: _hot ? 1 : 0.55,
               child: Container(
                 width: 32,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: _hot
-                      ? const Color(0xFF9AA0AE)
-                      : const Color(0xFFC3C8D3),
-                  borderRadius: BorderRadius.circular(2),
+                  color: _hot ? kInkFaint : kOutline,
+                  borderRadius: BorderRadius.circular(kRadius),
                 ),
               ),
             ),
@@ -985,9 +982,12 @@ class _ZoomBar extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     color: Colors.white,
     elevation: 1,
-    borderRadius: BorderRadius.circular(8),
+    borderRadius: BorderRadius.circular(kRadiusLarge),
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace8,
+        vertical: kSpace4,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1003,7 +1003,7 @@ class _ZoomBar extends StatelessWidget {
               key: const ValueKey('zoom-label'),
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: kTextBody,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1018,19 +1018,19 @@ class _ZoomBar extends StatelessWidget {
             tooltip: 'Fit the page  Ctrl+0',
             onPressed: c.fitToView,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: kSpace4),
           Text(
             '${c.doc.canvasSize.width.round()} × ${c.doc.canvasSize.height.round()}',
-            style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7385)),
+            style: const TextStyle(fontSize: kTextCaption, color: kInkSoft),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: kSpace12),
           // Only when there is something off-screen to pan to: the moment
           // someone needs to know it.
           if (c.canPan && c.viewport.width > 520) ...[
             Container(width: 1, height: 18, color: kBorder),
-            const SizedBox(width: 14),
+            const SizedBox(width: kSpace16),
             const _PanHint(),
-            const SizedBox(width: 8),
+            const SizedBox(width: kSpace8),
           ],
         ],
       ),
@@ -1046,8 +1046,11 @@ class _PanHint extends StatelessWidget {
     key: ValueKey('pan-hint'),
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text('Pan:', style: TextStyle(fontSize: 11.5, color: Color(0xFF6B7385))),
-      SizedBox(width: 5),
+      Text(
+        'Pan:',
+        style: TextStyle(fontSize: kTextCaption, color: kInkSoft),
+      ),
+      SizedBox(width: kSpace4),
       KeyCombo(['Space', 'drag']),
     ],
   );
@@ -1071,10 +1074,15 @@ class _PasteChooserState extends State<_PasteChooser> {
     return Material(
       key: const ValueKey('paste-chooser'),
       elevation: 6,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(kRadiusLarge),
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        padding: const EdgeInsets.fromLTRB(
+          kSpace12,
+          kSpace12,
+          kSpace8,
+          kSpace12,
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
           child: Column(
@@ -1087,12 +1095,12 @@ class _PasteChooserState extends State<_PasteChooser> {
                     Container(
                       width: 56,
                       height: 42,
-                      margin: const EdgeInsets.only(right: 12),
+                      margin: const EdgeInsets.only(right: kSpace12),
                       decoration: BoxDecoration(
                         border: Border.all(color: kBorder),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(kRadius),
                       ),
-                      padding: const EdgeInsets.all(2),
+                      padding: const EdgeInsets.all(kSpace2),
                       child: RawImage(image: a.image, fit: BoxFit.contain),
                     ),
                   Expanded(
@@ -1103,14 +1111,14 @@ class _PasteChooserState extends State<_PasteChooser> {
                           'Pasted an image${a == null ? '' : ' (${a.width} × ${a.height})'}',
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
-                            fontSize: 13,
+                            fontSize: kTextBody,
                           ),
                         ),
                         const Text(
                           'Where should it go?',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF6B7385),
+                            fontSize: kTextBody,
+                            color: kInkSoft,
                           ),
                         ),
                       ],
@@ -1123,7 +1131,7 @@ class _PasteChooserState extends State<_PasteChooser> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: kSpace8),
               Row(
                 children: [
                   Expanded(
@@ -1139,7 +1147,7 @@ class _PasteChooserState extends State<_PasteChooser> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: kSpace8),
                   OutlinedButton(
                     key: const ValueKey('paste-to-collection'),
                     onPressed: () =>
@@ -1160,7 +1168,7 @@ class _PasteChooserState extends State<_PasteChooser> {
                     const Flexible(
                       child: Text(
                         'Always do this (change it later in the menu)',
-                        style: TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: kTextBody),
                       ),
                     ),
                   ],
@@ -1184,19 +1192,19 @@ class _BackgroundBar extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     key: const ValueKey('background-bar'),
     elevation: 3,
-    borderRadius: BorderRadius.circular(10),
+    borderRadius: BorderRadius.circular(kRadiusLarge),
     color: Colors.white,
     child: Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+      padding: const EdgeInsets.fromLTRB(kSpace12, kSpace8, kSpace8, kSpace8),
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 12,
-        runSpacing: 4,
+        spacing: kSpace12,
+        runSpacing: kSpace4,
         children: [
-          const Icon(Icons.auto_fix_high, size: 16, color: kAccent),
+          const Icon(Icons.auto_fix_high, size: kIcon, color: kAccent),
           const Text(
             'Background removed',
-            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: kTextBody, fontWeight: FontWeight.w600),
           ),
           Tooltip(
             message:
@@ -1207,7 +1215,7 @@ class _BackgroundBar extends StatelessWidget {
               children: [
                 const Text(
                   'Less',
-                  style: TextStyle(fontSize: 12, color: kMuted),
+                  style: TextStyle(fontSize: kTextBody, color: kInkSoft),
                 ),
                 SizedBox(
                   width: 140,
@@ -1224,7 +1232,7 @@ class _BackgroundBar extends StatelessWidget {
                 ),
                 const Text(
                   'More',
-                  style: TextStyle(fontSize: 12, color: kMuted),
+                  style: TextStyle(fontSize: kTextBody, color: kInkSoft),
                 ),
               ],
             ),
@@ -1237,7 +1245,7 @@ class _BackgroundBar extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  height: 24,
+                  height: kSpace24,
                   child: Transform.scale(
                     scale: 0.72,
                     child: Switch(
@@ -1252,7 +1260,7 @@ class _BackgroundBar extends StatelessWidget {
                 ),
                 const Text(
                   'Include enclosed areas',
-                  style: TextStyle(fontSize: 12.5),
+                  style: TextStyle(fontSize: kTextBody),
                 ),
               ],
             ),
@@ -1262,7 +1270,7 @@ class _BackgroundBar extends StatelessWidget {
             onPressed: c.endBgSession,
             style: FilledButton.styleFrom(
               visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
+              padding: const EdgeInsets.symmetric(horizontal: kSpace16),
             ),
             child: const Text('Done'),
           ),
@@ -1292,11 +1300,11 @@ class _RecentRow extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 22,
+            width: kSpace24,
             child: Icon(
               there ? Icons.description_outlined : Icons.help_outline,
-              size: 16,
-              color: const Color(0xFF5B6272),
+              size: kIcon,
+              color: kInkSoft,
             ),
           ),
           Expanded(
@@ -1308,18 +1316,16 @@ class _RecentRow extends StatelessWidget {
                   baseName(path) + (current ? '  (open now)' : ''),
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12.5,
-                    color: there
-                        ? const Color(0xFF222733)
-                        : const Color(0xFFB4B8C2),
+                    fontSize: kTextBody,
+                    color: there ? kInk : kInkDisabled,
                   ),
                 ),
                 Text(
                   there ? shown : 'Not found · click to remove',
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF8A90A0),
+                    fontSize: kTextCaption,
+                    color: kInkFaint,
                   ),
                 ),
               ],

@@ -2,11 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/controller.dart';
 import '../model/scene.dart';
 import 'kit.dart';
 import 'widgets.dart';
+import 'design.dart';
 
 /// The settings for whatever is selected, or for the page when nothing is.
 class PropertiesPanel extends StatelessWidget {
@@ -36,9 +36,9 @@ class PropertiesPanel extends StatelessWidget {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(
                   kPanelPad,
-                  12,
+                  kSpace12,
                   kPanelPad,
-                  20,
+                  kSpace20,
                 ),
                 child: objs.isEmpty
                     ? _page(context)
@@ -102,8 +102,8 @@ class PropertiesPanel extends StatelessWidget {
                       c.setCanvasSize(Size(v, d.canvasSize.height)),
                 ),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('×', style: TextStyle(color: kLabel)),
+                  padding: EdgeInsets.symmetric(horizontal: kSpace8),
+                  child: Text('×', style: TextStyle(color: kInkSoft)),
                 ),
                 NumberField(
                   key: const ValueKey('canvas-h'),
@@ -269,12 +269,12 @@ class PropertiesPanel extends StatelessWidget {
             onPressed: c.styleIsDefault(c.tool)
                 ? null
                 : () => c.resetToolStyle(c.tool),
-            icon: const Icon(Icons.restart_alt, size: 15),
+            icon: const Icon(Icons.restart_alt, size: kIcon),
             label: const Text('Reset to default'),
             style: TextButton.styleFrom(
               visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              textStyle: const TextStyle(fontSize: 12),
+              padding: const EdgeInsets.symmetric(horizontal: kSpace8),
+              textStyle: const TextStyle(fontSize: kTextBody),
               foregroundColor: kAccent,
             ),
           ),
@@ -528,15 +528,15 @@ class PropertiesPanel extends StatelessWidget {
                   child: TextFormField(
                     key: ValueKey('name-${one.id}-${one.name}'),
                     initialValue: one.name,
-                    style: const TextStyle(fontSize: 12.5),
+                    style: const TextStyle(fontSize: kTextBody),
                     decoration: InputDecoration(
                       isDense: true,
                       border: fieldBorder(),
                       enabledBorder: fieldBorder(),
                       focusedBorder: fieldBorder(focused: true),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 8,
+                        horizontal: kSpace8,
+                        vertical: kSpace8,
                       ),
                     ),
                     onFieldSubmitted: (v) => c.renameObject(one.id, v),
@@ -549,7 +549,7 @@ class PropertiesPanel extends StatelessWidget {
                 child: DropdownButton<String>(
                   isExpanded: true,
                   isDense: true,
-                  style: const TextStyle(fontSize: 12.5, color: kInk),
+                  style: const TextStyle(fontSize: kTextBody, color: kInk),
                   value: layerIds.length == 1 ? layerIds.first : null,
                   hint: const Text('Several layers'),
                   items: [
@@ -587,7 +587,7 @@ class PropertiesPanel extends StatelessWidget {
                     child: Text(
                       '${(first.opacity * 100).round()}%',
                       textAlign: TextAlign.right,
-                      style: const TextStyle(fontSize: 12, color: kInk),
+                      style: const TextStyle(fontSize: kTextBody, color: kInk),
                     ),
                   ),
                 ],
@@ -638,7 +638,7 @@ class PropertiesPanel extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: kSpace8),
                 IconGroup(
                   buttons: [
                     GroupButton(
@@ -666,8 +666,8 @@ class PropertiesPanel extends StatelessWidget {
           title: 'Arrange',
           children: [
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: kSpace8,
+              runSpacing: kSpace8,
               children: [
                 IconGroup(
                   buttons: [
@@ -759,7 +759,7 @@ class PropertiesPanel extends StatelessWidget {
                 child: Text(
                   '${math.max(one.size.width, one.size.height).round()}',
                   textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 12, color: kInk),
+                  style: const TextStyle(fontSize: kTextBody, color: kInk),
                 ),
               ),
             ],
@@ -783,8 +783,8 @@ class PropertiesPanel extends StatelessWidget {
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Text('×', style: TextStyle(color: kLabel)),
+                padding: EdgeInsets.symmetric(horizontal: kSpace8),
+                child: Text('×', style: TextStyle(color: kInkSoft)),
               ),
               NumberField(
                 key: const ValueKey('size-h'),
@@ -799,7 +799,7 @@ class PropertiesPanel extends StatelessWidget {
                 ),
               ),
               if (a != null) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: kSpace8),
                 SmallIconButton(
                   icon: Icons.photo_size_select_actual_outlined,
                   tooltip:
@@ -830,7 +830,7 @@ class PropertiesPanel extends StatelessWidget {
                 (o) => (o as BoxObject).rotation = v * math.pi / 180,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: kSpace8),
             IconGroup(
               buttons: [
                 GroupButton(
@@ -1147,7 +1147,7 @@ class PropertiesPanel extends StatelessWidget {
                   child: Text(
                     '${o.fontSize.round()}',
                     textAlign: TextAlign.right,
-                    style: const TextStyle(fontSize: 12, color: kInk),
+                    style: const TextStyle(fontSize: kTextBody, color: kInk),
                   ),
                 ),
               ],
@@ -1156,8 +1156,8 @@ class PropertiesPanel extends StatelessWidget {
           PropRow(
             'Style',
             Wrap(
-              spacing: 8,
-              runSpacing: 6,
+              spacing: kSpace8,
+              runSpacing: kSpace8,
               children: [
                 IconGroup(
                   buttons: [
@@ -1268,12 +1268,12 @@ class _FontPicker extends StatelessWidget {
     children: [
       for (final f in TextFont.values)
         Padding(
-          padding: const EdgeInsets.only(right: 6),
+          padding: const EdgeInsets.only(right: kSpace8),
           child: Tooltip(
             message: f.label,
             child: InkWell(
               key: ValueKey('font-${f.name}'),
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(kRadius),
               onTap: () => onChanged(f),
               child: Container(
                 width: 38,
@@ -1281,9 +1281,9 @@ class _FontPicker extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: f == value ? kAccent.withValues(alpha: 0.14) : null,
-                  borderRadius: BorderRadius.circular(7),
+                  borderRadius: BorderRadius.circular(kRadius),
                   border: Border.all(
-                    color: f == value ? kAccent : const Color(0xFFD0D4DD),
+                    color: f == value ? kAccent : kControlBorder,
                   ),
                 ),
                 child: Text(

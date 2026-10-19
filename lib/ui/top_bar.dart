@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../editor/canvas_painter.dart';
 import '../editor/controller.dart';
 import '../io/files.dart';
 import 'menus.dart';
 import 'widgets.dart';
+import 'design.dart';
 
 enum MenuAction {
   newDoc,
@@ -99,7 +99,7 @@ class TopBar extends StatelessWidget {
       listenable: c,
       builder: (context, _) => Container(
         height: kTopBarHeight,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: kSpace8),
         decoration: const BoxDecoration(
           color: Colors.white,
           border: Border(bottom: BorderSide(color: kBorder)),
@@ -109,7 +109,7 @@ class TopBar extends StatelessWidget {
             PopupMenuButton<MenuAction>(
               key: const ValueKey('main-menu'),
               tooltip: 'Menu',
-              icon: const Icon(Icons.menu, size: 20),
+              icon: const Icon(Icons.menu, size: kIconLarge),
               onSelected: onMenu,
               position: PopupMenuPosition.under,
               offset: const Offset(0, 4),
@@ -210,34 +210,34 @@ class TopBar extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: kSpace4),
             const Text(
               'Thinkspace',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
-                fontSize: 14.5,
+                fontSize: kTextTitle,
                 letterSpacing: -0.2,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: kSpace12),
             Flexible(
               child: Text(
                 '${c.filePath == null ? 'Untitled' : baseName(c.filePath!)}${c.dirty ? ' •' : ''}',
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7385)),
+                style: const TextStyle(fontSize: kTextBody, color: kInkSoft),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: kSpace16),
             for (final (i, group) in _toolGroups.indexed) ...[
               if (i > 0) _sep(),
               for (final t in group) _toolButton(t),
             ],
             if (c.toolLocked)
               const Padding(
-                padding: EdgeInsets.only(left: 4),
+                padding: EdgeInsets.only(left: kSpace4),
                 child: Tooltip(
                   message: 'Tool stays active — press Esc to go back to Select',
-                  child: Icon(Icons.lock, size: 13, color: kAccent),
+                  child: Icon(Icons.lock, size: kIconSmall, color: kAccent),
                 ),
               ),
             _sep(),
@@ -342,7 +342,7 @@ class TopBar extends StatelessWidget {
   Widget _sep() => Container(
     width: 1,
     height: 22,
-    margin: const EdgeInsets.symmetric(horizontal: 8),
+    margin: const EdgeInsets.symmetric(horizontal: kSpace8),
     color: kBorder,
   );
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../editor/canvas_painter.dart' show kAccent;
 import '../editor/canvas_view.dart';
 import '../editor/controller.dart';
 import '../io/files.dart';
 import '../model/scene.dart';
 import 'menus.dart';
 import 'widgets.dart';
+import 'design.dart';
 
 class CollectionPanel extends StatelessWidget {
   const CollectionPanel({super.key, required this.controller});
@@ -47,14 +47,14 @@ class CollectionPanel extends StatelessWidget {
               child: items.isEmpty
                   ? const Center(
                       child: Padding(
-                        padding: EdgeInsets.all(20),
+                        padding: EdgeInsets.all(kSpace20),
                         child: Text(
                           'Keep images here until you need them.\n\nPaste (Ctrl+V) and choose “Add to collection”, or drag a file in. Drag an item onto the page to use it — the original stays here.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: kTextBody,
                             height: 1.4,
-                            color: Color(0xFF6B7385),
+                            color: kInkSoft,
                           ),
                         ),
                       ),
@@ -63,7 +63,7 @@ class CollectionPanel extends StatelessWidget {
                       builder: (context, box) {
                         final cols = (box.maxWidth / 112).floor().clamp(1, 6);
                         return GridView.builder(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(kSpace8),
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: cols,
@@ -97,13 +97,13 @@ class _Thumb extends StatelessWidget {
     final image = Container(
       decoration: BoxDecoration(
         color: chosen ? kAccent.withValues(alpha: 0.08) : Colors.white,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(kRadius),
         border: Border.all(
           color: chosen ? kAccent : kBorder,
           width: chosen ? 2 : 1,
         ),
       ),
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(kSpace4),
       child: a == null
           ? const Icon(Icons.broken_image_outlined)
           : RawImage(
@@ -151,7 +151,7 @@ class _Thumb extends StatelessWidget {
                   width: 3,
                   decoration: BoxDecoration(
                     color: kAccent,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(kRadius),
                   ),
                 ),
               ),
@@ -214,11 +214,11 @@ class _Thumb extends StatelessWidget {
     child: Tooltip(
       message:
           'Drag onto the page, or double-click to place. Drag onto another to rearrange. F2 renames.',
-      waitDuration: const Duration(milliseconds: 700),
+      waitDuration: kTooltipWait,
       child: Column(
         children: [
           Expanded(child: image),
-          const SizedBox(height: 3),
+          const SizedBox(height: kSpace4),
           if (c.renamingCollectionId == item.id)
             _NameField(
               key: ValueKey('rename-${item.id}'),
@@ -231,7 +231,7 @@ class _Thumb extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: kTextCaption,
                 fontWeight: c.selectedCollectionId == item.id
                     ? FontWeight.w600
                     : FontWeight.w400,
@@ -290,7 +290,7 @@ class _NameFieldState extends State<_NameField> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 20,
+    height: kSpace20,
     child: Focus(
       onKeyEvent: (node, e) {
         if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) {
@@ -304,10 +304,13 @@ class _NameFieldState extends State<_NameField> {
         controller: _text,
         focusNode: _focus,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 11.5),
+        style: const TextStyle(fontSize: kTextCaption),
         decoration: const InputDecoration(
           isDense: true,
-          contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+          contentPadding: EdgeInsets.symmetric(
+            vertical: kSpace2,
+            horizontal: kSpace2,
+          ),
           border: OutlineInputBorder(),
         ),
         onSubmitted: _finish,

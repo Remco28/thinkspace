@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'widgets.dart';
+import 'design.dart';
 
 /// One line of the shortcuts sheet: one or more key combinations (any of which
 /// does the job) and what they do.
@@ -220,22 +221,22 @@ class KeyCombo extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     children: [
       for (int i = 0; i < keys.length; i++) ...[
-        if (i > 0 && !_chord) const SizedBox(width: 4),
+        if (i > 0 && !_chord) const SizedBox(width: kSpace4),
         if (i > 0 && _chord)
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6),
+            padding: EdgeInsets.symmetric(horizontal: kSpace8),
             child: Text(
               '+',
-              style: TextStyle(fontSize: 11, color: Color(0xFF8A90A0)),
+              style: TextStyle(fontSize: kTextCaption, color: kInkFaint),
             ),
           ),
         if (_mouseWords.contains(keys[i]))
           Text(
             keys[i],
             style: const TextStyle(
-              fontSize: 12.5,
+              fontSize: kTextBody,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF2B3140),
+              color: kInk,
             ),
           )
         else
@@ -249,7 +250,7 @@ Future<void> showShortcuts(BuildContext context) => showDialog<void>(
   context: context,
   builder: (ctx) => AlertDialog(
     title: const Text('Keyboard shortcuts'),
-    contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+    contentPadding: const EdgeInsets.fromLTRB(kSpace24, kSpace12, kSpace24, 0),
     content: SizedBox(
       width: 640,
       child: SingleChildScrollView(
@@ -258,31 +259,31 @@ Future<void> showShortcuts(BuildContext context) => showDialog<void>(
           children: [
             const _Heading('Tools — press the letter'),
             Wrap(
-              spacing: 18,
-              runSpacing: 10,
+              spacing: kSpace20,
+              runSpacing: kSpace12,
               children: [
                 for (final t in _tools)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       KeyCap(t.$1),
-                      const SizedBox(width: 7),
-                      Text(t.$2, style: const TextStyle(fontSize: 13)),
+                      const SizedBox(width: kSpace8),
+                      Text(t.$2, style: const TextStyle(fontSize: kTextBody)),
                     ],
                   ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: kSpace8),
             const Text(
               'A tool is used once, then you are back on Select. '
               'Double-click a tool button to keep it active.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF6B7385)),
+              style: TextStyle(fontSize: kTextBody, color: kInkSoft),
             ),
             for (final s in _sections) ...[
               _Heading(s.$1),
               for (final r in s.$2) _ShortcutLine(r),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: kSpace12),
           ],
         ),
       ),
@@ -302,14 +303,14 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 18, bottom: 8),
+    padding: const EdgeInsets.only(top: kSpace20, bottom: kSpace8),
     child: Text(
       text.toUpperCase(),
       style: const TextStyle(
-        fontSize: 11,
+        fontSize: kTextCaption,
         letterSpacing: 0.8,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF6B7385),
+        color: kInkSoft,
       ),
     ),
   );
@@ -321,23 +322,26 @@ class _ShortcutLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
+    padding: const EdgeInsets.symmetric(vertical: kSpace4),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
           width: 290,
           child: Wrap(
-            spacing: 8,
-            runSpacing: 6,
+            spacing: kSpace8,
+            runSpacing: kSpace8,
             children: [
               for (int i = 0; i < row.$1.length; i++) ...[
                 if (i > 0)
                   const Padding(
-                    padding: EdgeInsets.only(top: 3),
+                    padding: EdgeInsets.only(top: kSpace4),
                     child: Text(
                       'or',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF8A90A0)),
+                      style: TextStyle(
+                        fontSize: kTextCaption,
+                        color: kInkFaint,
+                      ),
                     ),
                   ),
                 KeyCombo(row.$1[i]),
@@ -345,7 +349,9 @@ class _ShortcutLine extends StatelessWidget {
             ],
           ),
         ),
-        Expanded(child: Text(row.$2, style: const TextStyle(fontSize: 13))),
+        Expanded(
+          child: Text(row.$2, style: const TextStyle(fontSize: kTextBody)),
+        ),
       ],
     ),
   );

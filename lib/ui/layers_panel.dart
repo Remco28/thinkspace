@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../editor/canvas_painter.dart';
 import '../editor/canvas_view.dart';
 import '../editor/controller.dart';
 import '../model/scene.dart';
 import 'context_menu.dart';
 import 'menus.dart';
 import 'widgets.dart';
+import 'design.dart';
 
 Future<String?> promptText(BuildContext context, String title, String initial) {
   final ctl = TextEditingController(text: initial);
@@ -105,7 +105,7 @@ class _LayersPanelState extends State<LayersPanel> {
       if (to == null) return;
       _scroll.animateTo(
         to.clamp(0.0, pos.maxScrollExtent),
-        duration: const Duration(milliseconds: 220),
+        duration: kScroll,
         curve: Curves.easeOut,
       );
     });
@@ -135,7 +135,7 @@ class _LayersPanelState extends State<LayersPanel> {
               child: ReorderableListView.builder(
                 scrollController: _scroll,
                 buildDefaultDragHandles: false,
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: kSpace4),
                 itemCount: n,
                 onReorderItem: (oldI, newI) =>
                     c.moveLayer(n - 1 - oldI, n - 1 - newI),
@@ -213,19 +213,19 @@ class _LayerTile extends StatelessWidget {
             child: TweenAnimationBuilder<double>(
               key: ValueKey('layer-flash-$fresh'),
               tween: Tween(begin: fresh == 0 ? 0 : 1, end: 0),
-              duration: const Duration(milliseconds: 1400),
+              duration: kFlash,
               curve: Curves.easeIn,
               builder: (context, glow, child) => Container(
                 height: 34,
-                margin: const EdgeInsets.symmetric(horizontal: 6),
-                padding: const EdgeInsets.only(left: 2, right: 4),
+                margin: const EdgeInsets.symmetric(horizontal: kSpace8),
+                padding: const EdgeInsets.only(left: kSpace2, right: kSpace4),
                 decoration: BoxDecoration(
                   color: cand.isNotEmpty
                       ? kAccent.withValues(alpha: 0.18)
                       : isCurrent
                       ? kAccent.withValues(alpha: 0.09 + 0.26 * glow)
                       : null,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(kRadius),
                   border: cand.isNotEmpty || glow > 0
                       ? Border.all(
                           color: kAccent.withValues(
@@ -243,11 +243,11 @@ class _LayerTile extends StatelessWidget {
                     child: const MouseRegion(
                       cursor: SystemMouseCursors.grab,
                       child: Padding(
-                        padding: EdgeInsets.all(2),
+                        padding: EdgeInsets.all(kSpace2),
                         child: Icon(
                           Icons.drag_indicator,
-                          size: 16,
-                          color: Color(0xFF9AA0AE),
+                          size: kIcon,
+                          color: kInkFaint,
                         ),
                       ),
                     ),
@@ -257,11 +257,11 @@ class _LayerTile extends StatelessWidget {
                     radius: 12,
                     child: Icon(
                       collapsed ? Icons.chevron_right : Icons.expand_more,
-                      size: 18,
-                      color: const Color(0xFF5B6272),
+                      size: kIconLarge,
+                      color: kInkSoft,
                     ),
                   ),
-                  const SizedBox(width: 2),
+                  const SizedBox(width: kSpace2),
                   SmallIconButton(
                     key: ValueKey('layer-eye-${layer.id}'),
                     icon: layer.visible
@@ -270,9 +270,9 @@ class _LayerTile extends StatelessWidget {
                     tooltip: layer.visible ? 'Hide layer' : 'Show layer',
                     onPressed: () =>
                         c.setLayerVisible(layer.id, !layer.visible),
-                    color: layer.visible ? null : const Color(0xFFB4B8C2),
+                    color: layer.visible ? null : kInkDisabled,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: kSpace4),
                   Expanded(
                     child: naming
                         ? _LayerNameField(
@@ -289,25 +289,23 @@ class _LayerTile extends StatelessWidget {
                             layer.name,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: kTextBody,
                               fontWeight: FontWeight.w600,
-                              color: layer.visible
-                                  ? const Color(0xFF222733)
-                                  : const Color(0xFF9AA0AE),
+                              color: layer.visible ? kInk : kInkFaint,
                             ),
                           ),
                   ),
                   if (layer.locked)
                     const Icon(
                       Icons.lock_outline,
-                      size: 14,
-                      color: Color(0xFF8A90A0),
+                      size: kIconSmall,
+                      color: kInkFaint,
                     ),
                   Text(
                     '${layer.objects.length}',
                     style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF8A90A0),
+                      fontSize: kTextCaption,
+                      color: kInkFaint,
                     ),
                   ),
                 ],
@@ -395,27 +393,27 @@ class _ObjectRow extends StatelessWidget {
     final row = Container(
       key: ValueKey('object-${object.id}'),
       height: 28,
-      margin: const EdgeInsets.only(left: 30, right: 6),
-      padding: const EdgeInsets.only(left: 6, right: 2),
+      margin: const EdgeInsets.only(left: 30, right: kSpace8),
+      padding: const EdgeInsets.only(left: kSpace8, right: kSpace2),
       decoration: BoxDecoration(
         color: selected ? kAccent.withValues(alpha: 0.16) : null,
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(kRadius),
       ),
       child: Row(
         children: [
           Icon(
             kindIcon(object),
-            size: 15,
-            color: dim ? const Color(0xFFB4B8C2) : const Color(0xFF5B6272),
+            size: kIcon,
+            color: dim ? kInkDisabled : kInkSoft,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: kSpace8),
           Expanded(
             child: Text(
               object.name,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12.5,
-                color: dim ? const Color(0xFF9AA0AE) : const Color(0xFF222733),
+                fontSize: kTextBody,
+                color: dim ? kInkFaint : kInk,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
@@ -426,7 +424,7 @@ class _ObjectRow extends StatelessWidget {
               icon: Icons.lock_outline,
               tooltip: 'Locked — click to unlock',
               size: 14,
-              color: const Color(0xFF8A90A0),
+              color: kInkFaint,
               onPressed: () {
                 c.select([object.id]);
                 c.editSelected('unlock', (o) => o.locked = false);
@@ -440,7 +438,7 @@ class _ObjectRow extends StatelessWidget {
             tooltip: object.visible ? 'Hide' : 'Show',
             size: 15,
             onPressed: () => c.setObjectVisible(object.id, !object.visible),
-            color: object.visible ? null : const Color(0xFFB4B8C2),
+            color: object.visible ? null : kInkDisabled,
           ),
         ],
       ),
@@ -451,16 +449,19 @@ class _ObjectRow extends StatelessWidget {
       feedback: Material(
         color: Colors.transparent,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(
+            horizontal: kSpace12,
+            vertical: kSpace4,
+          ),
           decoration: BoxDecoration(
             color: kAccent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(kRadius),
           ),
           child: Text(
             selected && c.selection.length > 1
                 ? '${c.selection.length} objects'
                 : object.name,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
+            style: const TextStyle(color: Colors.white, fontSize: kTextBody),
           ),
         ),
       ),
@@ -547,12 +548,15 @@ class _LayerNameFieldState extends State<_LayerNameField> {
       child: TextField(
         controller: _ctl,
         focusNode: _focus,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          fontSize: kTextBody,
+          fontWeight: FontWeight.w600,
+        ),
         decoration: InputDecoration(
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 6,
-            vertical: 6,
+            horizontal: kSpace8,
+            vertical: kSpace8,
           ),
           border: fieldBorder(),
           enabledBorder: fieldBorder(),

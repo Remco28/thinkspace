@@ -4,11 +4,7 @@ Work list for the `polish` branch. No new features: the goal is that Thinkspace 
 
 ## Do
 
-- [ ] **One set of design values.** Put colours, text sizes, spacing (4 px grid), corner roundings, icon sizes and durations in one file, and use only those everywhere.
-  - Today there are 10 text sizes, 8 icon sizes, 10 roundings and more than 40 colours.
-  - The named greys exist (`kit.dart`), but their hex codes are typed in directly 21 more times.
-  - Merge the near-twins: borders `D8DBE3`/`D9DCE3`, reds `C62828`/`D32F2F`, greys `C3C8D4`/`C3C8D3`.
-  - Colour definitions are split over `widgets.dart`, `kit.dart` and `canvas_painter.dart`.
+- [x] **One set of design values.** Done: everything comes from `lib/ui/design.dart`, with taste decisions in `docs/DESIGN.md`. In the interface, 10 text sizes became 3, 8 icon sizes became 3, 10 roundings became 2 plus a pill shape, and about 40 colours became 22 named roles; spacing is on a 4 px grid.
 - [ ] **One look per kind of control in the side panel.**
   - Name is a boxed field, but Layer is a bare dropdown.
   - The ° after Rotate floats away from the number.

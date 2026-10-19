@@ -1,12 +1,9 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
-import '../editor/canvas_painter.dart';
 import '../editor/controller.dart';
 import 'color_picker.dart';
-
-const Color kPanel = Color(0xFFF7F8FA);
-const Color kBorder = Color(0xFFD9DCE3);
+import 'design.dart';
 
 class PanelHeader extends StatelessWidget {
   const PanelHeader(this.title, {super.key, this.actions = const []});
@@ -16,7 +13,7 @@ class PanelHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     height: 36,
-    padding: const EdgeInsets.only(left: 12, right: 4),
+    padding: const EdgeInsets.only(left: kSpace12, right: kSpace4),
     decoration: const BoxDecoration(
       border: Border(bottom: BorderSide(color: kBorder)),
     ),
@@ -25,10 +22,10 @@ class PanelHeader extends StatelessWidget {
         Text(
           title.toUpperCase(),
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: kTextCaption,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
-            color: Color(0xFF5B6272),
+            color: kInkSoft,
           ),
         ),
         const Spacer(),
@@ -63,7 +60,7 @@ class SmallIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
     message: tooltip,
-    waitDuration: const Duration(milliseconds: 500),
+    waitDuration: kTooltipWait,
     child: InkResponse(
       onTap: onPressed,
       radius: 16,
@@ -72,14 +69,14 @@ class SmallIconButton extends StatelessWidget {
         height: 28,
         decoration: BoxDecoration(
           color: active ? kAccent.withValues(alpha: 0.14) : null,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(kRadius),
         ),
         child: () {
           final c = onPressed == null
-              ? const Color(0xFFB4B8C2)
+              ? kInkDisabled
               : active
               ? kAccent
-              : color ?? const Color(0xFF444B5A);
+              : color ?? kIconInk;
           return glyph != null
               ? Center(child: glyph!(size, c))
               : Icon(icon, size: size, color: c);
@@ -96,14 +93,14 @@ class LabeledRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
+    padding: const EdgeInsets.symmetric(vertical: kSpace4),
     child: Row(
       children: [
         SizedBox(
           width: 62,
           child: Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF5B6272)),
+            style: const TextStyle(fontSize: kTextBody, color: kInkSoft),
           ),
         ),
         Expanded(child: child),
@@ -185,14 +182,14 @@ class ColorRow extends StatelessWidget {
           height: 18,
           decoration: BoxDecoration(
             color: argb == 0 ? Colors.white : Color(argb),
-            borderRadius: BorderRadius.circular(5),
+            borderRadius: BorderRadius.circular(kRadius),
             border: Border.all(
-              color: selected ? kAccent : const Color(0xFFBFC4CF),
+              color: selected ? kAccent : kOutline,
               width: selected ? 2 : 1,
             ),
           ),
           child: argb == 0
-              ? const Icon(Icons.block, size: 12, color: Color(0xFFD32F2F))
+              ? const Icon(Icons.block, size: kIconSmall, color: kDanger)
               : null,
         ),
       );
@@ -200,8 +197,8 @@ class ColorRow extends StatelessWidget {
 
     final custom = !palette.contains(value) && value != 0;
     return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+      spacing: kSpace8,
+      runSpacing: kSpace8,
       children: [
         if (allowNone) swatch(0),
         for (final c in palette) swatch(c),
@@ -210,7 +207,7 @@ class ColorRow extends StatelessWidget {
         Builder(
           builder: (context) => Tooltip(
             message: 'Mix any colour',
-            waitDuration: const Duration(milliseconds: 500),
+            waitDuration: kTooltipWait,
             child: GestureDetector(
               key: const ValueKey('custom-colour'),
               onTap: () {
@@ -240,9 +237,9 @@ class ColorRow extends StatelessWidget {
                             Colors.red,
                           ],
                         ),
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(kRadius),
                   border: Border.all(
-                    color: custom ? kAccent : const Color(0xFFBFC4CF),
+                    color: custom ? kAccent : kOutline,
                     width: custom ? 2 : 1,
                   ),
                 ),
@@ -257,9 +254,9 @@ class ColorRow extends StatelessWidget {
 
 /// The outline every text and number box in the panels shares.
 OutlineInputBorder fieldBorder({bool focused = false}) => OutlineInputBorder(
-  borderRadius: BorderRadius.circular(7),
+  borderRadius: BorderRadius.circular(kRadius),
   borderSide: BorderSide(
-    color: focused ? kAccent : const Color(0xFFD0D4DD),
+    color: focused ? kAccent : kControlBorder,
     width: focused ? 1.6 : 1,
   ),
 );
@@ -326,11 +323,14 @@ class _NumberFieldState extends State<NumberField> {
     child: TextField(
       controller: _ctl,
       focusNode: _focus,
-      style: const TextStyle(fontSize: 12.5),
+      style: const TextStyle(fontSize: kTextBody),
       decoration: InputDecoration(
         isDense: true,
         suffixText: widget.suffix,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: kSpace8,
+          vertical: kSpace8,
+        ),
         border: fieldBorder(),
         enabledBorder: fieldBorder(),
         focusedBorder: fieldBorder(focused: true),
@@ -444,7 +444,7 @@ class _FileDropZoneState extends State<FileDropZone> {
                     style: TextStyle(
                       color: kAccent,
                       fontWeight: FontWeight.w700,
-                      fontSize: 16,
+                      fontSize: kTextTitle,
                     ),
                   ),
                 ),
@@ -472,17 +472,14 @@ class KeyCap extends StatelessWidget {
     // the parent offers, which is what made the toolbar key look so roomy.
     return Container(
       constraints: BoxConstraints(minWidth: h, minHeight: h),
-      padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 6),
+      padding: EdgeInsets.symmetric(horizontal: compact ? kSpace4 : kSpace8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFBFD),
+        color: kPanel,
         borderRadius: BorderRadius.circular(compact ? 3 : 4.5),
-        border: Border.all(color: const Color(0xFFC3C8D4), width: 0.8),
+        border: Border.all(color: kOutline, width: 0.8),
         // The flat shadow under the key is what makes it read as a key.
         boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFA6ADBE),
-            offset: Offset(0, compact ? 1 : 2),
-          ),
+          BoxShadow(color: kInkFaint, offset: Offset(0, compact ? 1 : 2)),
         ],
       ),
       child: Center(
@@ -494,7 +491,7 @@ class KeyCap extends StatelessWidget {
             fontSize: compact ? 8.5 : 11.5,
             height: 1.1,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF2B3140),
+            color: kInk,
           ),
         ),
       ),
