@@ -1423,6 +1423,38 @@ void main() {
     expect(c.renamingId, isNull);
   });
 
+  appTest('a slider takes a typed value, as one undo step', (tester) async {
+    final c = await pumpApp(tester);
+    c.addObject(
+      ShapeObject(
+        id: 'box',
+        name: 'box',
+        ellipse: false,
+        center: const Offset(200, 200),
+        size: const Size(80, 60),
+      ),
+    );
+    c.select(['box']);
+    await tester.pump();
+    final before = c.undoDepth;
+    final box = find.descendant(
+      of: find.byKey(const ValueKey('opacity')),
+      matching: find.byType(TextField),
+    );
+    await tester.tap(box);
+    await tester.enterText(box, '50');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(c.doc.objectById('box')!.opacity, closeTo(0.5, 1e-9));
+    expect(c.undoDepth, before + 1);
+    // Out of range is held to the slider's ends.
+    await tester.tap(box);
+    await tester.enterText(box, '0');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(c.doc.objectById('box')!.opacity, closeTo(0.05, 1e-9));
+  });
+
   appTest('Hide details sits with Cut out and has no key', (tester) async {
     final c = await pumpApp(tester);
     final hide = find.byKey(const ValueKey('tool-hide'));

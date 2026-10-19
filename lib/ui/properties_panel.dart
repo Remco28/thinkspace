@@ -344,26 +344,36 @@ class PropertiesPanel extends StatelessWidget {
     );
   }
 
+  /// A slider for a tool's next-thing setting, with the same typeable box
+  /// as every other slider.
   Widget _plainSlider(
     double v,
     double min,
     double max,
     ValueChanged<double> onChanged,
-  ) => SizedBox(
-    width: double.infinity,
-    child: SliderTheme(
-      data: const SliderThemeData(
-        trackHeight: 3,
-        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7),
-        overlayShape: RoundSliderOverlayShape(overlayRadius: 0),
+  ) => Row(
+    children: [
+      Expanded(
+        child: SliderTheme(
+          data: const SliderThemeData(
+            trackHeight: 3,
+            thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7),
+            overlayShape: RoundSliderOverlayShape(overlayRadius: 0),
+          ),
+          child: Slider(
+            value: v.clamp(min, max),
+            min: min,
+            max: max,
+            onChanged: onChanged,
+          ),
+        ),
       ),
-      child: Slider(
-        value: v.clamp(min, max),
-        min: min,
-        max: max,
-        onChanged: onChanged,
+      const SizedBox(width: kSpace8),
+      ValueField(
+        value: v.roundToDouble(),
+        onSubmitted: (t) => onChanged(t.clamp(min, max).toDouble()),
       ),
-    ),
+    ],
   );
 
   Widget _colour(
@@ -579,28 +589,16 @@ class PropertiesPanel extends StatelessWidget {
             ),
             PropRow(
               'Opacity',
-              Row(
-                children: [
-                  Expanded(
-                    child: LiveSlider(
-                      key: const ValueKey('opacity'),
-                      controller: c,
-                      value: first.opacity,
-                      min: 0.05,
-                      max: 1,
-                      label: 'opacity',
-                      apply: (v) => c.liveEditSelected((o) => o.opacity = v),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 38,
-                    child: Text(
-                      '${(first.opacity * 100).round()}%',
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(fontSize: kTextBody, color: kInk),
-                    ),
-                  ),
-                ],
+              LiveSlider(
+                key: const ValueKey('opacity'),
+                controller: c,
+                value: first.opacity,
+                min: 0.05,
+                max: 1,
+                label: 'opacity',
+                unit: '%',
+                scale: 100,
+                apply: (v) => c.liveEditSelected((o) => o.opacity = v),
               ),
             ),
           ],
@@ -747,32 +745,18 @@ class PropertiesPanel extends StatelessWidget {
       if (one is BadgeObject)
         PropRow(
           'Size',
-          Row(
-            children: [
-              Expanded(
-                child: LiveSlider(
-                  key: const ValueKey('marker-size'),
-                  controller: c,
-                  value: math.max(one.size.width, one.size.height),
-                  min: 16,
-                  max: 160,
-                  label: 'marker size',
-                  apply: (v) => c.liveEditSelected((x) {
-                    final n = v.roundToDouble();
-                    (x as BadgeObject).size = Size(n, n);
-                    c.markerSize = n;
-                  }),
-                ),
-              ),
-              SizedBox(
-                width: 34,
-                child: Text(
-                  '${math.max(one.size.width, one.size.height).round()}',
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: kTextBody, color: kInk),
-                ),
-              ),
-            ],
+          LiveSlider(
+            key: const ValueKey('marker-size'),
+            controller: c,
+            value: math.max(one.size.width, one.size.height),
+            min: 16,
+            max: 160,
+            label: 'marker size',
+            apply: (v) => c.liveEditSelected((x) {
+              final n = v.roundToDouble();
+              (x as BadgeObject).size = Size(n, n);
+              c.markerSize = n;
+            }),
           ),
         )
       else if (one is! TextObject)
@@ -1142,30 +1126,16 @@ class PropertiesPanel extends StatelessWidget {
           ),
           PropRow(
             'Size',
-            Row(
-              children: [
-                Expanded(
-                  child: LiveSlider(
-                    controller: c,
-                    value: o.fontSize,
-                    min: 8,
-                    max: 160,
-                    label: 'text size',
-                    apply: (v) => c.liveEditSelected((x) {
-                      (x as TextObject).fontSize = v.roundToDouble();
-                      c.textSize = v.roundToDouble();
-                    }),
-                  ),
-                ),
-                SizedBox(
-                  width: 30,
-                  child: Text(
-                    '${o.fontSize.round()}',
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(fontSize: kTextBody, color: kInk),
-                  ),
-                ),
-              ],
+            LiveSlider(
+              controller: c,
+              value: o.fontSize,
+              min: 8,
+              max: 160,
+              label: 'text size',
+              apply: (v) => c.liveEditSelected((x) {
+                (x as TextObject).fontSize = v.roundToDouble();
+                c.textSize = v.roundToDouble();
+              }),
             ),
           ),
           PropRow(

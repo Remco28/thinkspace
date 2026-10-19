@@ -120,12 +120,21 @@ class LiveSlider extends StatefulWidget {
     required this.label,
     required this.apply,
     this.divisions,
+    this.unit,
+    this.scale = 1,
   });
   final EditorController controller;
   final double value, min, max;
   final String label;
   final int? divisions;
   final void Function(double v) apply;
+
+  /// Shown after the number in the box beside the slider (%, px).
+  final String? unit;
+
+  /// The number in the box is the value times this (opacity 0–1 shows as
+  /// 0–100 %).
+  final double scale;
 
   @override
   State<LiveSlider> createState() => _LiveSliderState();
@@ -134,25 +143,67 @@ class LiveSlider extends StatefulWidget {
 class _LiveSliderState extends State<LiveSlider> {
   EditToken? _token;
 
+  /// A typed value is one undo step, like a drag.
+  void _typed(double shown) {
+    final v = (shown / widget.scale).clamp(widget.min, widget.max).toDouble();
+    final token = widget.controller.beginEdit(widget.label);
+    widget.apply(v);
+    widget.controller.endEdit(token);
+  }
+
   @override
-  Widget build(BuildContext context) => SliderTheme(
-    data: SliderTheme.of(context).copyWith(
-      trackHeight: 3,
-      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-      overlayShape: SliderComponentShape.noOverlay,
-    ),
-    child: Slider(
-      value: widget.value.clamp(widget.min, widget.max),
-      min: widget.min,
-      max: widget.max,
-      divisions: widget.divisions,
-      onChangeStart: (_) => _token = widget.controller.beginEdit(widget.label),
-      onChanged: widget.apply,
-      onChangeEnd: (_) {
-        if (_token != null) widget.controller.endEdit(_token!);
-        _token = null;
-      },
-    ),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+            overlayShape: SliderComponentShape.noOverlay,
+          ),
+          child: Slider(
+            value: widget.value.clamp(widget.min, widget.max),
+            min: widget.min,
+            max: widget.max,
+            divisions: widget.divisions,
+            onChangeStart: (_) =>
+                _token = widget.controller.beginEdit(widget.label),
+            onChanged: widget.apply,
+            onChangeEnd: (_) {
+              if (_token != null) widget.controller.endEdit(_token!);
+              _token = null;
+            },
+          ),
+        ),
+      ),
+      const SizedBox(width: kSpace8),
+      ValueField(
+        value: (widget.value * widget.scale).roundToDouble(),
+        unit: widget.unit,
+        onSubmitted: _typed,
+      ),
+    ],
+  );
+}
+
+/// The box beside every slider: shows the number, and takes a typed one.
+class ValueField extends StatelessWidget {
+  const ValueField({
+    super.key,
+    required this.value,
+    required this.onSubmitted,
+    this.unit,
+  });
+  final double value;
+  final String? unit;
+  final ValueChanged<double> onSubmitted;
+
+  @override
+  Widget build(BuildContext context) => NumberField(
+    value: value,
+    suffix: unit,
+    width: unit == null ? 48 : 56,
+    onSubmitted: onSubmitted,
   );
 }
 
