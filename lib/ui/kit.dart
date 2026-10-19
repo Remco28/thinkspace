@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 import 'design.dart';
 
 /// The few building blocks the side panels are made of, so spacing and
-/// alignment come from one place: 14 px side margins, 8 px between a row's
-/// parts, 6 px between rows, 16 px between sections.
-const double kPanelPad = 14;
-const double kRowGap = 6;
-const double kSectionGap = 16;
-const double kLabelWidth = 64;
-const double kControlHeight = 30;
+/// alignment come from one place (the sizes are in design.dart).
 
 /// A titled group of rows. Sections are separated by a hairline and room, not
 /// by boxes.
@@ -111,7 +105,7 @@ class IconGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 28,
+    height: kControlHeight,
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(kRadius),
@@ -123,7 +117,8 @@ class IconGroup extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (int i = 0; i < buttons.length; i++) ...[
-            if (i > 0) Container(width: 1, height: 28, color: kBorder),
+            if (i > 0)
+              Container(width: 1, height: kControlHeight, color: kBorder),
             buttons[i],
           ],
         ],
@@ -154,8 +149,8 @@ class GroupButton extends StatelessWidget {
     child: InkWell(
       onTap: onPressed,
       child: Container(
-        width: 30,
-        height: 28,
+        width: kControlHeight + kSpace2,
+        height: kControlHeight,
         color: active ? kAccent.withValues(alpha: 0.14) : null,
         child: Icon(
           icon,

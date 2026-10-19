@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'kit.dart';
 import 'widgets.dart' show fieldBorder;
 import 'design.dart';
 

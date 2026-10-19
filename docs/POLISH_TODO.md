@@ -5,10 +5,7 @@ Work list for the `polish` branch. No new features: the goal is that Thinkspace 
 ## Do
 
 - [x] **One set of design values.** Done: everything comes from `lib/ui/design.dart`, with taste decisions in `docs/DESIGN.md`. In the interface, 10 text sizes became 3, 8 icon sizes became 3, 10 roundings became 2 plus a pill shape, and about 40 colours became 22 named roles; spacing is on a 4 px grid.
-- [ ] **One look per kind of control in the side panel.**
-  - Name is a boxed field, but Layer is a bare dropdown.
-  - The ° after Rotate floats away from the number.
-  - Under the image section there are wide outlined buttons, while Align and Arrange use compact icon groups.
+- [x] **One look per kind of control in the side panel.** Done: Layer is drawn as a field, the units sit against their numbers, the lone size button is boxed, and every control is 28 tall. Wide labelled buttons for actions and icon groups for options stay as the two button styles (recorded in `docs/DESIGN.md`).
 - [ ] **"Image", never "picture",** in everything the app says (labels, tooltips, messages) and in the README.
 - [ ] **No repeated headings.** The panel header says ARROW, then the first section is titled Arrow; the same happens for every kind of object.
 - [ ] **One highlight in the Layers list.** The selected object's row and its layer's row are both tinted. The layer should be quieter.

@@ -76,6 +76,22 @@ const double kSpace16 = 16;
 const double kSpace20 = 20;
 const double kSpace24 = 24;
 
+// ---- panels ---------------------------------------------------------------
+
+/// The height of every field, dropdown, button and button group.
+const double kControlHeight = 28;
+
+/// The side panels' margins, the gap between rows and between sections.
+const double kPanelPad = kSpace16;
+const double kRowGap = kSpace8;
+const double kSectionGap = kSpace16;
+
+/// A colour swatch: 11 of them, 4 apart, fit across the panel with room.
+const double kSwatch = 18;
+
+/// The column of row labels (Name, Layer, Opacity…).
+const double kLabelWidth = 64;
+
 // ---- type ------------------------------------------------------------------
 
 /// Section labels, captions, counts, shortcut keys, the name tag.

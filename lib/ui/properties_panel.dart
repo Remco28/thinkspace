@@ -545,25 +545,35 @@ class PropertiesPanel extends StatelessWidget {
               ),
             PropRow(
               'Layer',
-              DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  isDense: true,
-                  style: const TextStyle(fontSize: kTextBody, color: kInk),
-                  value: layerIds.length == 1 ? layerIds.first : null,
-                  hint: const Text('Several layers'),
-                  items: [
-                    for (final l in c.doc.layers.reversed)
-                      DropdownMenuItem(
-                        value: l.id,
-                        child: Text(l.name, overflow: TextOverflow.ellipsis),
-                      ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) {
-                      c.moveObjectsToLayer(objs.map((o) => o.id).toList(), v);
-                    }
-                  },
+              // Drawn as a field, like Name above it.
+              Container(
+                height: kControlHeight,
+                padding: const EdgeInsets.only(left: kSpace8, right: kSpace4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(kRadius),
+                  border: Border.all(color: kControlBorder),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    isDense: true,
+                    style: const TextStyle(fontSize: kTextBody, color: kInk),
+                    value: layerIds.length == 1 ? layerIds.first : null,
+                    hint: const Text('Several layers'),
+                    items: [
+                      for (final l in c.doc.layers.reversed)
+                        DropdownMenuItem(
+                          value: l.id,
+                          child: Text(l.name, overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) {
+                        c.moveObjectsToLayer(objs.map((o) => o.id).toList(), v);
+                      }
+                    },
+                  ),
                 ),
               ),
             ),
@@ -783,7 +793,7 @@ class PropertiesPanel extends StatelessWidget {
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: kSpace8),
+                padding: EdgeInsets.symmetric(horizontal: kSpace4),
                 child: Text('×', style: TextStyle(color: kInkSoft)),
               ),
               NumberField(
@@ -800,17 +810,22 @@ class PropertiesPanel extends StatelessWidget {
               ),
               if (a != null) ...[
                 const SizedBox(width: kSpace8),
-                SmallIconButton(
-                  icon: Icons.photo_size_select_actual_outlined,
-                  tooltip:
-                      'Back to the picture’s own size (${a.width} × ${a.height})',
-                  onPressed: () => c.editSelected(
-                    'original size',
-                    (x) => (x as ImageObject).size = Size(
-                      a.width.toDouble(),
-                      a.height.toDouble(),
+                // Boxed like the buttons on the Rotate row below it.
+                IconGroup(
+                  buttons: [
+                    GroupButton(
+                      icon: Icons.photo_size_select_actual_outlined,
+                      tooltip:
+                          'Back to the picture’s own size (${a.width} × ${a.height})',
+                      onPressed: () => c.editSelected(
+                        'original size',
+                        (x) => (x as ImageObject).size = Size(
+                          a.width.toDouble(),
+                          a.height.toDouble(),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ],

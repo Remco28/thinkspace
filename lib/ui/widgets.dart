@@ -65,8 +65,8 @@ class SmallIconButton extends StatelessWidget {
       onTap: onPressed,
       radius: 16,
       child: Container(
-        width: 28,
-        height: 28,
+        width: kControlHeight,
+        height: kControlHeight,
         decoration: BoxDecoration(
           color: active ? kAccent.withValues(alpha: 0.14) : null,
           borderRadius: BorderRadius.circular(kRadius),
@@ -178,8 +178,8 @@ class ColorRow extends StatelessWidget {
       return GestureDetector(
         onTap: () => onChanged(argb),
         child: Container(
-          width: 18,
-          height: 18,
+          width: kSwatch,
+          height: kSwatch,
           decoration: BoxDecoration(
             color: argb == 0 ? Colors.white : Color(argb),
             borderRadius: BorderRadius.circular(kRadius),
@@ -197,8 +197,8 @@ class ColorRow extends StatelessWidget {
 
     final custom = !palette.contains(value) && value != 0;
     return Wrap(
-      spacing: kSpace8,
-      runSpacing: kSpace8,
+      spacing: kSpace4,
+      runSpacing: kSpace4,
       children: [
         if (allowNone) swatch(0),
         for (final c in palette) swatch(c),
@@ -221,8 +221,8 @@ class ColorRow extends StatelessWidget {
                 );
               },
               child: Container(
-                width: 18,
-                height: 18,
+                width: kSwatch,
+                height: kSwatch,
                 decoration: BoxDecoration(
                   color: custom ? Color(value) : null,
                   gradient: custom
@@ -319,14 +319,18 @@ class _NumberFieldState extends State<NumberField> {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: widget.width,
-    height: 30,
+    height: kControlHeight,
     child: TextField(
       controller: _ctl,
       focusNode: _focus,
       style: const TextStyle(fontSize: kTextBody),
+      // Numbers line up on the right, so a unit (°, px, wide) sits right
+      // against its number instead of across the box.
+      textAlign: TextAlign.right,
       decoration: InputDecoration(
         isDense: true,
         suffixText: widget.suffix,
+        suffixStyle: const TextStyle(fontSize: kTextBody, color: kInkFaint),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: kSpace8,
           vertical: kSpace8,
