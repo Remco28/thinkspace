@@ -9,7 +9,7 @@ Work list for the `polish` branch. No new features: the goal is that Thinkspace 
 - [x] **"Image", never "picture".** Done: every label, tooltip and message, the README and the architecture notes. Past test guides are left as they were, since they record what was tested.
 - [x] **No repeated headings.** Done: the panel header names the kind; the section under it is titled for what it holds, **Style** for anything drawn and **Edit** for images. The text section's own Style row is now **Format**.
 - [x] **One highlight in the Layers list.** Done: only what is selected is filled; the current layer (where new things go) is marked by a short accent bar at its left edge.
-- [ ] **Keycap no longer sits on the Collection header.** The hanging "V" (the active tool's key) lands on COLLECTION. Idea: start the tools where the page area starts, past the Collection panel. Open question: what happens when the Collection panel is hidden or resized?
+- [x] **Keycap no longer sits on the Collection header.** Done: the tools start at a fixed spot past the Collection panel at its usual width and the button that hides it, so the keycap hangs over open page area. On narrow windows the tools move left as far as needed, and the file name shortens first.
 - [ ] **Bundle the interface font** (Inter, about 300 KB) so the app looks the same on every Linux desktop and on Windows.
 
 ## Later or maybe
