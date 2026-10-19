@@ -64,7 +64,7 @@ class CutoutCard extends StatelessWidget {
                       'Cut out',
                       style: TextStyle(
                         fontSize: kTextTitle,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: kWeightHeading,
                       ),
                     ),
                   ),
@@ -297,7 +297,7 @@ class _Question extends StatelessWidget {
                 number,
                 style: const TextStyle(
                   fontSize: kTextCaption,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: kWeightHeading,
                   color: kAccent,
                 ),
               ),
@@ -308,7 +308,7 @@ class _Question extends StatelessWidget {
                 text,
                 style: const TextStyle(
                   fontSize: kTextBody,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: kWeightStrong,
                 ),
               ),
             ),
@@ -370,7 +370,7 @@ class _Choice extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     fontSize: kTextBody,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: kWeightStrong,
                   ),
                 ),
                 if (note != null)

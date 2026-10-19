@@ -1004,7 +1004,7 @@ class _ZoomBar extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: kTextBody,
-                fontWeight: FontWeight.w600,
+                fontWeight: kWeightStrong,
               ),
             ),
           ),
@@ -1110,7 +1110,7 @@ class _PasteChooserState extends State<_PasteChooser> {
                         Text(
                           'Pasted an image${a == null ? '' : ' (${a.width} × ${a.height})'}',
                           style: const TextStyle(
-                            fontWeight: FontWeight.w700,
+                            fontWeight: kWeightHeading,
                             fontSize: kTextBody,
                           ),
                         ),
@@ -1204,7 +1204,7 @@ class _BackgroundBar extends StatelessWidget {
           const Icon(Icons.auto_fix_high, size: kIcon, color: kAccent),
           const Text(
             'Background removed',
-            style: TextStyle(fontSize: kTextBody, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: kTextBody, fontWeight: kWeightStrong),
           ),
           Tooltip(
             message:

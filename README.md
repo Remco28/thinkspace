@@ -163,4 +163,4 @@ tool/xinput.py drag 420 320 700 420        # real mouse input into the real wind
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The bundled typefaces (Lora, JetBrains Mono, Caveat) are under the SIL Open Font License; their licences are in `assets/fonts/`.
+MIT — see [LICENSE](LICENSE). The bundled typefaces (Inter for the interface; Lora, JetBrains Mono and Caveat for text on the page) are under the SIL Open Font License; their licences are in `assets/fonts/`.

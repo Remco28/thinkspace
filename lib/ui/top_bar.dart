@@ -229,7 +229,7 @@ class TopBar extends StatelessWidget {
                     const Text(
                       'Thinkspace',
                       style: TextStyle(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: kWeightHeading,
                         fontSize: kTextTitle,
                         letterSpacing: -0.2,
                       ),

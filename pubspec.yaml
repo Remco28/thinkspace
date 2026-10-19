@@ -30,3 +30,11 @@ flutter:
     - family: Caveat
       fonts:
         - asset: assets/fonts/Caveat.ttf
+    # The interface font, bundled so the app looks the same on every desktop.
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700

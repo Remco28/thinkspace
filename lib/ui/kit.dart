@@ -40,7 +40,7 @@ class Section extends StatelessWidget {
                   title!,
                   style: const TextStyle(
                     fontSize: kTextCaption,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: kWeightHeading,
                     letterSpacing: 0.2,
                     color: kInkSoft,
                   ),

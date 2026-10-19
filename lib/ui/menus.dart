@@ -91,7 +91,7 @@ PopupMenuEntry<T> menuLabel<T>(String text, {double width = 210}) =>
           text.toUpperCase(),
           style: const TextStyle(
             fontSize: kTextCaption,
-            fontWeight: FontWeight.w700,
+            fontWeight: kWeightHeading,
             letterSpacing: 0.7,
             color: kInkFaint,
           ),

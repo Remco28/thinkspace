@@ -23,7 +23,7 @@ class PanelHeader extends StatelessWidget {
           title.toUpperCase(),
           style: const TextStyle(
             fontSize: kTextCaption,
-            fontWeight: FontWeight.w700,
+            fontWeight: kWeightHeading,
             letterSpacing: 0.8,
             color: kInkSoft,
           ),
@@ -447,7 +447,7 @@ class _FileDropZoneState extends State<FileDropZone> {
                     'Drop to add',
                     style: TextStyle(
                       color: kAccent,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: kWeightHeading,
                       fontSize: kTextTitle,
                     ),
                   ),
@@ -494,7 +494,7 @@ class KeyCap extends StatelessWidget {
           style: TextStyle(
             fontSize: compact ? 8.5 : 11.5,
             height: 1.1,
-            fontWeight: FontWeight.w700,
+            fontWeight: kWeightHeading,
             color: kInk,
           ),
         ),

@@ -235,7 +235,7 @@ class KeyCombo extends StatelessWidget {
             keys[i],
             style: const TextStyle(
               fontSize: kTextBody,
-              fontWeight: FontWeight.w600,
+              fontWeight: kWeightStrong,
               color: kInk,
             ),
           )
@@ -309,7 +309,7 @@ class _Heading extends StatelessWidget {
       style: const TextStyle(
         fontSize: kTextCaption,
         letterSpacing: 0.8,
-        fontWeight: FontWeight.w700,
+        fontWeight: kWeightHeading,
         color: kInkSoft,
       ),
     ),

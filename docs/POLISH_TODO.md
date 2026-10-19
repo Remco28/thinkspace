@@ -10,7 +10,7 @@ Work list for the `polish` branch. No new features: the goal is that Thinkspace 
 - [x] **No repeated headings.** Done: the panel header names the kind; the section under it is titled for what it holds, **Style** for anything drawn and **Edit** for images. The text section's own Style row is now **Format**.
 - [x] **One highlight in the Layers list.** Done: only what is selected is filled; the current layer (where new things go) is marked by a short accent bar at its left edge.
 - [x] **Keycap no longer sits on the Collection header.** Done: the tools start at a fixed spot past the Collection panel at its usual width and the button that hides it, so the keycap hangs over open page area. On narrow windows the tools move left as far as needed, and the file name shortens first.
-- [ ] **Bundle the interface font** (Inter, about 300 KB) so the app looks the same on every Linux desktop and on Windows.
+- [x] **Bundle the interface font.** Done: Inter (Regular, SemiBold, Bold, about 1.25 MB in total) for the whole interface, including tooltips and the painted name tag; four weights became three; Material's extra letter spacing on fields is gone.
 
 ## Later or maybe
 

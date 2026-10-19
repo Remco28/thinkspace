@@ -24,6 +24,11 @@ The values (colours, sizes, spacing, corners, timings) live in [`lib/ui/design.d
 - **One thing looks selected.** In the Layers list only the selection is filled; the current layer has an accent bar at its left.
 - **Numbers sit on the right of their field,** so a unit (°, px, wide) is right beside them.
 
+## Type
+
+- **Inter** for the whole interface, bundled so it looks the same on every desktop. Three weights: regular for text, semibold for names and buttons, bold for headings. No extra letter spacing anywhere.
+- Text on the page keeps its own four typefaces (Sans, Serif, Mono, Hand).
+
 ## Icons
 
 Material outline icons, plus a few drawn to match (line, highlighter, Remove marks, Hide details). Making every icon one weight and style is held until the interface font and sizes have settled.

@@ -496,7 +496,7 @@ class _SelectionActions extends StatelessWidget {
                     merge ? 'Merge into one image' : 'Unmerge',
                     style: const TextStyle(
                       fontSize: kTextBody,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: kWeightStrong,
                       color: kInk,
                     ),
                   ),

@@ -302,7 +302,7 @@ class _LayerTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: kTextBody,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: kWeightStrong,
                               color: layer.visible ? kInk : kInkFaint,
                             ),
                           ),
@@ -426,7 +426,7 @@ class _ObjectRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: kTextBody,
                 color: dim ? kInkFaint : kInk,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: selected ? kWeightStrong : kWeightRegular,
               ),
             ),
           ),
@@ -560,10 +560,7 @@ class _LayerNameFieldState extends State<_LayerNameField> {
       child: TextField(
         controller: _ctl,
         focusNode: _focus,
-        style: const TextStyle(
-          fontSize: kTextBody,
-          fontWeight: FontWeight.w600,
-        ),
+        style: const TextStyle(fontSize: kTextBody, fontWeight: kWeightStrong),
         decoration: InputDecoration(
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(

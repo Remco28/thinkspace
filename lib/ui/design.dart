@@ -103,6 +103,13 @@ const double kTextBody = 12.5;
 /// The app name, card titles, the empty-page hint.
 const double kTextTitle = 14.5;
 
+/// The interface font (bundled), and its three weights: ordinary text,
+/// emphasis (names, buttons) and headings (section labels, titles).
+const String kUiFont = 'Inter';
+const FontWeight kWeightRegular = FontWeight.w400;
+const FontWeight kWeightStrong = FontWeight.w600;
+const FontWeight kWeightHeading = FontWeight.w700;
+
 // ---- icons -----------------------------------------------------------------
 
 const double kIconSmall = 13;

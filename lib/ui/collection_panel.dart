@@ -233,8 +233,8 @@ class _Thumb extends StatelessWidget {
               style: TextStyle(
                 fontSize: kTextCaption,
                 fontWeight: c.selectedCollectionId == item.id
-                    ? FontWeight.w600
-                    : FontWeight.w400,
+                    ? kWeightStrong
+                    : kWeightRegular,
               ),
             ),
         ],

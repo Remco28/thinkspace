@@ -409,9 +409,10 @@ TextPainter _tagText(String text) => TextPainter(
   text: TextSpan(
     text: text,
     style: const TextStyle(
+      fontFamily: kUiFont,
       color: Colors.white,
       fontSize: kTextCaption,
-      fontWeight: FontWeight.w600,
+      fontWeight: kWeightStrong,
     ),
   ),
   textDirection: TextDirection.ltr,
