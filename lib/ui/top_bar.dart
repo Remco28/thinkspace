@@ -290,6 +290,7 @@ class TopBar extends StatelessWidget {
               SmallIconButton(
                 key: const ValueKey('grid'),
                 icon: Icons.grid_4x4,
+                glyph: (s, c) => OutlineGlyph(GlyphKind.grid, s, c),
                 tooltip: 'Show grid  (G)',
                 active: c.showGrid,
                 onPressed: c.toggleGrid,
@@ -334,6 +335,9 @@ class TopBar extends StatelessWidget {
             Tool.highlight => HighlighterGlyph.new,
             Tool.remove => RemoveMarksGlyph.new,
             Tool.hide => HideDetailsGlyph.new,
+            Tool.text => (s, c) => OutlineGlyph(GlyphKind.text, s, c),
+            Tool.badge => (s, c) => OutlineGlyph(GlyphKind.marker, s, c),
+            Tool.cutout => (s, c) => OutlineGlyph(GlyphKind.scissors, s, c),
             _ => null,
           },
           tooltip: switch (tool) {

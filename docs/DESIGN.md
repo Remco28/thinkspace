@@ -31,4 +31,4 @@ The values (colours, sizes, spacing, corners, timings) live in [`lib/ui/design.d
 
 ## Icons
 
-Material outline icons, plus a few drawn to match (line, highlighter, Remove marks, Hide details). Making every icon one weight and style is held until the interface font and sizes have settled.
+One outline style in the toolbar: Material's outline icons, and Thinkspace's own drawn to match them on an 18-unit grid with a 1.6 line (line, highlighter, Remove marks, Hide details, text, numbered marker, scissors, grid). No solid-filled icons; a numbered marker is a circle, as it is on the page.

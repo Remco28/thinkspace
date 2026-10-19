@@ -14,7 +14,7 @@ Work list for the `polish` branch. No new features: the goal is that Thinkspace 
 
 ## Later or maybe
 
-- [ ] **Toolbar icons in one style.** Today there's a mix of outline and filled icons (bold T, filled scissors, solid mosaic, boxed 1). Held back for now. Revisit after the font and sizes settle, since those change how the icons balance.
+- [x] **Toolbar icons in one style.** Done: text, numbered marker, scissors, Hide details, grid and the Remove marks badge are redrawn in the same thin outline as the rest.
 - [ ] **Divider cutting a Layers row in half.** Seen in a screenshot (half a `storefront_photo` row under the Layers/settings divider), but not seen on Frank's screen. Check at a few window sizes and divider positions before fixing anything.
 - [ ] **Motion.** Messages, the merge pill and the name tag appear and vanish instantly. Frank likes the snappy feel, so leave it unless something feels jarring in use. If anything, use very short fades (≤ 100 ms) and only on the bottom message.
 

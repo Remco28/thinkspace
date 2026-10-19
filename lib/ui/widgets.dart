@@ -669,35 +669,27 @@ class _RemoveMarksPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size s) {
     final u = s.width / 18; // drawn on an 18-unit grid
-    final line = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6 * u
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final line = _glyphStroke(color, u);
     // The mark: a loose squiggle across the lower left.
     final squiggle = Path()
       ..moveTo(1.8 * u, 13.2 * u)
       ..cubicTo(3.5 * u, 6.5 * u, 6.5 * u, 6.0 * u, 6.8 * u, 10.2 * u)
       ..cubicTo(7.1 * u, 14.6 * u, 10.2 * u, 14.8 * u, 11.2 * u, 9.6 * u);
     canvas.drawPath(squiggle, line);
-    // The badge: a cross in a filled circle, top right.
-    final centre = Offset(13.4 * u, 4.6 * u);
-    canvas.drawCircle(centre, 4.2 * u, Paint()..color = color);
-    final cross = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 1.3 * u
-      ..strokeCap = StrokeCap.round;
-    const k = 1.7;
+    // The badge: a cross in a ring, top right, in the same line.
+    final centre = Offset(13.6 * u, 4.4 * u);
+    final thin = _glyphStroke(color, u, width: 1.4);
+    canvas.drawCircle(centre, 3.6 * u, thin);
+    const k = 1.4;
     canvas.drawLine(
       centre + Offset(-k * u, -k * u),
       centre + Offset(k * u, k * u),
-      cross,
+      thin,
     );
     canvas.drawLine(
       centre + Offset(-k * u, k * u),
       centre + Offset(k * u, -k * u),
-      cross,
+      thin,
     );
   }
 
@@ -720,26 +712,111 @@ class _HideDetailsPainter extends CustomPainter {
   _HideDetailsPainter(this.color);
   final Color color;
 
-  // How strongly each tile of the 3 × 3 mosaic is inked, row by row.
-  static const _shades = [1.0, 0.35, 0.7, 0.5, 1.0, 0.3, 0.8, 0.45, 1.0];
-
   @override
   void paint(Canvas canvas, Size s) {
     final u = s.width / 18; // drawn on an 18-unit grid
-    const tile = 4.4, gap = 0.7, start = 2.3;
-    for (var i = 0; i < 9; i++) {
-      final x = start + (i % 3) * (tile + gap),
-          y = start + (i ~/ 3) * (tile + gap);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(x * u, y * u, tile * u, tile * u),
-          Radius.circular(0.8 * u),
-        ),
-        Paint()..color = color.withValues(alpha: color.a * _shades[i]),
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(2.5 * u, 2.5 * u, 13 * u, 13 * u),
+        Radius.circular(2 * u),
+      ),
+      _glyphStroke(color, u),
+    );
+    // A checker of four tiles inside the frame: two inked, two faint.
+    for (final (x, y, a) in [
+      (5.0, 5.0, 1.0),
+      (9.4, 9.4, 1.0),
+      (9.4, 5.0, 0.35),
+      (5.0, 9.4, 0.35),
+    ]) {
+      canvas.drawRect(
+        Rect.fromLTWH(x * u, y * u, 3.6 * u, 3.6 * u),
+        Paint()..color = color.withValues(alpha: color.a * a),
       );
     }
   }
 
   @override
   bool shouldRepaint(_HideDetailsPainter old) => old.color != color;
+}
+
+/// The toolbar's own icons, drawn on the same 18-unit grid and in the same
+/// line as Material's outline icons beside them.
+enum GlyphKind { text, marker, scissors, grid }
+
+class OutlineGlyph extends StatelessWidget {
+  const OutlineGlyph(this.kind, this.size, this.color, {super.key});
+  final GlyphKind kind;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    size: Size.square(size),
+    painter: _OutlinePainter(kind, color),
+  );
+}
+
+Paint _glyphStroke(Color color, double u, {double width = 1.6}) => Paint()
+  ..color = color
+  ..style = PaintingStyle.stroke
+  ..strokeWidth = width * u
+  ..strokeCap = StrokeCap.round
+  ..strokeJoin = StrokeJoin.round;
+
+class _OutlinePainter extends CustomPainter {
+  _OutlinePainter(this.kind, this.color);
+  final GlyphKind kind;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final u = s.width / 18;
+    final p = _glyphStroke(color, u);
+    Offset at(double x, double y) => Offset(x * u, y * u);
+    switch (kind) {
+      case GlyphKind.text:
+        canvas.drawPath(
+          Path()
+            ..moveTo(3.5 * u, 5.2 * u)
+            ..lineTo(3.5 * u, 3.5 * u)
+            ..lineTo(14.5 * u, 3.5 * u)
+            ..lineTo(14.5 * u, 5.2 * u),
+          p,
+        );
+        canvas.drawLine(at(9, 3.5), at(9, 14.5), p);
+        canvas.drawLine(at(6.8, 14.5), at(11.2, 14.5), p);
+      case GlyphKind.marker:
+        canvas.drawCircle(at(9, 9), 7 * u, p);
+        canvas.drawPath(
+          Path()
+            ..moveTo(7.4 * u, 6.8 * u)
+            ..lineTo(9.4 * u, 5.4 * u)
+            ..lineTo(9.4 * u, 12.6 * u),
+          p,
+        );
+      case GlyphKind.scissors:
+        canvas.drawCircle(at(5.2, 13.4), 2.4 * u, p);
+        canvas.drawCircle(at(12.8, 13.4), 2.4 * u, p);
+        canvas.drawLine(at(6.7, 11.6), at(12.6, 2.6), p);
+        canvas.drawLine(at(11.3, 11.6), at(5.4, 2.6), p);
+      case GlyphKind.grid:
+        final thin = _glyphStroke(color, u, width: 1.4);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(2.5 * u, 2.5 * u, 13 * u, 13 * u),
+            Radius.circular(2 * u),
+          ),
+          thin,
+        );
+        for (final t in [6.83, 11.17]) {
+          canvas.drawLine(at(t, 2.5), at(t, 15.5), thin);
+          canvas.drawLine(at(2.5, t), at(15.5, t), thin);
+        }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_OutlinePainter old) =>
+      old.color != color || old.kind != kind;
 }
