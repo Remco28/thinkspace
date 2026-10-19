@@ -438,7 +438,13 @@ class _SelectionActions extends StatelessWidget {
   final Size area;
   final VoidCallback refocus;
 
-  static const double _w = 188, _h = 30;
+  static const double _h = 30;
+  static const _labelStyle = TextStyle(
+    fontFamily: kUiFont,
+    fontSize: kTextBody,
+    fontWeight: kWeightStrong,
+    color: kInk,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -447,7 +453,16 @@ class _SelectionActions extends StatelessWidget {
     final bottom = c.toScreen(b.bottomCenter);
     // Below the selection and its handles; pulled inside the view if the
     // selection runs off the bottom or the sides.
-    final w = merge ? _w : 128.0;
+    // As wide as its label needs, measured in the font it is drawn in, so a
+    // different font or wording never wraps it.
+    final label = merge ? 'Merge into one image' : 'Unmerge';
+    final tp = TextPainter(
+      text: TextSpan(text: label, style: _labelStyle),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    final w = kSpace12 + kIcon + kSpace8 + tp.width + kSpace8 + 22 + kSpace8;
+    tp.dispose();
     final left = (bottom.dx - w / 2)
         .clamp(8.0, math.max(8.0, area.width - w - 8))
         .toDouble();
@@ -493,12 +508,10 @@ class _SelectionActions extends StatelessWidget {
                 const SizedBox(width: kSpace8),
                 Expanded(
                   child: Text(
-                    merge ? 'Merge into one image' : 'Unmerge',
-                    style: const TextStyle(
-                      fontSize: kTextBody,
-                      fontWeight: kWeightStrong,
-                      color: kInk,
-                    ),
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: _labelStyle,
                   ),
                 ),
                 KeyCap(merge ? 'M' : 'U', compact: true),

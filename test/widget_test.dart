@@ -1360,6 +1360,69 @@ void main() {
     expect(asked, [true, false]);
   });
 
+  appTest('F2 renames the selected object, or the layer just clicked', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    c.addObject(
+      ShapeObject(
+        id: 'box',
+        name: 'box',
+        ellipse: false,
+        center: const Offset(200, 200),
+        size: const Size(80, 60),
+      ),
+    );
+    c.select(['box']);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+    await tester.pump();
+    final field = find.byKey(const ValueKey('object-name-box'));
+    expect(field, findsOneWidget);
+    await tester.enterText(
+      find.descendant(of: field, matching: find.byType(TextField)),
+      'door',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(c.doc.objectById('box')!.name, 'door');
+    expect(c.renamingId, isNull);
+    // The keyboard is back with the editor: R picks the rectangle tool.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
+    await tester.pump();
+    expect(c.tool, Tool.rect);
+    c.setTool(Tool.select);
+
+    // Clicking a layer's row, then F2, renames the layer.
+    final layer = c.doc.layers.first;
+    await tester.tap(find.byKey(ValueKey('layer-${layer.id}')));
+    await tester.pump();
+    expect(c.pickedLayer, layer.id);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+    await tester.pump();
+    final lf = find.byKey(ValueKey('layer-name-${layer.id}'));
+    expect(lf, findsOneWidget);
+    await tester.enterText(
+      find.descendant(of: lf, matching: find.byType(TextField)),
+      'Shop',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(layer.name, 'Shop');
+
+    // Escape keeps the old name.
+    c.select(['box']);
+    c.beginRename('box');
+    await tester.pump();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(c.doc.objectById('box')!.name, 'door');
+    expect(c.renamingId, isNull);
+  });
+
   appTest('Hide details sits with Cut out and has no key', (tester) async {
     final c = await pumpApp(tester);
     final hide = find.byKey(const ValueKey('tool-hide'));

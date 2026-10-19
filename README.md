@@ -103,6 +103,7 @@ Touch and pen work too: one finger does what the mouse does, two fingers move an
 | `F11` | full screen, and back (also in the ☰ menu) |
 | `Ctrl+S` `O` `E` `I` | save · open · export PNG · add image |
 | `Ctrl+L` | lock the selection in place, or unlock it |
+| `F2` | rename what is selected, or the layer just clicked (on text: edit its words) |
 | `M` / `U` | merge the selection into one image / take a merged image apart (a small button under the selection does the same) |
 | `Ctrl+Shift+C` | copy the page as an image |
 | right-click | context menu for what is under the pointer |

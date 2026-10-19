@@ -378,8 +378,22 @@ class _EditorShellState extends State<EditorShell> {
               : c.beginCollectionRename(item);
           return KeyEventResult.handled;
         }
-        final one = c.single;
-        if (one != null && one is TextObject) c.beginTextEdit(one.id);
+        if (k == LogicalKeyboardKey.f2) {
+          // F2 renames: the layer whose row was just clicked, or the one
+          // selected thing. Text is the exception: F2 edits its words.
+          final layer = c.pickedLayer;
+          final one = c.single;
+          if (layer != null) {
+            c.beginRename(layer);
+          } else if (one is TextObject) {
+            c.beginTextEdit(one.id);
+          } else if (one != null) {
+            c.beginRename(one.id);
+          }
+        } else {
+          final one = c.single;
+          if (one is TextObject) c.beginTextEdit(one.id);
+        }
       case LogicalKeyboardKey.keyV:
         c.setTool(Tool.select);
       case LogicalKeyboardKey.keyL:

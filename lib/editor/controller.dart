@@ -555,6 +555,7 @@ class EditorController extends ChangeNotifier {
     }
     selection = ids;
     _listSel = null;
+    _pickedLayer = null;
     if (ids.length == 1) {
       final l = doc.layerOf(ids.first);
       if (l != null) currentLayerId = l.id;
@@ -666,6 +667,42 @@ class EditorController extends ChangeNotifier {
       for (final o in l.objects)
         if (o.visible && !o.locked) o.id,
     ];
+    _pickedLayer = layerId;
+    _pickedLayerSel = List.of(selection);
+    notifyListeners();
+  }
+
+  /// The layer whose row was the last thing clicked, while the selection is
+  /// still what that click picked: F2 then renames the layer, not an object.
+  String? get pickedLayer =>
+      _pickedLayer != null && listEquals(selection, _pickedLayerSel)
+      ? _pickedLayer
+      : null;
+  String? _pickedLayer;
+  List<String> _pickedLayerSel = const [];
+
+  // ---- renaming in place ----------------------------------------------------
+
+  /// The layer or object whose name is open for typing in the Layers list.
+  String? renamingId;
+
+  /// Counts renames begun, so the Layers list scrolls to each one once.
+  int renameCount = 0;
+
+  /// Open [id]'s name (a layer or an object) for typing in the Layers list,
+  /// unfolding its layer so the row can be seen.
+  void beginRename(String id) {
+    final layer = doc.layerById(id) ?? doc.layerOf(id);
+    if (layer == null) return;
+    if (layer.id != id) collapsedLayers.remove(layer.id);
+    renamingId = id;
+    renameCount++;
+    notifyListeners();
+  }
+
+  void endRename() {
+    if (renamingId == null) return;
+    renamingId = null;
     notifyListeners();
   }
 

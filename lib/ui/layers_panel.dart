@@ -9,32 +9,6 @@ import 'menus.dart';
 import 'widgets.dart';
 import 'design.dart';
 
-Future<String?> promptText(BuildContext context, String title, String initial) {
-  final ctl = TextEditingController(text: initial);
-  ctl.selection = TextSelection(baseOffset: 0, extentOffset: initial.length);
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: ctl,
-        autofocus: true,
-        onSubmitted: (v) => Navigator.pop(ctx, v),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, ctl.text),
-          child: const Text('OK'),
-        ),
-      ],
-    ),
-  );
-}
-
 IconData kindIcon(SceneObject o) => switch (o.kind) {
   ObjectKind.image => Icons.image_outlined,
   ObjectKind.text => Icons.title,
@@ -59,6 +33,7 @@ class _LayersPanelState extends State<LayersPanel> {
   EditorController get c => widget.controller;
   final _scroll = ScrollController();
   int _seenFresh = 0;
+  int _seenRename = 0;
 
   /// The new layer whose name is open for typing.
   String? _naming;
@@ -69,6 +44,7 @@ class _LayersPanelState extends State<LayersPanel> {
   void initState() {
     super.initState();
     _seenFresh = c.freshLayerCount;
+    _seenRename = c.renameCount;
   }
 
   @override
@@ -77,26 +53,46 @@ class _LayersPanelState extends State<LayersPanel> {
     super.dispose();
   }
 
-  /// A layer was just made: open its name and scroll it into view (rows have
-  /// fixed heights, so its place can be worked out without building it).
+  /// A layer was just made: open its name and scroll it into view.
   void _noticeFresh() {
     if (c.freshLayerCount == _seenFresh) return;
     _seenFresh = c.freshLayerCount;
     final id = c.freshLayerId;
     if (c.doc.layerById(id ?? '') == null) return;
     _naming = id;
+    _scrollToRow(id!);
+  }
+
+  /// A rename began (F2, a double-click, the menu): bring its row into view.
+  void _noticeRename() {
+    if (c.renameCount == _seenRename) return;
+    _seenRename = c.renameCount;
+    final id = c.renamingId;
+    if (id != null) _scrollToRow(id);
+  }
+
+  /// Scroll a layer's or an object's row into view. Rows have fixed heights,
+  /// so its place can be worked out without building it.
+  void _scrollToRow(String id) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
       var top = _pad;
+      var height = _layerRow;
+      search:
       for (final l in c.doc.layers.reversed) {
         if (l.id == id) break;
         top += _layerRow;
-        if (!c.collapsedLayers.contains(l.id)) {
-          top += l.objects.length * _objectRow;
+        if (c.collapsedLayers.contains(l.id)) continue;
+        for (final o in l.objects.reversed) {
+          if (o.id == id) {
+            height = _objectRow;
+            break search;
+          }
+          top += _objectRow;
         }
       }
       final pos = _scroll.position;
-      final rowBottom = top + _layerRow;
+      final rowBottom = top + height;
       double? to;
       if (top < pos.pixels) to = top - _pad;
       if (rowBottom > pos.pixels + pos.viewportDimension) {
@@ -117,6 +113,7 @@ class _LayersPanelState extends State<LayersPanel> {
       listenable: c,
       builder: (context, _) {
         _noticeFresh();
+        _noticeRename();
         final layers = c.doc.layers;
         final n = layers.length;
         return Column(
@@ -148,8 +145,11 @@ class _LayersPanelState extends State<LayersPanel> {
                     index: i,
                     collapsed: c.collapsedLayers.contains(layer.id),
                     fresh: c.freshLayerId == layer.id ? c.freshLayerCount : 0,
-                    naming: _naming == layer.id,
-                    onNamed: () => setState(() => _naming = null),
+                    naming: _naming == layer.id || c.renamingId == layer.id,
+                    onNamed: () {
+                      setState(() => _naming = null);
+                      c.endRename();
+                    },
                     onToggle: () {
                       c.collapsedLayers.contains(layer.id)
                           ? c.collapsedLayers.remove(layer.id)
@@ -205,10 +205,7 @@ class _LayerTile extends StatelessWidget {
           builder: (context, cand, _) => QuickTap(
             key: ValueKey('layer-${layer.id}'),
             onTap: () => c.selectLayerContents(layer.id),
-            onDoubleTap: () async {
-              final v = await promptText(context, 'Rename layer', layer.name);
-              if (v != null) c.renameLayer(layer.id, v);
-            },
+            onDoubleTap: () => c.beginRename(layer.id),
             onSecondaryTapDown: (d) => _menu(context, d.globalPosition),
             child: TweenAnimationBuilder<double>(
               key: ValueKey('layer-flash-$fresh'),
@@ -287,8 +284,9 @@ class _LayerTile extends StatelessWidget {
                   const SizedBox(width: kSpace4),
                   Expanded(
                     child: naming
-                        ? _LayerNameField(
+                        ? _NameField(
                             key: ValueKey('layer-name-${layer.id}'),
+                            strong: true,
                             initial: layer.name,
                             onDone: (v) {
                               if (v != null && v.trim() != layer.name) {
@@ -374,8 +372,7 @@ class _LayerTile extends StatelessWidget {
     if (!context.mounted) return;
     switch (v) {
       case 'rename':
-        final n = await promptText(context, 'Rename layer', layer.name);
-        if (n != null) c.renameLayer(layer.id, n);
+        c.beginRename(layer.id);
       case 'select':
         c.selectLayerContents(layer.id);
       case 'duplicate':
@@ -420,15 +417,28 @@ class _ObjectRow extends StatelessWidget {
           ),
           const SizedBox(width: kSpace8),
           Expanded(
-            child: Text(
-              object.name,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: kTextBody,
-                color: dim ? kInkFaint : kInk,
-                fontWeight: selected ? kWeightStrong : kWeightRegular,
-              ),
-            ),
+            child: c.renamingId == object.id
+                ? _NameField(
+                    key: ValueKey('object-name-${object.id}'),
+                    initial: object.name,
+                    onDone: (v) {
+                      if (v != null && v.trim().isNotEmpty) {
+                        if (v.trim() != object.name) {
+                          c.renameObject(object.id, v.trim());
+                        }
+                      }
+                      c.endRename();
+                    },
+                  )
+                : Text(
+                    object.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: kTextBody,
+                      color: dim ? kInkFaint : kInk,
+                      fontWeight: selected ? kWeightStrong : kWeightRegular,
+                    ),
+                  ),
           ),
           if (object.locked)
             SmallIconButton(
@@ -486,33 +496,35 @@ class _ObjectRow extends StatelessWidget {
           final kb = currentModifiers();
           c.clickListRow(object.id, shift: kb.shift, ctrl: kb.ctrl);
         },
-        onDoubleTap: () async {
-          final v = await promptText(context, 'Rename', object.name);
-          if (v != null) c.renameObject(object.id, v);
-        },
+        onDoubleTap: () => c.beginRename(object.id),
         child: row,
       ),
     );
   }
 }
 
-/// A new layer's name, open for typing with the old name selected. Enter or
-/// clicking elsewhere keeps what was typed; Escape keeps the name it had.
-/// Either way the keyboard goes back to the editor's shortcuts.
-class _LayerNameField extends StatefulWidget {
-  const _LayerNameField({
+/// A layer's or an object's name, open for typing in its row with the old
+/// name selected. Enter or clicking elsewhere keeps what was typed; Escape
+/// keeps the name it had. Either way the keyboard goes back to the editor's
+/// shortcuts.
+class _NameField extends StatefulWidget {
+  const _NameField({
     super.key,
     required this.initial,
     required this.onDone,
+    this.strong = false,
   });
   final String initial;
   final ValueChanged<String?> onDone;
 
+  /// In the weight of a layer's name rather than an object's.
+  final bool strong;
+
   @override
-  State<_LayerNameField> createState() => _LayerNameFieldState();
+  State<_NameField> createState() => _NameFieldState();
 }
 
-class _LayerNameFieldState extends State<_LayerNameField> {
+class _NameFieldState extends State<_NameField> {
   late final TextEditingController _ctl =
       TextEditingController(text: widget.initial)
         ..selection = TextSelection(
@@ -560,7 +572,10 @@ class _LayerNameFieldState extends State<_LayerNameField> {
       child: TextField(
         controller: _ctl,
         focusNode: _focus,
-        style: const TextStyle(fontSize: kTextBody, fontWeight: kWeightStrong),
+        style: TextStyle(
+          fontSize: kTextBody,
+          fontWeight: widget.strong ? kWeightStrong : kWeightRegular,
+        ),
         decoration: InputDecoration(
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(

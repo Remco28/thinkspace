@@ -66,7 +66,7 @@ const _sections = <(String, List<_Row>)>[
         [
           ['F2'],
         ],
-        'Edit the selected text, or rename the selected collection item',
+        'Rename what is selected, or the layer just clicked (on text: edit its words)',
       ),
       (
         [
