@@ -21,6 +21,7 @@ The values (colours, sizes, spacing, corners, timings) live in [`lib/ui/design.d
 - **Controls are shown even when they don't apply yet,** greyed until they do. Example: Reset to default.
 - **The active tool shows its key** as a small keycap under its button.
 - **Controls in the panel:** every field, dropdown, button and button group is the same height. A labelled action is a full-width outlined button (Cut out…, Fit page to content); a set of options or small actions is a joined group of icon buttons (Align, Arrange). A single icon action next to fields is a one-button group, so it is boxed like its neighbours.
+- **One thing looks selected.** In the Layers list only the selection is filled; the current layer has an accent bar at its left.
 - **Numbers sit on the right of their field,** so a unit (°, px, wide) is right beside them.
 
 ## Icons

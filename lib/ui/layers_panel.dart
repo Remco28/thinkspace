@@ -219,11 +219,14 @@ class _LayerTile extends StatelessWidget {
                 height: 34,
                 margin: const EdgeInsets.symmetric(horizontal: kSpace8),
                 padding: const EdgeInsets.only(left: kSpace2, right: kSpace4),
+                // The fill is for what is selected; the current layer is
+                // marked by the bar at its left instead, so one thing at a
+                // time looks selected. A new layer still glows briefly.
                 decoration: BoxDecoration(
                   color: cand.isNotEmpty
                       ? kAccent.withValues(alpha: 0.18)
-                      : isCurrent
-                      ? kAccent.withValues(alpha: 0.09 + 0.26 * glow)
+                      : glow > 0
+                      ? kAccent.withValues(alpha: 0.26 * glow)
                       : null,
                   borderRadius: BorderRadius.circular(kRadius),
                   border: cand.isNotEmpty || glow > 0
@@ -238,6 +241,15 @@ class _LayerTile extends StatelessWidget {
               ),
               child: Row(
                 children: [
+                  Container(
+                    key: isCurrent ? const ValueKey('current-layer-bar') : null,
+                    width: 3,
+                    height: kIconLarge,
+                    decoration: BoxDecoration(
+                      color: isCurrent ? kAccent : null,
+                      borderRadius: BorderRadius.circular(kRadiusPill),
+                    ),
+                  ),
                   ReorderableDragStartListener(
                     index: index,
                     child: const MouseRegion(

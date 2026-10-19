@@ -8,7 +8,7 @@ Work list for the `polish` branch. No new features: the goal is that Thinkspace 
 - [x] **One look per kind of control in the side panel.** Done: Layer is drawn as a field, the units sit against their numbers, the lone size button is boxed, and every control is 28 tall. Wide labelled buttons for actions and icon groups for options stay as the two button styles (recorded in `docs/DESIGN.md`).
 - [x] **"Image", never "picture".** Done: every label, tooltip and message, the README and the architecture notes. Past test guides are left as they were, since they record what was tested.
 - [x] **No repeated headings.** Done: the panel header names the kind; the section under it is titled for what it holds, **Style** for anything drawn and **Edit** for images. The text section's own Style row is now **Format**.
-- [ ] **One highlight in the Layers list.** The selected object's row and its layer's row are both tinted. The layer should be quieter.
+- [x] **One highlight in the Layers list.** Done: only what is selected is filled; the current layer (where new things go) is marked by a short accent bar at its left edge.
 - [ ] **Keycap no longer sits on the Collection header.** The hanging "V" (the active tool's key) lands on COLLECTION. Idea: start the tools where the page area starts, past the Collection panel. Open question: what happens when the Collection panel is hidden or resized?
 - [ ] **Bundle the interface font** (Inter, about 300 KB) so the app looks the same on every Linux desktop and on Windows.
 
