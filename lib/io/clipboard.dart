@@ -60,29 +60,59 @@ class SystemClipboard {
     }
   }
 
-  /// Put a PNG on the clipboard. Returns false if no tool is available.
+  /// The tools that put a picture on the clipboard, each with the one that
+  /// reads it back. Tests replace them.
+  static List<(List<String> write, List<String> read)> get linuxTools =>
+      linuxToolsOverride ??
+      [
+        if (_wayland)
+          (
+            ['wl-copy', '--type', 'image/png'],
+            ['wl-paste', '--no-newline', '--type', 'image/png'],
+          ),
+        (
+          ['xclip', '-selection', 'clipboard', '-t', 'image/png', '-i'],
+          ['xclip', '-selection', 'clipboard', '-t', 'image/png', '-o'],
+        ),
+      ];
+
+  static List<(List<String>, List<String>)>? linuxToolsOverride;
+
+  /// Put a PNG on the clipboard. True only once the clipboard is seen to
+  /// hold exactly this picture: a tool can start and still fail, and then
+  /// the clipboard keeps what was copied before (often the very screenshot
+  /// whose details were hidden), which is what would be pasted.
   static Future<bool> writeImage(Uint8List png) async {
     if (Platform.isWindows) return WinClipboard.writeImage(png);
-    final cmds = <List<String>>[
-      if (_wayland) ['wl-copy', '--type', 'image/png'],
-      ['xclip', '-selection', 'clipboard', '-t', 'image/png', '-i'],
-    ];
-    for (final cmd in cmds) {
+    for (final (write, read) in linuxTools) {
       try {
         // xclip and wl-copy stay alive to serve the selection, so don't wait
         // for them to exit.
         final p = await Process.start(
-          cmd.first,
-          cmd.sublist(1),
+          write.first,
+          write.sublist(1),
           mode: ProcessStartMode.detachedWithStdio,
         );
         p.stdin.add(png);
         await p.stdin.close();
+      } catch (_) {
+        continue; // not installed
+      }
+      for (var i = 0; i < 8; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 150));
-        return true;
-      } catch (_) {}
+        final back = await _run(read);
+        if (back != null && _same(back, png)) return true;
+      }
     }
     return false;
+  }
+
+  static bool _same(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   static const _pictureTypes = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'};

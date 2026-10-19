@@ -66,7 +66,7 @@ A `.thinkspace` project is one JSON file: `{format, version, document, assets: {
 
 `prefs.json` in the same folder (`lib/io/prefs.dart`) holds what belongs to the person, not to a project: the Layers/settings divider, each tool's look and the recent projects. The shell saves it by watching the controller: when the tool looks or the recent list change, it writes them a moment later, so no call site has to remember to save. An unreadable or odd file just means defaults.
 
-Clipboard images go through `xclip` or `wl-clipboard`, because Flutter's clipboard carries only text. When Thinkspace copies, it puts a rendered PNG on the system clipboard *and* remembers a signature of it, so a later paste can tell "my own copy" from "something new" and paste full-fidelity objects.
+Clipboard images go through `xclip` or `wl-clipboard`, because Flutter's clipboard carries only text. A copy counts only once the clipboard is read back and holds exactly the new picture; otherwise the next tool is tried and then the copy is reported as failed, because a silent failure leaves the previous picture there to be pasted. A selection copied as a picture takes along any Hide details boxes over it (`withCovers`). When Thinkspace copies, it puts a rendered PNG on the system clipboard *and* remembers a signature of it, so a later paste can tell "my own copy" from "something new" and paste full-fidelity objects.
 
 ### Inspector (`lib/dev/inspector.dart`)
 

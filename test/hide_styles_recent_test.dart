@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/editor/interactor.dart';
 import 'package:thinkspace/editor/render.dart';
+import 'package:thinkspace/io/clipboard.dart';
 import 'package:thinkspace/io/prefs.dart';
 import 'package:thinkspace/model/scene.dart';
 
@@ -93,6 +95,122 @@ void main() {
       final h = c.doc.allObjects.single as HideObject;
       expect(h.solid, isTrue);
       expect(h.color, 0xFF1E88E5);
+    });
+  });
+
+  group('copying never leaves hidden details behind', () {
+    test('a picture copied on its own takes the boxes over it along', () async {
+      final a = await makeAsset(c, w: 200, h: 100, centerColor: 0xFF0000FF);
+      c.currentLayer.objects.addAll([
+        ImageObject(
+          id: 'shot',
+          name: 'shot',
+          assetId: a.id,
+          center: const Offset(100, 50),
+          size: const Size(200, 100),
+        ),
+        HideObject(
+          id: 'h',
+          name: 'h',
+          center: const Offset(100, 50),
+          size: const Size(200, 100),
+          block: 100,
+        ),
+        // Off to the side: not over the picture, so not copied with it.
+        HideObject(
+          id: 'far',
+          name: 'far',
+          center: const Offset(900, 900),
+          size: const Size(50, 50),
+        ),
+      ]);
+      c.select(['shot']);
+      final objs = c.withCovers(c.selectedObjects);
+      expect(objs.map((o) => o.id), ['shot', 'h']);
+      final img = await c.renderObjects(objs);
+      final px = (await img.toByteData())!;
+      // The blue middle is averaged into its tiles: nowhere pure blue.
+      var blue = 0;
+      for (var i = 0; i < img.width * img.height; i++) {
+        final r = px.getUint8(i * 4), b = px.getUint8(i * 4 + 2);
+        if (b > 240 && r < 15) blue++;
+      }
+      expect(blue, 0);
+    });
+
+    test('a box under the picture is not a cover', () async {
+      final a = await makeAsset(c);
+      c.currentLayer.objects.addAll([
+        HideObject(
+          id: 'h',
+          name: 'h',
+          center: const Offset(100, 50),
+          size: const Size(200, 100),
+        ),
+        ImageObject(
+          id: 'shot',
+          name: 'shot',
+          assetId: a.id,
+          center: const Offset(100, 50),
+          size: const Size(200, 100),
+        ),
+      ]);
+      c.select(['shot']);
+      expect(c.withCovers(c.selectedObjects).map((o) => o.id), ['shot']);
+    });
+  });
+
+  group('the clipboard is checked, not trusted', () {
+    late Directory dir;
+    setUp(() => dir = Directory.systemTemp.createTempSync('ts_clip'));
+    tearDown(() {
+      SystemClipboard.linuxToolsOverride = null;
+      dir.deleteSync(recursive: true);
+    });
+
+    String script(String name, String body) {
+      final f = File('${dir.path}/$name')
+        ..writeAsStringSync('#!/bin/sh\n$body\n');
+      Process.runSync('chmod', ['+x', f.path]);
+      return f.path;
+    }
+
+    final png = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 1, 2, 3, 4, 5]);
+
+    test('a copy that took is reported as copied', () async {
+      final store = '${dir.path}/store';
+      SystemClipboard.linuxToolsOverride = [
+        ([script('put', 'cat > $store')], [script('get', 'cat $store')]),
+      ];
+      expect(await SystemClipboard.writeImage(png), isTrue);
+    });
+
+    test(
+      'a tool that starts but fails is caught; the next one is tried',
+      () async {
+        final store = '${dir.path}/store';
+        File(
+          store,
+        ).writeAsBytesSync([0x89, 0x50, 0x4E, 0x47, 9, 9]); // old copy
+        final broken = (
+          [script('lose', 'cat > /dev/null')],
+          [script('old', 'cat $store')],
+        );
+        SystemClipboard.linuxToolsOverride = [broken];
+        expect(await SystemClipboard.writeImage(png), isFalse);
+        SystemClipboard.linuxToolsOverride = [
+          broken,
+          ([script('put', 'cat > $store')], [script('get', 'cat $store')]),
+        ];
+        expect(await SystemClipboard.writeImage(png), isTrue);
+      },
+    );
+
+    test('no tool at all is a failure', () async {
+      SystemClipboard.linuxToolsOverride = [
+        (['/nonexistent/wl-copy'], ['/nonexistent/wl-paste']),
+      ];
+      expect(await SystemClipboard.writeImage(png), isFalse);
     });
   });
 

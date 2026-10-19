@@ -1688,38 +1688,71 @@ class EditorController extends ChangeNotifier {
   }
 
   void copySelection() {
-    final objs = selectedObjects;
+    final objs = withCovers(selectedObjects);
     if (objs.isEmpty) return;
     _clip = [for (final o in objs) o.copyWith()];
     _pasteCount = 0;
-    showToast('Copied');
+    final covers = objs.length - selection.length;
+    showToast(
+      covers > 0 ? 'Copied, with the hidden details over it' : 'Copied',
+    );
     unawaited(_copyRenderedSelection(objs));
+  }
+
+  /// [objs] in page order, plus every Hide details box that lies over them.
+  /// A picture copied on its own must still have its private parts hidden:
+  /// copying a screenshot and pasting it into an email is exactly when it
+  /// matters.
+  List<SceneObject> withCovers(List<SceneObject> objs) {
+    if (objs.isEmpty) return const [];
+    final chosen = {for (final o in objs) o.id};
+    final area = unionRects(objs.map((o) => o.bounds));
+    final out = <SceneObject>[];
+    for (final layer in doc.layers) {
+      for (final o in layer.objects) {
+        if (chosen.contains(o.id)) {
+          out.add(o);
+        } else if (o is HideObject &&
+            out.isNotEmpty &&
+            layer.visible &&
+            o.visible &&
+            o.bounds.overlaps(area)) {
+          out.add(o);
+        }
+      }
+    }
+    return out;
+  }
+
+  /// The selection drawn as one picture, as it is copied to the clipboard.
+  Future<ui.Image> renderObjects(List<SceneObject> objs) {
+    final b = unionRects(objs.map((o) => o.bounds)).inflate(2);
+    final rec = ui.PictureRecorder();
+    final c = ui.Canvas(rec);
+    c.translate(-b.left, -b.top);
+    paintObjects(c, objs, assets);
+    return rec.endRecording().toImage(b.width.ceil(), b.height.ceil());
   }
 
   Future<void> _copyRenderedSelection(List<SceneObject> objs) async {
     try {
-      final b = unionRects(objs.map((o) => o.bounds)).inflate(2);
-      final rec = ui.PictureRecorder();
-      final c = ui.Canvas(rec);
-      c.translate(-b.left, -b.top);
-      paintObjects(c, objs, assets);
-      final img = await rec.endRecording().toImage(
-        b.width.ceil(),
-        b.height.ceil(),
-      );
+      final img = await renderObjects(objs);
       final data = await img.toByteData(format: ui.ImageByteFormat.png);
       img.dispose();
       final png = data!.buffer.asUint8List();
       _lastCopySig = _sig(png);
       if (!await SystemClipboard.writeImage(png)) {
-        showToast(
-          'Copied inside Thinkspace. To paste into other apps, install xclip (X11) or wl-clipboard (Wayland)',
-        );
+        showToast(_copyFailed);
       }
     } catch (_) {
       showToast("Couldn't copy the selection as a picture");
     }
   }
+
+  /// Said when the clipboard did not take a picture: whatever was copied
+  /// before is still there, and pasting would give that instead.
+  static const _copyFailed =
+      'Copy failed: pasting elsewhere gives what was copied before. Export with Ctrl+E instead, or install wl-clipboard (Wayland) or xclip (X11)';
 
   void cutSelection() {
     copySelection();
@@ -1760,11 +1793,7 @@ class EditorController extends ChangeNotifier {
       final png = await exportPng();
       _lastCopySig = _sig(png);
       final ok = await SystemClipboard.writeImage(png);
-      showToast(
-        ok
-            ? 'Copied the page as an image'
-            : 'Install xclip (X11) or wl-clipboard (Wayland) to copy images',
-      );
+      showToast(ok ? 'Copied the page as an image' : _copyFailed);
     } catch (_) {
       showToast("Couldn't copy the page as an image");
     }
