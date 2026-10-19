@@ -708,7 +708,7 @@ void main() {
     tester,
   ) async {
     final c = await pumpApp(tester);
-    final hint = find.textContaining('Paste a picture');
+    final hint = find.textContaining('Paste an image');
     Offset pageCentre() => c.toScreen(
       Offset(c.doc.canvasSize.width / 2, c.doc.canvasSize.height / 2),
     );

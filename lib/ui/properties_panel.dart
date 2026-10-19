@@ -433,7 +433,7 @@ class PropertiesPanel extends StatelessWidget {
       key: const ValueKey('hl-keep-text'),
       label: 'Keep the text readable',
       hint:
-          'Tints the page and keeps writing under it dark. Turn off for dark pictures.',
+          'Tints the page and keeps writing under it dark. Turn off for dark images.',
       value: c.hlKeepText,
       onChanged: (v) {
         c.hlKeepText = v;
@@ -480,7 +480,7 @@ class PropertiesPanel extends StatelessWidget {
           key: const ValueKey('hl-keep-text'),
           label: 'Keep the text readable',
           hint:
-              'Tints the page and keeps writing under it dark. Turn off for dark pictures.',
+              'Tints the page and keeps writing under it dark. Turn off for dark images.',
           value: style == HighlightStyle.multiply,
           onChanged: (keep) {
             c.editSelected('highlight blend', (x) {
@@ -617,7 +617,7 @@ class PropertiesPanel extends StatelessWidget {
                 label: 'Merge into one image',
                 icon: Icons.layers_clear_outlined,
                 tooltip:
-                    'Turn everything selected into a single picture  (M). You can take it apart again later.',
+                    'Turn everything selected into a single image  (M). You can take it apart again later.',
                 onPressed: c.flattenSelection,
               ),
             ],
@@ -816,7 +816,7 @@ class PropertiesPanel extends StatelessWidget {
                     GroupButton(
                       icon: Icons.photo_size_select_actual_outlined,
                       tooltip:
-                          'Back to the picture’s own size (${a.width} × ${a.height})',
+                          'Back to the image’s own size (${a.width} × ${a.height})',
                       onPressed: () => c.editSelected(
                         'original size',
                         (x) => (x as ImageObject).size = Size(
@@ -1238,14 +1238,14 @@ class PropertiesPanel extends StatelessWidget {
     }
     if (o is ImageObject) {
       return Section(
-        title: 'Picture',
+        title: 'Image',
         children: [
           ActionButton(
             key: const ValueKey('cutout-button'),
             label: 'Cut out…',
             icon: Icons.content_cut,
             tooltip:
-                'Draw around the part you want. It becomes its own picture.  (C)',
+                'Draw around the part you want. It becomes its own image.  (C)',
             onPressed: () => c.setTool(Tool.cutout),
           ),
           ActionButton(
@@ -1253,7 +1253,7 @@ class PropertiesPanel extends StatelessWidget {
             label: 'Remove background',
             icon: Icons.auto_fix_high,
             tooltip:
-                'Make the background around the picture see-through. You can fine-tune it afterwards.',
+                'Make the background around the image see-through. You can fine-tune it afterwards.',
             onPressed: () => c.removeBackgroundFrom(o),
           ),
 
@@ -1262,7 +1262,7 @@ class PropertiesPanel extends StatelessWidget {
               key: const ValueKey('unmerge-button'),
               label: 'Unmerge into the original pieces',
               icon: Icons.call_split,
-              tooltip: 'Take this merged picture apart again  (U)',
+              tooltip: 'Take this merged image apart again  (U)',
               onPressed: c.unmerge,
             ),
         ],

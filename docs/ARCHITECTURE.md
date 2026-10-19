@@ -3,10 +3,10 @@
 Thinkspace keeps three things apart on purpose:
 
 - **The document** — the named things on the page and the changes someone meant.
-- **The picture** — how those things look right now, including zoom and pan.
+- **The image** — how those things look right now, including zoom and pan.
 - **The export** — a flat image, only when a flat image is wanted.
 
-Zoom changes the view, never an object's position in the document. A drag updates objects live so the picture follows the hand, and the history records it once, on release.
+Zoom changes the view, never an object's position in the document. A drag updates objects live so the image follows the hand, and the history records it once, on release.
 
 ## Layers of code
 
@@ -36,7 +36,7 @@ lib/dev       inspection         HTTP door, enabled by an environment variable
 
 `CanvasInteractor` turns pointer events into edits. Modes: pan, move, resize, rotate, line-end and bend, marquee, create (lines, shapes, Hide details boxes), pen, highlight, remove, lasso, box cutout, text box, canvas grip.
 
-Remove marks marks what it sweeps over in `EditorController.removing` (drawn faded) and deletes it all on release in one step; Esc clears the set. `EditorController.removable` decides what it may take: never pictures, text or Hide details boxes.
+Remove marks marks what it sweeps over in `EditorController.removing` (drawn faded) and deletes it all on release in one step; Esc clears the set. `EditorController.removable` decides what it may take: never images, text or Hide details boxes.
 
 The eyedropper renders the page once into raw pixels when it starts, so hovering reads colours without re-rendering; the colour picker reaches it through the `pickFromPage` hook the shell sets. Selection rules worth knowing:
 
@@ -49,9 +49,9 @@ The eyedropper renders the page once into raw pixels when it starts, so hovering
 
 The page is painted from the document by `paintDocumentObjects` (`render.dart`) — the **same function** draws the editor view and the export, so what you see is what you export. Overlays (selection outlines, handles, name chip, grips, marquee, lasso) are painted in screen space by `CanvasPainter` so they stay crisp at any zoom. Text objects are painted by `TextPainter`; while editing, a real `TextField` is laid over the object in the same transformed space.
 
-Objects with opacity are drawn into a `saveLayer`, so a rotated, semi-transparent picture fades as one thing.
+Objects with opacity are drawn into a `saveLayer`, so a rotated, semi-transparent image fades as one thing.
 
-`paintObjects` draws a list bottom to top and hands each Hide details box everything drawn before it. Pixelating draws that, in the box's own rotated frame, into a small picture with four samples per tile (`Picture.toImageSync`), shrinks it to one pixel per tile with mipmapped sampling (an average), and draws that back over the box with `FilterQuality.none`. Only objects that overlap the box are redrawn. Copying and merging go through `paintObjects` too, so nothing leaves the app un-hidden.
+`paintObjects` draws a list bottom to top and hands each Hide details box everything drawn before it. Pixelating draws that, in the box's own rotated frame, into a small image with four samples per tile (`Image.toImageSync`), shrinks it to one pixel per tile with mipmapped sampling (an average), and draws that back over the box with `FilterQuality.none`. Only objects that overlap the box are redrawn. Copying and merging go through `paintObjects` too, so nothing leaves the app un-hidden.
 
 ### Tool looks
 
@@ -67,7 +67,7 @@ A `.thinkspace` project is one JSON file: `{format, version, document, assets: {
 
 `prefs.json` in the same folder (`lib/io/prefs.dart`) holds what belongs to the person, not to a project: the Layers/settings divider, each tool's look and the recent projects. The shell saves it by watching the controller: when the tool looks or the recent list change, it writes them a moment later, so no call site has to remember to save. An unreadable or odd file just means defaults.
 
-Clipboard images go through `xclip` or `wl-clipboard`, because Flutter's clipboard carries only text. A copy counts only once the clipboard is read back and holds exactly the new picture; otherwise the next tool is tried and then the copy is reported as failed, because a silent failure leaves the previous picture there to be pasted. A selection copied as a picture takes along any Hide details boxes over it (`withCovers`). When Thinkspace copies, it puts a rendered PNG on the system clipboard *and* remembers a signature of it, so a later paste can tell "my own copy" from "something new" and paste full-fidelity objects.
+Clipboard images go through `xclip` or `wl-clipboard`, because Flutter's clipboard carries only text. A copy counts only once the clipboard is read back and holds exactly the new image; otherwise the next tool is tried and then the copy is reported as failed, because a silent failure leaves the previous image there to be pasted. A selection copied as an image takes along any Hide details boxes over it (`withCovers`). When Thinkspace copies, it puts a rendered PNG on the system clipboard *and* remembers a signature of it, so a later paste can tell "my own copy" from "something new" and paste full-fidelity objects.
 
 ### Inspector (`lib/dev/inspector.dart`)
 

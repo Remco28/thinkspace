@@ -1745,7 +1745,7 @@ class EditorController extends ChangeNotifier {
         showToast(_copyFailed);
       }
     } catch (_) {
-      showToast("Couldn't copy the selection as a picture");
+      showToast("Couldn't copy the selection as an image");
     }
   }
 
@@ -1923,7 +1923,7 @@ class EditorController extends ChangeNotifier {
       return _unmergeInto(o, rec, layer, map, sx, sy, k);
     } catch (_) {
       // A damaged record: the edit was rolled back, so nothing changed.
-      showToast("Couldn't unmerge this picture");
+      showToast("Couldn't unmerge this image");
       return const [];
     }
   }
@@ -2235,8 +2235,8 @@ class EditorController extends ChangeNotifier {
     if (unreadable > 0) {
       showToast(
         unreadable == 1
-            ? "1 picture couldn't be read and was left out"
-            : "$unreadable pictures couldn't be read and were left out",
+            ? "1 image couldn't be read and was left out"
+            : "$unreadable images couldn't be read and were left out",
       );
     }
     return unreadable;

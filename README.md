@@ -2,7 +2,7 @@
 
 A small, quick place to get an idea out of your head and onto a page — to show someone what you mean.
 
-Paste a screenshot or a photo, drop in more pictures, draw an arrow at the part that matters, fade one option, hide another, and send the result. It is what you reach for when GIMP is too slow, Paint is too thin and you do not want to learn a drawing suite.
+Paste a screenshot or a photo, drop in more images, draw an arrow at the part that matters, fade one option, hide another, and send the result. It is what you reach for when GIMP is too slow, Paint is too thin and you do not want to learn a drawing suite.
 
 ![Thinkspace with a storefront photo, a curved arrow, numbered markers and a selected awning](docs/screenshot.png)
 
@@ -17,33 +17,33 @@ Doing one small visual job used to mean bouncing between apps: one for a quick d
 Thinkspace keeps the few things that job needs in one place, and leaves the rest out:
 
 - **Fast, straight lines and arrows**, resizable by their ends. Drawing an arrow should never be a hoop.
-- **Real pictures** — screenshots, photos, images from the web — that stay separate, movable things.
-- **Layers for organising, not for effects**: show or hide, reorder, move together. A layer for the notes, a layer for one set of pictures, a layer for another.
+- **Real images** — screenshots, photos, anything from the web — that stay separate, movable things.
+- **Layers for organising, not for effects**: show or hide, reorder, move together. A layer for the notes, a layer for one set of images, a layer for another.
 
 A few rules follow from that, and every feature is weighed against them:
 
-- **Little things stay little things.** A pasted picture, a label or an arrow remains its own object until you deliberately merge it, and merging can be undone.
-- **Arranging, not painting.** Pieces are moved, sized, turned and faded, never smudged into the page. Changes that touch pixels (cutting out, removing a background) make a new picture and keep the original.
+- **Little things stay little things.** A pasted image, a label or an arrow remains its own object until you deliberately merge it, and merging can be undone.
+- **Arranging, not painting.** Pieces are moved, sized, turned and faded, never smudged into the page. Changes that touch pixels (cutting out, removing a background) make a new image and keep the original.
 - **The screen stays quiet.** Few tools, each obvious; shortcuts are taught on the toolbar itself, not in a manual.
 - **One gesture, one undo.** What your hand did once, Ctrl+Z takes back once.
 - **No graphics suite.** No masks, blend modes, filters, brushes, perspective or colour management. Each would be reasonable alone; together they would make this the slow app it is meant to replace.
 
 ## What it does
 
-- **Pictures stay separate things.** Paste, drop or import images. Each is its own object you can move, resize, rotate, fade and rename. Nothing is painted into the page until you export.
+- **Images stay separate things.** Paste, drop or import images. Each is its own object you can move, resize, rotate, fade and rename. Nothing is painted into the page until you export.
 - **Fast lines and arrows.** Straight lines and arrows that you resize by dragging their ends. `Shift` snaps them to clean angles. Drag the small diamond in the middle to bend one into a curve (it snaps back straight, or to an even arc, as you get close). Also rectangles, ellipses, numbered markers, text in four typefaces (sans, serif, mono, handwriting) and a smoothed pen; hold `Shift` with the pen for a straight line.
 - **Tools remember how you set them.** Each tool keeps its own colour, width and size, even after a restart, and changing something on the page changes its tool too. Each tool's settings end in a **Reset to default** link, which comes alive once they have been changed.
 - **Layers that do the simple things.** Show/hide, reorder, lock, and *move everything on a layer together* — click a layer to select its contents, then drag. Drag any object onto another layer without it changing. A new layer goes just above the current one, lights up and opens its name for typing.
 - **Lock things in place.** The padlock at the end of the selection's name tag (or `Ctrl+L`) locks it: a locked thing ignores clicks, so you can work on what is above it. Unlock it from its row in the Layers list.
-- **A collection of source images.** Keep pictures you have gathered but not placed. Drag one onto the page to use it; the original stays in the collection to use again. Every item has its own name; click an item to select it (`Enter` places it, `Delete` removes it, `F2` renames it on the spot), and drag one onto another to rearrange the shelf (or use `[` `]`). The collection is resizable and can be hidden.
-- **A highlighter.** Press `H`: drag over text in a screenshot like a marker (a quick, nearly level pass becomes a perfectly level bar; hold `Shift` for a straight line), or switch to Box and drag a rectangle over a whole area. Five highlighter colours; writing underneath stays dark, like a real marker (there is a switch for dark pictures, where it becomes a plain see-through colour).
-- **Tidy up without selecting.** **Remove marks** (`X`) sweeps away pen and highlighter marks, lines, arrows, shapes and markers you drag across; they fade as you pass and go when you let go, as one undo step. Pictures, text, locked things and hidden layers are never touched.
+- **A collection of source images.** Keep images you have gathered but not placed. Drag one onto the page to use it; the original stays in the collection to use again. Every item has its own name; click an item to select it (`Enter` places it, `Delete` removes it, `F2` renames it on the spot), and drag one onto another to rearrange the shelf (or use `[` `]`). The collection is resizable and can be hidden.
+- **A highlighter.** Press `H`: drag over text in a screenshot like a marker (a quick, nearly level pass becomes a perfectly level bar; hold `Shift` for a straight line), or switch to Box and drag a rectangle over a whole area. Five highlighter colours; writing underneath stays dark, like a real marker (there is a switch for dark images, where it becomes a plain see-through colour).
+- **Tidy up without selecting.** **Remove marks** (`X`) sweeps away pen and highlighter marks, lines, arrows, shapes and markers you drag across; they fade as you pass and go when you let go, as one undo step. Images, text, locked things and hidden layers are never touched.
 - **Hide what should not be shared.** **Hide details** (the mosaic button beside Cut out) is a box that pixelates whatever is under it, or covers it with a solid colour. It stays editable; exports and copies carry only the hidden version.
 - **A tidy side panel.** The layers list and the settings for whatever is selected share the right-hand column, with a draggable divider so you can give either more room (double-click it to reset). Any colour can be mixed with the colour picker, from the rainbow swatch, or taken straight from the page with its eyedropper.
-- **Cut things out.** Draw around the part of a picture you want (freehand or box) and it becomes a new object, leaving the original intact. Or click a colour to remove it, or clear a flat background in one click, then fine-tune it with a Less ↔ More slider (it can also clear the gaps inside a drawing, and it softens the edge, so a line drawing on white sits cleanly on any colour). Cutting can leave a gap in the original, which you can leave empty or fill with a colour. Choosing the cut-out tool opens a small card in the middle of the page that asks the questions in order: what to select (draw around it, a box, or a colour), whether to copy or cut, and what to leave behind. Pieces can be merged into a single image, and a merged image can be unmerged back into its original pieces for as long as the picture itself has not been cut or recoloured (moving, scaling, turning and fading do not matter).
+- **Cut things out.** Draw around the part of an image you want (freehand or box) and it becomes a new object, leaving the original intact. Or click a colour to remove it, or clear a flat background in one click, then fine-tune it with a Less ↔ More slider (it can also clear the gaps inside a drawing, and it softens the edge, so a line drawing on white sits cleanly on any colour). Cutting can leave a gap in the original, which you can leave empty or fill with a colour. Choosing the cut-out tool opens a small card in the middle of the page that asks the questions in order: what to select (draw around it, a box, or a colour), whether to copy or cut, and what to leave behind. Pieces can be merged into a single image, and a merged image can be unmerged back into its original pieces for as long as the image itself has not been cut or recoloured (moving, scaling, turning and fading do not matter).
 - **A page that grows with the work.** Drag the grips on the page edge (or type a size) to make room for a longer composition. Resizing never touches the objects on it. "Fit page to content" tightens it up again.
 - **A grid when you want one.** Show it, snap to it, hold `Ctrl` to ignore it. The grid is never part of the export.
-- **Select the thing you mean.** Overlapping pictures are a fact of life: click the same spot again to reach the one underneath (or `Alt`-click). The selected object wears its name and layer on the page.
+- **Select the thing you mean.** Overlapping images are a fact of life: click the same spot again to reach the one underneath (or `Alt`-click). The selected object wears its name and layer on the page.
 - **Undo that matches how you think.** One drag, one resize or one slider pull is one undo step.
 - **Share it.** Export a PNG (1×, 2×), or copy the page — or just the selection — to the clipboard as an image.
 - **Your work survives.** Projects save as one editable `.thinkspace` file (objects, layers and images), and **Open recent** in the ☰ menu lists the last eight. Unsaved work is autosaved and offered back after a crash, and closing with unsaved changes asks first.
@@ -68,7 +68,7 @@ sudo apt install xclip wl-clipboard
 
 Download `Thinkspace-Setup.exe` (an installer; no administrator needed, adds a Start-menu entry and opens `.thinkspace` files on double-click) or `thinkspace-windows-x64.zip` (unzip anywhere and run `thinkspace.exe`) from the releases page. Windows 10 or newer, 64-bit. The program is not signed, so the first run may show "Windows protected your PC": choose **More info**, then **Run anyway**.
 
-Nothing else is needed for the clipboard: take a screenshot with `Win+Shift+S` and press `Ctrl+V`, or copy picture files in Explorer and paste them. Unsaved work is kept in `%APPDATA%\Thinkspace`.
+Nothing else is needed for the clipboard: take a screenshot with `Win+Shift+S` and press `Ctrl+V`, or copy image files in Explorer and paste them. Unsaved work is kept in `%APPDATA%\Thinkspace`.
 
 Touch and pen work too: one finger does what the mouse does, two fingers move and zoom the page, holding a finger on something opens its menu, and a pen behaves like a mouse (its barrel button is a right click).
 
@@ -77,8 +77,8 @@ Touch and pen work too: one finger does what the mouse does, two fingers move an
 1. Take a screenshot to the clipboard, then press `Ctrl+V` in Thinkspace. Choose **Add to “Layer 1”** — the page becomes the size of your screenshot.
 2. Press `A`, drag across the screen to draw an arrow. Drag either end to resize it. `Shift` keeps it straight.
 3. Press `T`, click, type a note. Press `Esc` to finish.
-4. Paste another picture. It lands as its own object: drag it, pull a corner, grab the round handle to rotate, and slide **Opacity** in the panel.
-5. Add a layer (`+` in the Layers panel), drag the second picture onto it from the object list, and click the eye to flip between the two.
+4. Paste another image. It lands as its own object: drag it, pull a corner, grab the round handle to rotate, and slide **Opacity** in the panel.
+5. Add a layer (`+` in the Layers panel), drag the second image onto it from the object list, and click the eye to flip between the two.
 6. `Ctrl+E` exports a PNG. `Ctrl+Shift+C` copies the page so you can paste it into chat or email.
 
 ## Keyboard

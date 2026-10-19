@@ -419,7 +419,7 @@ class _EditorShellState extends State<EditorShell> {
           c.unmerge();
         } else if (c.selection.isNotEmpty) {
           c.showToast(
-            'That picture was not made by merging, so it cannot be unmerged',
+            'That image was not made by merging, so it cannot be unmerged',
           );
         }
       case LogicalKeyboardKey.bracketRight:
@@ -558,7 +558,7 @@ class _EditorShellState extends State<EditorShell> {
     }
     if (images.isEmpty) {
       c.showToast(
-        'Drop pictures (PNG, JPG, WebP, GIF, BMP) or a .thinkspace project',
+        'Drop images (PNG, JPG, WebP, GIF, BMP) or a .thinkspace project',
       );
       return;
     }
@@ -893,7 +893,7 @@ class _EmptyHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Text(
-    'Paste a picture (Ctrl+V), drop a file here,\nor press A to draw an arrow',
+    'Paste an image (Ctrl+V), drop a file here,\nor press A to draw an arrow',
     textAlign: TextAlign.center,
     style: TextStyle(fontSize: kTextTitle, height: 1.5, color: kInkFaint),
   );
@@ -1209,7 +1209,7 @@ class _BackgroundBar extends StatelessWidget {
           Tooltip(
             message:
                 'How different from the background a colour can be and still go. '
-                'More takes light greys and shadows too, but can start eating into the picture.',
+                'More takes light greys and shadows too, but can start eating into the image.',
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

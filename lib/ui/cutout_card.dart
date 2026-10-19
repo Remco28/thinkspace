@@ -144,7 +144,7 @@ class CutoutCard extends StatelessWidget {
                     SwitchRow(
                       key: const ValueKey('cut-touching'),
                       label: 'Only the part I click',
-                      hint: 'Off clears that colour everywhere in the picture.',
+                      hint: 'Off clears that colour everywhere in the image.',
                       value: c.wandContiguous,
                       onChanged: (v) {
                         c.wandContiguous = v;
@@ -402,7 +402,7 @@ class CutoutPill extends StatelessWidget {
     final text = c.cutoutMode == CutoutMode.wand
         ? 'Click a colour to remove it'
         : !onImage
-        ? 'Drag across a picture'
+        ? 'Drag across an image'
         : c.cutoutMode == CutoutMode.box
         ? 'Drag a box over the part to ${c.cutoutLeavesHole ? 'cut' : 'copy'}'
         : 'Draw around the part to ${c.cutoutLeavesHole ? 'cut' : 'copy'}';

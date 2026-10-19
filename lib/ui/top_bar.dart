@@ -309,7 +309,7 @@ class TopBar extends StatelessWidget {
           tooltip: switch (tool) {
             Tool.select => name,
             Tool.remove =>
-              '$name — drag across pen marks, lines and shapes to remove them. Pictures and text stay.',
+              '$name — drag across pen marks, lines and shapes to remove them. Images and text stay.',
             Tool.hide =>
               '$name — drag a box over names, passwords or numbers to pixelate them. Double-click to keep it active',
             _ => '$name — double-click to keep it active',
