@@ -160,7 +160,8 @@ void main() {
     });
   });
 
-  group('the clipboard is checked, not trusted', () {
+  // The Linux path: Windows has its own clipboard code and no /bin/sh.
+  group('the clipboard is checked, not trusted', skip: Platform.isWindows, () {
     late Directory dir;
     setUp(() => dir = Directory.systemTemp.createTempSync('ts_clip'));
     tearDown(() {
