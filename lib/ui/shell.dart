@@ -14,6 +14,7 @@ import '../editor/interactor.dart';
 import '../io/files.dart';
 import '../io/paths.dart';
 import '../io/prefs.dart';
+import '../io/recovery.dart';
 import '../model/scene.dart';
 import 'collection_panel.dart';
 import 'color_picker.dart' show pickFromPage;
@@ -115,11 +116,16 @@ class _EditorShellState extends State<EditorShell> {
         _keptSig = _keptPrefsSig();
         c.addListener(_keepPrefs);
       }
+      // Each window keeps its own recovery copy, so two open at once never
+      // overwrite each other's unsaved work.
+      if (widget.recoveryFile == null && data != null) {
+        _data = data;
+        _slot = RecoverySlot.claim(Directory(_recoveryDir(data)));
+      }
       c.recoveryFile =
           widget.recoveryFile ??
-          (data == null
-              ? null
-              : File('$data${Platform.pathSeparator}recovery.thinkspace'));
+          _slot?.file ??
+          (data == null ? null : File(_legacyRecovery(data)));
       if (c.recoveryFile != null) c.startAutosave(c.recoveryFile!);
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await _offerRecovery();
@@ -142,9 +148,56 @@ class _EditorShellState extends State<EditorShell> {
     }
   }
 
+  RecoverySlot? _slot;
+  String? _data;
+
+  static String _recoveryDir(String data) =>
+      '$data${Platform.pathSeparator}recovery';
+  static String _legacyRecovery(String data) =>
+      '$data${Platform.pathSeparator}recovery.thinkspace';
+
+  /// Unsaved work no open window is holding: left by a window that crashed.
+  List<File> _leftBehind() {
+    final data = _data;
+    if (data == null) {
+      final own = c.recoveryFile;
+      return own != null && own.existsSync() ? [own] : [];
+    }
+    return RecoverySlot.orphans(
+      Directory(_recoveryDir(data)),
+      legacy: File(_legacyRecovery(data)),
+      mine: _slot,
+    );
+  }
+
+  /// Offer back each copy of unsaved work left behind, newest first, until
+  /// one is restored into this window. The rest wait for the next window.
   Future<void> _offerRecovery() async {
-    final when = c.pendingRecovery();
-    if (when == null || !mounted) return;
+    for (final f in _leftBehind()) {
+      if (!mounted) return;
+      if (await _offerOne(f)) return;
+    }
+  }
+
+  /// True when [f] was restored into this window.
+  Future<bool> _offerOne(File f) async {
+    final DateTime when;
+    try {
+      when = f.lastModifiedSync();
+    } catch (_) {
+      return false;
+    }
+    final own = f.path == c.recoveryFile?.path;
+    void drop() {
+      if (own) {
+        c.clearRecovery();
+      } else {
+        try {
+          f.deleteSync();
+        } catch (_) {}
+      }
+    }
+
     final ago = DateTime.now().difference(when);
     final label = ago.inMinutes < 1
         ? 'a moment ago'
@@ -174,22 +227,31 @@ class _EditorShellState extends State<EditorShell> {
         ],
       ),
     );
-    if (restore == true) {
-      try {
-        await c.restoreRecovery();
-        c.showToast('Restored your unsaved work — save it to keep it');
-      } catch (_) {
-        c.showToast('That recovery file could not be read');
-        c.clearRecovery();
+    if (restore != true) {
+      drop();
+      return false;
+    }
+    try {
+      await c.restoreRecovery(from: f);
+      // Written to this window's own copy straight away, so the left-behind
+      // file can go without a moment where the work is only on screen.
+      if (!own) {
+        await c.autosaveNow();
+        if (c.recoveryFile?.existsSync() ?? false) drop();
       }
-    } else {
-      c.clearRecovery();
+      c.showToast('Restored your unsaved work — save it to keep it');
+      return true;
+    } catch (_) {
+      c.showToast('That recovery file could not be read');
+      drop();
+      return false;
     }
   }
 
   Future<ui.AppExitResponse> _onExitRequested() async {
     if (!c.dirty) {
       c.clearRecovery();
+      _slot?.release();
       return ui.AppExitResponse.exit;
     }
     final r = await showDialog<String>(
@@ -217,11 +279,15 @@ class _EditorShellState extends State<EditorShell> {
     );
     if (r == 'discard') {
       c.clearRecovery();
+      _slot?.release();
       return ui.AppExitResponse.exit;
     }
     if (r == 'save') {
       await _save();
-      if (!c.dirty) return ui.AppExitResponse.exit;
+      if (!c.dirty) {
+        _slot?.release();
+        return ui.AppExitResponse.exit;
+      }
     }
     return ui.AppExitResponse.cancel;
   }
@@ -307,7 +373,7 @@ class _EditorShellState extends State<EditorShell> {
         case LogicalKeyboardKey.keyI:
           _importImages();
         case LogicalKeyboardKey.keyN:
-          _new();
+          shift ? _newWindow() : _new();
         case LogicalKeyboardKey.keyL:
           c.toggleLockSelection();
         case LogicalKeyboardKey.digit0:
@@ -481,6 +547,20 @@ class _EditorShellState extends State<EditorShell> {
     return r == true;
   }
 
+  /// Another Thinkspace window, in a process of its own, for working on two
+  /// things at once.
+  Future<void> _newWindow() async {
+    try {
+      await Process.start(
+        Platform.resolvedExecutable,
+        const [],
+        mode: ProcessStartMode.detached,
+      );
+    } catch (_) {
+      c.showToast('Could not open another window');
+    }
+  }
+
   Future<void> _new() async {
     if (await _confirmDiscard()) c.newDocument();
   }
@@ -588,6 +668,8 @@ class _EditorShellState extends State<EditorShell> {
     switch (a) {
       case MenuAction.newDoc:
         _new();
+      case MenuAction.newWindow:
+        _newWindow();
       case MenuAction.open:
         _open();
       case MenuAction.openRecent:
@@ -761,7 +843,15 @@ class _EditorShellState extends State<EditorShell> {
   void _savePrefs() {
     _prefs.layersFraction = layersFraction;
     _prefs.toolStyles = c.toolStylesJson();
-    _prefs.recentFiles = c.recentFiles;
+    // Another window may have opened or saved projects since: keep those
+    // too, after this window's own.
+    final theirs = _prefs.file == null
+        ? const <String>[]
+        : Prefs(_prefs.file).recentFiles;
+    _prefs.recentFiles = [
+      ...c.recentFiles,
+      ...theirs.where((p) => !c.recentFiles.contains(p)),
+    ].take(EditorController.maxRecentFiles).toList();
     _prefs.save();
   }
 

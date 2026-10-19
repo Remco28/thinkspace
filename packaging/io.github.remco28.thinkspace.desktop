@@ -9,3 +9,8 @@ Terminal=false
 Categories=Graphics;
 MimeType=application/x-thinkspace;image/png;image/jpeg;
 StartupWMClass=io.github.remco28.thinkspace
+Actions=new-window;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=thinkspace

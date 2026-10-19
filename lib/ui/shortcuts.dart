@@ -196,6 +196,12 @@ const _sections = <(String, List<_Row>)>[
       ),
       (
         [
+          ['Ctrl', 'Shift', 'N'],
+        ],
+        'A new window, to work on two things at once',
+      ),
+      (
+        [
           ['?'],
         ],
         'Show this sheet',

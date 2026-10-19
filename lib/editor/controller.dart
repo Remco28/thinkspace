@@ -444,8 +444,10 @@ class EditorController extends ChangeNotifier {
     }
   }
 
-  Future<void> restoreRecovery() async {
-    final f = recoveryFile;
+  /// Load unsaved work back: this window's own copy, or [from], one left by
+  /// a window that did not close properly.
+  Future<void> restoreRecovery({File? from}) async {
+    final f = from ?? recoveryFile;
     if (f == null) return;
     await loadProjectJson(await f.readAsString());
     _savedSig = null; // it has never been saved under a real name

@@ -46,7 +46,7 @@ A few rules follow from that, and every feature is weighed against them:
 - **Select the thing you mean.** Overlapping images are a fact of life: click the same spot again to reach the one underneath (or `Alt`-click). The selected object wears its name and layer on the page.
 - **Undo that matches how you think.** One drag, one resize or one slider pull is one undo step.
 - **Share it.** Export a PNG (1×, 2×), or copy the page — or just the selection — to the clipboard as an image.
-- **Your work survives.** Projects save as one editable `.thinkspace` file (objects, layers and images), and **Open recent** in the ☰ menu lists the last eight. Unsaved work is autosaved and offered back after a crash, and closing with unsaved changes asks first.
+- **Your work survives.** Projects save as one editable `.thinkspace` file (objects, layers and images), and **Open recent** in the ☰ menu lists the last eight. Unsaved work is autosaved, each window on its own, and offered back after a crash; closing with unsaved changes asks first.
 
 ## Install
 
@@ -102,6 +102,7 @@ Touch and pen work too: one finger does what the mouse does, two fingers move an
 | `G` / `Shift+G` | show grid / snap to grid |
 | `F11` | full screen, and back (also in the ☰ menu) |
 | `Ctrl+S` `O` `E` `I` | save · open · export PNG · add image |
+| `Ctrl+Shift+N` | a new window, to work on two things at once (also in the ☰ menu, and the dock icon's menu on Linux) |
 | `Ctrl+L` | lock the selection in place, or unlock it |
 | `F2` | rename what is selected, or the layer just clicked (on text: edit its words) |
 | `M` / `U` | merge the selection into one image / take a merged image apart (a small button under the selection does the same) |

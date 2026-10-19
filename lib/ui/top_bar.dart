@@ -8,6 +8,7 @@ import 'design.dart';
 
 enum MenuAction {
   newDoc,
+  newWindow,
   open,
   openRecent,
   save,
@@ -132,6 +133,12 @@ class TopBar extends StatelessWidget {
                           'New',
                           'Ctrl+N',
                           icon: Icons.note_add_outlined,
+                        ),
+                        _item(
+                          MenuAction.newWindow,
+                          'New window',
+                          'Ctrl+Shift+N',
+                          icon: Icons.open_in_new,
                         ),
                         _item(
                           MenuAction.open,

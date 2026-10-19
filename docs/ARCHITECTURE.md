@@ -63,7 +63,7 @@ Each tool has a `ToolStyle` (colour, width, fill, size, font and a few tool-spec
 
 ### Files
 
-A `.thinkspace` project is one JSON file: `{format, version, document, assets: {id: base64}}`. Only assets still referenced are written. Loading decodes into a scratch store first, so a bad file leaves the open project alone. Autosave writes the same format to `~/.local/share/thinkspace/recovery.thinkspace` (or `$THINKSPACE_DATA_DIR`) when there are unsaved changes.
+A `.thinkspace` project is one JSON file: `{format, version, document, assets: {id: base64}}`. Only assets still referenced are written. Loading decodes into a scratch store first, so a bad file leaves the open project alone. Autosave writes the same format when there are unsaved changes, one file per window in `~/.local/share/thinkspace/recovery/` (or under `$THINKSPACE_DATA_DIR`). Several windows can be open at once, so each holds a lock beside its own copy while it runs (`lib/io/recovery.dart`); at start-up only copies nobody holds, left by a window that never closed properly, are offered back, newest first. The single `recovery.thinkspace` of older versions is offered too.
 
 `prefs.json` in the same folder (`lib/io/prefs.dart`) holds what belongs to the person, not to a project: the Layers/settings divider, each tool's look and the recent projects. The shell saves it by watching the controller: when the tool looks or the recent list change, it writes them a moment later, so no call site has to remember to save. An unreadable or odd file just means defaults.
 
