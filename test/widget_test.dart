@@ -1469,6 +1469,26 @@ void main() {
     await tester.pump();
     expect(c.styleOf(Tool.hide).solid, isTrue);
   });
+
+  appTest('a kept tool shows its padlock under its own button', (tester) async {
+    final c = await pumpApp(tester);
+    final undoX = tester.getCenter(find.byKey(const ValueKey('undo'))).dx;
+    c.setTool(Tool.ellipse, lock: true);
+    await tester.pump();
+    final lock = find.byKey(const ValueKey('tool-lock'));
+    final tool = find.byKey(const ValueKey('tool-ellipse'));
+    expect(lock, findsOneWidget);
+    expect(tester.getCenter(lock).dx, closeTo(tester.getCenter(tool).dx, 12));
+    expect(
+      tester.getTopLeft(lock).dy,
+      greaterThan(tester.getBottomLeft(tool).dy),
+    );
+    // The rest of the bar stays where it was.
+    expect(tester.getCenter(find.byKey(const ValueKey('undo'))).dx, undoX);
+    c.setTool(Tool.select);
+    await tester.pump();
+    expect(lock, findsNothing);
+  });
 }
 
 // Smaller windows (a laptop with the panels open) must still lay out cleanly.

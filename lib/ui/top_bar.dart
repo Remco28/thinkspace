@@ -260,15 +260,6 @@ class TopBar extends StatelessWidget {
                 if (i > 0) _sep(),
                 for (final t in group) _toolButton(t),
               ],
-              if (c.toolLocked)
-                const Padding(
-                  padding: EdgeInsets.only(left: kSpace4),
-                  child: Tooltip(
-                    message:
-                        'Tool stays active — press Esc to go back to Select',
-                    child: Icon(Icons.lock, size: kIconSmall, color: kAccent),
-                  ),
-                ),
               _sep(),
               SmallIconButton(
                 key: const ValueKey('undo'),
@@ -340,32 +331,48 @@ class TopBar extends StatelessWidget {
             Tool.cutout => (s, c) => OutlineGlyph(GlyphKind.scissors, s, c),
             _ => null,
           },
-          tooltip: switch (tool) {
-            Tool.select => name,
-            Tool.remove =>
-              '$name — drag across pen marks, lines and shapes to remove them. Images and text stay.',
-            Tool.hide =>
-              '$name — drag a box over names, passwords or numbers to pixelate them. Double-click to keep it active',
-            _ => '$name — double-click to keep it active',
-          },
+          tooltip: c.tool == tool && c.toolLocked
+              ? '$label stays active — press Esc to go back to Select'
+              : switch (tool) {
+                  Tool.select => name,
+                  Tool.remove =>
+                    '$name — drag across pen marks, lines and shapes to remove them. Images and text stay.',
+                  Tool.hide =>
+                    '$name — drag a box over names, passwords or numbers to pixelate them. Double-click to keep it active',
+                  _ => '$name — double-click to keep it active',
+                },
           active: c.tool == tool,
           onPressed: () => _toolTap(tool),
         ),
         // The active tool shows its key as a little keycap hanging over the
         // bar's lower edge, so the shortcuts get learned without anyone
-        // reading a list and the row stays level.
-        if (c.tool == tool && key != null)
+        // reading a list and the row stays level. A tool kept active shows a
+        // padlock there too, under the tool it belongs to.
+        if (c.tool == tool && (key != null || c.toolLocked))
           Positioned(
             left: -8,
             right: -8,
             top: 30,
             child: IgnorePointer(
-              child: Center(
-                child: KeyCap(
-                  key,
-                  key: ValueKey('tool-key-${tool.name}'),
-                  compact: true,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (key != null)
+                    KeyCap(
+                      key,
+                      key: ValueKey('tool-key-${tool.name}'),
+                      compact: true,
+                    ),
+                  if (key != null && c.toolLocked)
+                    const SizedBox(width: kSpace2),
+                  if (c.toolLocked)
+                    const Icon(
+                      Icons.lock,
+                      key: ValueKey('tool-lock'),
+                      size: kIconSmall,
+                      color: kAccent,
+                    ),
+                ],
               ),
             ),
           ),
@@ -382,7 +389,6 @@ class TopBar extends StatelessWidget {
     final dividers = _toolGroups.length - 1 + 2;
     return buttons * kControlHeight +
         dividers * (1 + 2 * kSpace8) +
-        (c.toolLocked ? kIconSmall + kSpace4 : 0) +
         2 * kSpace8;
   }
 
