@@ -227,3 +227,48 @@ Predictions (written before the round):
 
 ## Mistakes the next author will make
 (filled in as the work goes)
+
+Cast:
+- Whole-code reader: Codex `gpt-6-luna`, workspace-write on its own copy. Its
+  first run refused (the copy is not a git repo); it was re-run with
+  `--skip-git-repo-check`.
+- File-safety specialist: Gemini (`agy`), with a copy of the old build
+  (`500f942`).
+- Rules reader: Claude subagent, driving the real app through the inspector and
+  writing scratch tests.
+
+| # | Finding | Reader (their rating) | Ours | How checked | Reaches | Done |
+|---|---|---|---|---|---|---|
+| F1 | Dragging the body of an **already-selected** connector that sits over anything moves it instead of bending it. A pinned tip re-pins to a different spot of the picture; between two text boxes the drag does nothing. Cause: the click-to-cycle flag (`_clickOnSelectedTop`) skips the bend branch in `_downSelect` | Rules (MED) | MEDIUM: visible and undoable, but it happens most times Frank drags an arrow on a screenshot | reader's test + read in source (interactor.dart:330–353) | how it is used now | fix, after a peer step |
+| F2 | A curved connector changes shape (middle ~8–16 px) when one of its targets is deleted, merged away or left out of a copy: the curve was measured from that target's centre, then from the line's own end | Rules (LOW) | LOW: a few pixels, visible, only on curved connectors | reader's test + read in source (`_relink`: `a1 = l.p1` once `start` is dropped) | how it is used now | fix: re-fit `anchorBend` to the drawn curve when an end goes free |
+| F3 | No Border row when pictures/text are selected together with anything else (e.g. three screenshots and an arrow) | Rules (LOW) | LOW | read in source (`_selection`) | how it is used now | fix: show it when any selected object takes a border; it applies to those |
+| F4 | Text boxes have round corners (6 px + border), but ends ride a square outline: aimed at a corner, the tip stops 4–8 px short | Rules (LOW) | LOW | read in source (`outlineOf`) | how it is used now | fix: the outline's corners are round for text |
+| F5 | `borderWidth` is written to the file whenever it isn't 4, even with no border (B8: only when one is set) | Rules (LOW) | LOW | read in source (`frameJson`) | how it is used now | fix |
+
+Rules reader, PASS on everything else, checked in the real app:
+- old files: no pixel of export differs, and they re-save identical;
+- a new file opens in the old build;
+- export and copy match the canvas.
+
+The whole-code and file-safety readers found nothing. Each listed what it
+checked; see their reports.
+
+What happened against the predictions:
+- 5 verified findings, inside the predicted 3–5, but **no HIGH**.
+- All are in interaction or drawing details, as predicted.
+- File compatibility held: two readers, two models, nothing found.
+- My two predicted LOWs (the hidden curve freeze, and the editing frame drawn
+  on top) were **not** found. The reader found other ones: F2 to F5.
+
+Believed, and wrong: "The body-drag bend works whenever the connector is the
+only thing selected." It works only when nothing else is under the press,
+which on a screenshot is almost never. The plan said "(or becomes so by the
+press)" and the build tied it to the click-cycle flags without anyone
+noticing. My own gesture test drew the connector over empty page.
+
+### Peer step for the F1 fix
+Plan: in `_downSelect`, a press that lands on the single selected connector
+starts a body bend, whatever the click-cycling flags say. The flags are still
+worked out, and on a release without movement the existing click behaviour
+runs (`_finishClick`: pick what is beneath, cycle, or select the top). That
+covers presses on a connector with things above or below it.
