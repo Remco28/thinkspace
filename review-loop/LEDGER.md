@@ -344,3 +344,47 @@ Cast:
 - **The file-safety specialist is rested this round:** one clean round, so not
   yet retired. Its lens is narrow, and the round-1 fixes don't touch saving or
   loading except F5, which the fix auditor covers.
+
+| # | Finding | Reader (their rating) | Ours | How checked | Reaches | Done |
+|---|---|---|---|---|---|---|
+| G1 | Align with a screenshot, a mark pinned on it and a caption: the screenshot (shift 0) doesn't count as moving, so the mark re-pins about 140 px away on the same screenshot. Align right keeps it | Rules (MED) | MEDIUM: visible and undoable; drag-select plus align is ordinary | reader's test + read in source (`alignSelection`: only non-zero shifts count). **Caused by my own v4 choice** ("for align, actually translated by a non-zero amount", from R8) | how it is used now | fixed after a peer step |
+| G2 | Arrow tails float beside short labels without a backdrop: a click-made text box is 320 px wide, so the end sits on the invisible box edge, ~90 px past the last letter | Rules (outside the rules) | MEDIUM: visible in exports. It follows B4/C2 as written | reader's probe | how it is used now | **to Frank**: a rule question |
+| G3 | Merging a screenshot and its label without the arrow between them puts the merged picture on top, covering the arrow; unmerge doesn't bring it back | Rules (outside the rules; z-order existed before) | MEDIUM: visible, recoverable (reorder) | reader's probe | how it is used now | **to Frank**: the behaviour predates this work |
+| G4 | "A connector ends 5 px outside a bordered text box: the border is painted w/2 outside, geometry uses w" | Codex whole-code (MED) | **rejected** | **killed by pixels**: with a 10 px border, pixels 1–9 px out are border and 11 px out is page; the tip is at 10 px. The stroke is centred w/2 outside with width w, so it covers 0..w | — | none |
+| G5 | `attachTargetAt`'s box test ignores the text box's round corners: an end dropped just past the arc snaps onto the box | Fix auditor (LOW) | LOW: edge case, visible, Ctrl or a drag away | read in source (`_withinOutline`) | how it is used now | fixed |
+
+Fix auditor on round-1 fixes F1 to F5: all **GONE**; nothing broken; one change
+missed in one place (G5). The whole-code reader could not run the tests (the
+SDK wanted to write outside its sandbox) and read the source instead.
+
+### Peer step for the G1 fix (`round-2/peer-g1/`)
+- Plan: every selected, unlocked object counts as moving for the pins.
+- Critic (Codex): it fixes the bug, but with a side effect, MEDIUM: a mark
+  with a zero shift whose picture is *not* selected would be held and
+  re-pinned, and could switch to another picture stacked above it.
+- Blind solver (Claude) found the same thing independently, and designed:
+  - `holdPins(moving, group:)`: pins come off only lines that really shift,
+    and only where their picture is not in the aligned set;
+  - lines attached only to aligned things ride along with no shift of their
+    own.
+- Taken. Declined from the solver: leaving such lines out of the alignment
+  frame. That would change today's align results for lines that stick out,
+  which nobody asked for.
+
+Fixes, commit after `3bceef5`: G1 and G5, with tests. There are 305 tests in
+all.
+
+What happened against the predictions:
+- **Predicted** that the fix auditor would find at least one fix that did not
+  land, most likely F2's `refitBend` or F1's click path. **Wrong.** All five
+  landed; it found a missed spot (G5), not a failed fix.
+- **Predicted** 1–3 verified findings, no HIGH. **Right:** G1 and G5, plus two
+  rule questions.
+- **Predicted** that the whole-code reader would find nothing new. **Close:**
+  its one finding was killed by pixels.
+- **Predicted** that the rules reader would confirm F1 in the real app.
+  **Right**, it passes.
+
+Believed, and wrong: "Align should count only what actually moves." I wrote
+that into v4 from a critic's wording question (R8). It reads as more precise,
+and it is exactly what makes a mark slide off its unmoved picture.
