@@ -72,14 +72,71 @@ Connectors:
 - C14. Stored as an ordinary line plus a note of what each end is attached to;
   older builds see a line.
 
+Added after peer pass 1 (Frank's answers, 2026-10-27):
+- C6 (revised) / C16. A line whose attached ends are all pins on pictures is a
+  mark on a picture: dragging it, arrow keys and align move it as today and it
+  re-pins where it lands. A line with any edge-riding end is a connector:
+  dragging its body bends it; arrow keys and align move only its pinned and free
+  ends, and edge-riding ends stay on their outlines.
+- B10. The shadow follows the visible shape (a cut-out's outline; the letters of
+  text without a backdrop; otherwise the box) and always falls downward on the
+  page.
+- C15. An end dropped inside an unfilled rectangle or ellipse attaches to it only
+  near its outline; further inside it passes through to what is below.
+- B11. Clicking a border selects the object; the border also counts for dropping
+  arrow ends. Aligning, snapping and size boxes still use the object's own edge.
+
 ## Peer step 1, 2026-10-27, plan at `borders-connectors/PLAN.md`
 Cast:
 - Critic A: Codex `gpt-6-luna`, read-only sandbox, given the plan and the repo.
-- Critic B: Grok `grok-4.7`, given the plan and the repo.
-- Blind solver A: Gemini via `agy`, given the problem and the rules only.
+- Critic B: planned as Grok `grok-4.7`, which hung twice in headless mode with
+  no answer; then DeepSeek via opencode, which hit opencode's free usage limit
+  (so did GLM). It was run as a **Claude subagent**, the same model family as the
+  author and solver B, so its agreement with solver B counts for less.
+- Blind solver A: Gemini via `agy` (`gemini-3.8-flash-high`), given the problem
+  and the rules only. The first run was refused a shell permission; re-run with
+  `--dangerously-skip-permissions` (it ran `office begin`; it changed no files).
 - Blind solver B: Claude subagent, given the problem and the rules only.
 
 Reports are in `borders-connectors/peer-1/`.
+
+| # | Finding | From (their rating) | Ours | How checked | Done |
+|---|---|---|---|---|---|
+| P1 | A click on an attached end's handle detaches it (handle grab 9/zoom vs hit tolerance 4/zoom) | Critic B (HIGH) | HIGH | read in source (interactor.dart:168, controller.dart:856) | v2: nothing changes until moved |
+| P2 | Attach lookup via `objectsAt` skips locked targets, so it hits what is underneath | Critic A (HIGH), Critic B (MED), both solvers | HIGH | read in source (controller.dart:856) | v2: `attachTargetAt` |
+| P3 | A pin can land outside its picture (hit tolerance) | Critic A (MED) | MEDIUM | read in source (scene.dart:240) | v2: opaque pixel required, pin clamped |
+| P4 | Unmerge brings back stale attachments, and doesn't scale border width | Critic B (MED), solver B | MEDIUM | read in source (`_unmergeInto`, controller.dart:1977–2008) | v2: batch remap, scale by k |
+| P5 | Pushing the end out by `w` along the ray leaves the tip inside the border at an angle | Critic B (MED) | MEDIUM | geometry (w·cosθ) | v2: intersect the grown outline |
+| P6 | `paintBounds` too small for turned objects | Critic B (MED) | MEDIUM | geometry | v2: from turned corners; margins kept |
+| P7 | Bending a connector drifts from the pointer; the middle jumps to the press | Critic B (MED), solver B | MEDIUM | read in source (`_doBend`) | v2: `anchorBend`, grab parameter t |
+| P8 | Relink does run after restore, load and recovery; must be idempotent and run before `markSaved` | Critic B (LOW), solver B | MEDIUM: a dangling attachment would leave doc ≠ disk with dirty false, unnoticed | read in source (`loadProjectJson`, `showToast`) | v2: invariant + tests + before markSaved |
+| P9 | Nudge, align and position boxes on an attached line swing it | Critic B (LOW), solver B | MEDIUM: visible, and it is the commonest edit | read in source (`nudge`) | Frank decided → C16 |
+| P10 | Shadow as a box shows through cut-outs and text; offset sideways when rotated | Critic B (LOW), solver B | LOW | reasoning | Frank decided → B10 |
+| P11 | A mixed picture + text selection gets no Border row (B5) | Critic B (LOW) | LOW | read in source (`_typeSectionMulti`) | v2: fixed |
+| P12 | Arrows drawn on a screenshot pin to it, so a drag bends them: moving arrows stops working | Critic B (LOW), solver B | HIGH: the commonest edit breaks | reasoning from C4+C6+C11 | Frank decided → C16 |
+| P13 | A curved end must aim at the control point, not the curve's middle | Solver A | MEDIUM | geometry | v2: fixed |
+| P14 | Text being edited is not painted, so its border would vanish while typing | Solver B | LOW | read in source (canvas_painter.dart:39) | v2: fixed |
+| P15 | Parse the new fields defensively; never use the key `asset` | Solver B | MEDIUM: a bad field fails the whole file | read in source | v2: fixed |
+| P16 | `withCovers` must use the painted extent | Solver B | LOW | read in source | v2: fixed |
+| P17 | Plain line ends' round caps overlap the outline by half the width | Solver B | LOW | read in source (`_linePaint`) | v2: pulled back |
+| P18 | Clicking the border should select the object | Solver A | LOW | — | Frank decided → B11 |
+| P19 | "Give all pictures this border": locked/hidden layers? | Solver A, solver B | LOW | — | v2: skips locked + locked/hidden layers |
+| P20 | An unfilled shape's hit test is only its outline | Critic B, solver B | MEDIUM | read in source | Frank decided → C15 |
+
+Declined:
+- **"Skip re-projecting ends moved together" (solver A, `movedTogetherIds`).**
+  Translating everything and then relinking from the moved anchors gives the
+  same result, with one fewer special case.
+- **"Run relink before export and save" (solver A).** Relink already runs on
+  every notify and `endEdit`, so the stored state is current. Export must not
+  change the document.
+
+Direction: the plan **grew**. It has one more stored field (`anchorBend`), a new
+lookup (`attachTargetAt`) and four new rules. Most of that growth is the rules
+Frank decided, not new mechanism; `anchorBend` is the one new piece of state.
+Pass 2 decides whether it is growing for good.
+
+## Peer step 2, 2026-10-27, plan v2
 
 ## Mistakes the next author will make
 (filled in as the work goes)
