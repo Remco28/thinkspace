@@ -298,3 +298,49 @@ Fixes, commit `08888db`:
 - F5: `borderWidth` is written only with a border.
 
 All fixes have tests; there are 303 tests in all.
+
+### Disposition audit, round 1 (Codex `gpt-6-luna`; `round-1/audit/`)
+- **Rated too soft, and accepted:**
+  - P10 and R5 (the shadow shape): LOW → **MEDIUM**;
+  - F2 (a curve shifting when its target goes): LOW → **MEDIUM**;
+  - F4 (the tip short of a round corner): LOW → **MEDIUM**.
+
+  The profile's rule is explicit: "visible" or "recoverable" never makes a
+  finding LOW, and my reasons ("cosmetic", "a few pixels") were exactly that.
+  All four are fixed.
+- **Consequence, a breach of the method:** F2 and F4 were fixed **without the
+  peer step** the profile requires for MEDIUM fixes, because they were rated
+  LOW when built. Round 2's fix auditor reviews those hunks; that is the
+  mitigation, not a substitute.
+- **Upheld:**
+  - R1 at MEDIUM (an unusual sequence);
+  - F1 at MEDIUM;
+  - F3 and F5 at LOW;
+  - all three declines (`movedTogetherIds`, relink before export, cutting
+    `anchorBend`), with reasons checked against the code.
+- **Gentler on my own items:** yes, in the LOW ratings for visible defects
+  (above).
+- **Findings missing from the ledger:** none.
+
+Round 1, after the audit: **0 HIGH, 4 MEDIUM (F1, F2, F4, plus the earlier
+R5/P10), 2 LOW.** It needed MEDIUM fixes, so by the profile's stop rule a
+round 2 follows.
+
+## Round 2, 2026-10-27, commit `08888db`
+Predictions (written before the round):
+- The fix auditor will find **at least one** fix that did not fully land, or
+  broke something nearby. The likeliest: F2's `refitBend` (a numeric search,
+  which can fail to find an anchor and silently fall back), or F1's click
+  path, which could change what a plain click on a selected arrow selects.
+- 1 to 3 verified findings in all, no HIGH.
+- The whole-code reader finds nothing new, as in round 1.
+- The rules reader confirms F1 in the real app.
+
+Cast:
+- **Whole-code reader:** Codex, fresh.
+- **Fix auditor:** Gemini, with the round-1 diff `3bceef5^..08888db` (code
+  only).
+- **Rules reader:** Claude, fresh.
+- **The file-safety specialist is rested this round:** one clean round, so not
+  yet retired. Its lens is narrow, and the round-1 fixes don't touch saving or
+  loading except F5, which the fix auditor covers.
