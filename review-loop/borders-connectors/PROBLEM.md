@@ -45,7 +45,7 @@ Connectors:
   dragging an end. The target lights up during the drag, the topmost object
   wins, and attaching beats grid snapping. Ctrl means don't attach.
 - C5. Dragging an attached end into empty space detaches it.
-- C6. With one or both ends attached, dragging the line's middle bends it.
+- C6. A line with any end riding an outline (text, shape, marker) is a connector: dragging its body bends it; arrow keys and align move only its pinned and free ends, edge-riding ends stay on their outlines. A line whose attached ends are all pinned on pictures is a mark on a picture: dragging it, arrow keys and align move it as today, and it re-pins where it lands.
 - C7. Selected together with its objects, moving the group just moves
   everything.
 - C8. Deleting an object turns its connectors into free lines, where they were.
@@ -58,6 +58,9 @@ Connectors:
 - C13. Remove marks can remove a connector, like any other line.
 - C14. Stored as an ordinary line plus a note of what each end is attached to;
   older builds see a line.
+- C15. An end dropped inside an unfilled rectangle or ellipse attaches to it only near its outline; further inside it passes through to what is below.
+- B10. The shadow follows the visible shape (a cut-out's outline; the letters of text without a backdrop; otherwise the box) and always falls downward on the page.
+- B11. Clicking a border selects the object; the border also counts for dropping arrow ends.
 
 What matters most to the owner, worst first:
 1. a file that won't open, or lost work;
