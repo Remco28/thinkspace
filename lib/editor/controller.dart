@@ -2118,10 +2118,17 @@ class EditorController extends ChangeNotifier {
       ),
     );
     transact('merge into one image', () {
+      // The merged picture takes the place of the highest part, so whatever
+      // was above the parts (an arrow, a label) stays above.
+      final at = topLayer.objects.indexWhere((x) => x.id == ordered.last.id);
+      if (at >= 0) {
+        topLayer.objects[at] = merged;
+      } else {
+        topLayer.objects.add(merged);
+      }
       for (final l in doc.layers) {
         l.objects.removeWhere((o) => chosen.contains(o.id));
       }
-      topLayer.objects.add(merged);
       selection = [merged.id];
       currentLayerId = topLayer.id;
     });

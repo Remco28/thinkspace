@@ -516,6 +516,25 @@ void main() {
       },
     );
 
+    test(
+      'a merge takes the highest part\'s place: an arrow above stays',
+      () async {
+        final l = arrow(const Offset(250, 150), const Offset(650, 380));
+        final layer = c.currentLayer;
+        expect(layer.objects.map((o) => o.id), ['pic', 'label', l.id]);
+        c.select(['pic', 'label']);
+        final merged = await c.flattenSelection();
+        expect(layer.objects.map((o) => o.id), [merged!.id, l.id]);
+        c.undo();
+        expect(c.currentLayer.objects.map((o) => o.id), ['pic', 'label', l.id]);
+        c.redo();
+        c.select([c.currentLayer.objects.first.id]);
+        final parts = c.unmerge();
+        expect(c.currentLayer.objects.map((o) => o.id).last, l.id);
+        expect(parts, hasLength(2));
+      },
+    );
+
     test('a hidden target freezes its end; a locked line still follows', () {
       final l = arrow(const Offset(250, 150), const Offset(650, 380));
       final p2 = l.p2;
