@@ -193,6 +193,37 @@ stops here.** The one decision rated lower than its reviewer (R1, HIGH →
 MEDIUM) goes to the round-1 disposition auditor.
 
 ## Build
+Built from plan v4 at commit `427c4ca`.
+- `test/connectors_test.dart` (27 tests) and `test/borders_test.dart` (9).
+- `flutter analyze` is clean, and all 299 tests pass.
+
+Used once in the real app (headless, through the inspector's `/do drag`,
+because `tool/xinput.py` input did not reach the window today). On the
+storefront sample:
+- an arrow drawn from the "Which awning?" text to the navy awning attached to
+  both;
+- moving the text, then the awning, kept it on both.
+
+Changes the build made beyond the plan:
+- The Border row sits **below** Edit, without a section title. "Give all
+  pictures this border" is a small button on the row rather than a full-width
+  one: the full-width version pushed "Remove background" off a 900 px screen.
+- A mixed picture + text selection gets the row (B5); the panel test found it
+  missing.
+- Plain (non-arrowhead) ends are pulled back by half the line width only on
+  straight connectors. On curved ones they are not.
+- A connector the curve of which never leaves an outline (overlapping
+  objects) is drawn straight.
+
+## Round 1, 2026-10-27, commit `427c4ca`
+Predictions (written before the round):
+- About 3 to 5 verified findings, no more than one HIGH.
+- Most will be in the interaction code (re-pinning, the end-drag preview,
+  bending), as the peer passes were.
+- Rather fewer in borders, which are mostly drawing and covered by pixel tests.
+- File compatibility (old files, older builds) will hold: no HIGH there.
+- Likely LOW: the hidden-target freeze on curved connectors; the editing-text
+  frame drawn above objects that are on top of it.
 
 ## Mistakes the next author will make
 (filled in as the work goes)
