@@ -210,7 +210,7 @@ mixin Framed on BoxObject {
 
   Map<String, dynamic> frameJson() => {
     if (border != 0) 'border': border,
-    if (borderWidth != defaultWidth) 'borderWidth': borderWidth,
+    if (border != 0 && borderWidth != defaultWidth) 'borderWidth': borderWidth,
     if (shadow) 'shadow': true,
   };
 

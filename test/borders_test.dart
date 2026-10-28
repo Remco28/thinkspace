@@ -61,6 +61,17 @@ void main() {
       expect(tb.copyWith().border, 0xFF222222);
     });
 
+    test('a width without a border is not written', () {
+      final pic = ImageObject(
+        id: 'p',
+        name: 'p',
+        assetId: 'a',
+        center: Offset.zero,
+        size: const Size(10, 10),
+      )..borderWidth = 12;
+      expect(pic.toJson().containsKey('borderWidth'), isFalse);
+    });
+
     test('a damaged border opens as no border', () {
       final j = ImageObject(
         id: 'p',
@@ -237,10 +248,17 @@ void main() {
         center: const Offset(500, 300),
         size: const Size(100, 40),
       );
-      c.currentLayer.objects.addAll([pic, text]);
+      final line = LineObject(
+        id: 'ln',
+        name: 'ln',
+        p1: const Offset(100, 500),
+        p2: const Offset(300, 500),
+      );
+      c.currentLayer.objects.addAll([pic, text, line]);
       for (final ids in [
         ['pic'],
         ['txt'],
+        ['pic', 'ln'],
         ['pic', 'txt'],
       ]) {
         c.select(ids);

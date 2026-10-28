@@ -38,15 +38,18 @@ Offset pinAt(BoxObject t, Offset p) {
 
 /// The outline an end rides, in the object's own frame: what is drawn, so an
 /// arrow's tip touches the stroke or the border, not the edge inside it.
-({double hw, double hh, bool round}) outlineOf(BoxObject t) {
+/// [corner] is the radius of a box's round corners (a text box's backdrop and
+/// border are rounded).
+({double hw, double hh, bool round, double corner}) outlineOf(BoxObject t) {
   final hw = t.size.width / 2, hh = t.size.height / 2;
   if (t is ShapeObject) {
     final s = t.strokeWidth / 2;
-    return (hw: hw + s, hh: hh + s, round: t.ellipse);
+    return (hw: hw + s, hh: hh + s, round: t.ellipse, corner: 0.0);
   }
-  if (t is BadgeObject) return (hw: hw, hh: hh, round: true);
+  if (t is BadgeObject) return (hw: hw, hh: hh, round: true, corner: 0.0);
   final f = t is Framed ? t.frameWidth : 0.0;
-  return (hw: hw + f, hh: hh + f, round: false);
+  final r = t is TextObject ? math.min(6 + f, math.min(hw + f, hh + f)) : 0.0;
+  return (hw: hw + f, hh: hh + f, round: false, corner: r);
 }
 
 bool _inside(BoxObject t, Offset p) {
@@ -56,7 +59,14 @@ bool _inside(BoxObject t, Offset p) {
     final x = l.dx / o.hw, y = l.dy / o.hh;
     return x * x + y * y < 1;
   }
-  return l.dx.abs() < o.hw && l.dy.abs() < o.hh;
+  final ax = l.dx.abs(), ay = l.dy.abs();
+  if (ax >= o.hw || ay >= o.hh) return false;
+  final r = o.corner;
+  final cx = o.hw - r, cy = o.hh - r;
+  if (r > 0 && ax > cx && ay > cy) {
+    return (Offset(ax - cx, ay - cy)).distance < r;
+  }
+  return true;
 }
 
 /// Where a ray from [t]'s centre towards [aim] leaves its outline. Straight up
@@ -72,7 +82,21 @@ Offset rayExit(BoxObject t, Offset aim) {
   } else {
     final kx = v.dx.abs() < 1e-12 ? double.infinity : o.hw / v.dx.abs();
     final ky = v.dy.abs() < 1e-12 ? double.infinity : o.hh / v.dy.abs();
-    k = math.min(kx, ky);
+    var kk = math.min(kx, ky);
+    // In a round corner, meet the corner's arc instead.
+    final r = o.corner;
+    final q = v * kk;
+    final cx = o.hw - r, cy = o.hh - r;
+    if (r > 0 && q.dx.abs() > cx && q.dy.abs() > cy) {
+      final cc = Offset(cx * q.dx.sign, cy * q.dy.sign);
+      // |k v - cc| = r, the far root.
+      final a = v.dx * v.dx + v.dy * v.dy;
+      final b = -2 * (v.dx * cc.dx + v.dy * cc.dy);
+      final c = cc.dx * cc.dx + cc.dy * cc.dy - r * r;
+      final disc = b * b - 4 * a * c;
+      if (disc >= 0) kk = (-b + math.sqrt(disc)) / (2 * a);
+    }
+    k = kk;
   }
   return t.toScene(v * k);
 }
@@ -178,6 +202,8 @@ bool _relink(LineObject l, Map<String, SceneObject> byId, Set<String> hidden) {
   }
 
   final ts = target(l.start), te = target(l.end);
+  final dropped =
+      (l.start != null && ts == null) || (l.end != null && te == null);
   if (l.start != null && ts == null) {
     l.start = null;
     changed = true;
@@ -187,6 +213,16 @@ bool _relink(LineObject l, Map<String, SceneObject> byId, Set<String> hidden) {
     changed = true;
   }
   final s = l.start, e = l.end;
+  // An end that has just gone free keeps the curve exactly where it was drawn.
+  if (dropped && l.connects && l.anchorBend != null) {
+    final b1 = s == null
+        ? l.p1
+        : (s.pinned ? pinPoint(ts!, s.at!) : ts!.center);
+    final b2 = e == null
+        ? l.p2
+        : (e.pinned ? pinPoint(te!, e.at!) : te!.center);
+    l.anchorBend = refitBend(l, b1, b2) ?? l.anchorBend;
+  }
 
   if (!l.connects) {
     // Free ends and pins: the line is a mark, its shape is its own bend.
@@ -253,6 +289,43 @@ bool _relink(LineObject l, Map<String, SceneObject> byId, Set<String> hidden) {
   return _set(l, n1, n2, Offset.zero) || changed;
 }
 
+/// The bend over anchors [a1] and [a2] of the curve [l] draws now, extended
+/// to reach them; a quadratic's piece and its whole are one curve. Null when
+/// the anchors are not on it.
+Offset? refitBend(LineObject l, Offset a1, Offset a2) {
+  final p1 = l.p1, p2 = l.p2, c = l.control;
+  double? reach(Offset a, bool before) {
+    final own = before ? p1 : p2;
+    if ((a - own).distance < 1e-9) return before ? 0 : 1;
+    var best = before ? 0.0 : 1.0;
+    var bestD = double.infinity;
+    for (int i = 0; i <= 4000; i++) {
+      final s = before ? -i / 200 : 1 + i / 200;
+      final d = (_quad(p1, c, p2, s) - a).distanceSquared;
+      if (d < bestD) {
+        bestD = d;
+        best = s;
+      }
+    }
+    var lo = best - 1 / 200, hi = best + 1 / 200;
+    for (int k = 0; k < 60; k++) {
+      final m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+      if ((_quad(p1, c, p2, m1) - a).distanceSquared <
+          (_quad(p1, c, p2, m2) - a).distanceSquared) {
+        hi = m2;
+      } else {
+        lo = m1;
+      }
+    }
+    final s = (lo + hi) / 2;
+    return (_quad(p1, c, p2, s) - a).distance < 0.5 ? s : null;
+  }
+
+  final s = reach(a1, true), e = reach(a2, false);
+  if (s == null || e == null) return null;
+  return bendFor(a1, a2, _subControl(p1, c, p2, s, e));
+}
+
 bool _set(LineObject l, Offset p1, Offset p2, Offset bend) {
   if (l.p1 == p1 && l.p2 == p2 && l.bend == bend) return false;
   l.p1 = p1;
@@ -265,17 +338,33 @@ bool _set(LineObject l, Offset p1, Offset p2, Offset bend) {
 /// of their targets ([ids] maps old ids to new). An attachment to something
 /// left out of the batch is dropped: that end becomes a free one.
 void remapAttachments(Iterable<SceneObject> copies, Map<String, String> ids) {
+  final byId = {for (final o in copies) o.id: o};
   Attachment? remap(Attachment? a) {
     if (a == null) return null;
     final to = ids[a.to];
     return to == null ? null : Attachment(to, a.at);
   }
 
+  Offset anchor(Attachment? a, Offset own) {
+    final t = a == null ? null : byId[a.to];
+    if (t is! BoxObject) return own;
+    return a!.pinned ? pinPoint(t, a.at!) : t.center;
+  }
+
   for (final o in copies) {
     if (o is LineObject) {
-      o.start = remap(o.start);
-      o.end = remap(o.end);
-      if (!o.connects) o.anchorBend = null;
+      final s = remap(o.start), e = remap(o.end);
+      final dropped =
+          (o.start != null && s == null) || (o.end != null && e == null);
+      o.start = s;
+      o.end = e;
+      if (!o.connects) {
+        o.anchorBend = null;
+      } else if (dropped && o.anchorBend != null) {
+        // The copy keeps the curve it was drawn with.
+        o.anchorBend =
+            refitBend(o, anchor(s, o.p1), anchor(e, o.p2)) ?? o.anchorBend;
+      }
     }
   }
 }

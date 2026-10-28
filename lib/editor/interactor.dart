@@ -67,6 +67,10 @@ class CanvasInteractor {
   /// grabbed to bend it: that point stays under the pointer.
   double _bendT = 0.5;
 
+  /// The bend was started by pressing the connector's body, not its handle:
+  /// a press that never moves is a click, and selects as a click does.
+  bool _bodyBend = false;
+
   /// Pins taken off the lines being moved; put back on release.
   Map<String, (Attachment?, Attachment?)>? _heldPins;
 
@@ -210,6 +214,7 @@ class CanvasInteractor {
     _startScreen = _lastScreen = screen;
     _startScene = c.toScene(screen);
     _moved = false;
+    _bodyBend = false;
     final now = DateTime.now();
     final isDouble =
         now.difference(_lastDown).inMilliseconds < 350 &&
@@ -341,16 +346,15 @@ class CanvasInteractor {
       c.select([target.id]);
     }
 
-    // A line that connects things bends when its middle is dragged; it moves
-    // with what it connects.
+    // A line that connects things bends when its body is dragged; it moves
+    // with what it connects. Whatever is above or below it, a press on it
+    // that never moves is still a click (see pointerUp).
     final only = c.single;
     if (only is LineObject &&
         only.connects &&
         !only.locked &&
-        c.selection.length == 1 &&
-        !_clickOnSelectedTop &&
-        !_stickyCycle &&
-        !_selectTopOnRelease) {
+        hits.any((o) => o.id == only.id)) {
+      _bodyBend = true;
       _handle = HandleSpot(HandleKind.lineBend, p);
       _startObj = only.copyWith();
       _bendT = _grabT(only, p);
@@ -677,6 +681,8 @@ class CanvasInteractor {
     final live = c.doc.objectById(start.id) as LineObject?;
     if (live == null) return;
     if (h.kind == HandleKind.lineBend) {
+      // A click with a small wobble on the body is not a bend.
+      if (_bodyBend && !_moved) return;
       _doBend(live, p, m);
       return;
     }
@@ -961,6 +967,10 @@ class CanvasInteractor {
           c.markerSize = math.max(o.size.width, o.size.height);
         }
         if (token != null) c.endEdit(token);
+      case _Mode.lineEnd when _bodyBend && !_moved:
+        // Nothing was bent: no undo step, and the click selects as clicks do.
+        if (token != null) c.endEdit(token);
+        _finishClick(p);
       case _Mode.rotate:
       case _Mode.lineEnd:
       case _Mode.gripResize:

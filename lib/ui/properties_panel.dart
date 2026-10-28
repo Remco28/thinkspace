@@ -522,9 +522,14 @@ class PropertiesPanel extends StatelessWidget {
         ? _typeSection(context, one)
         : sameKind
         ? _typeSectionMulti(objs)
-        : objs.every((o) => o is Framed)
-        // Pictures and text boxes together still share their border.
-        ? Section(children: [_borderRow(first as Framed)])
+        : objs.any((o) => o is Framed)
+        // Pictures and text boxes share their border, whatever else is
+        // selected with them; the row changes only those.
+        ? Section(
+            children: [
+              _borderRow(objs.firstWhere((o) => o is Framed) as Framed),
+            ],
+          )
         : null;
 
     return Column(

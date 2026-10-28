@@ -98,12 +98,14 @@ void main() {
         const Offset(120, 400),
         const Offset(-200, -60),
       ]) {
-        expect(offOutline(t, rayExit(t, aim)), lessThan(1e-6));
+        // On the border's outside: 10 px beyond the box, round at the
+        // corners (radius 6 + 10).
         final l = t.toLocal(rayExit(t, aim));
-        expect(
-          math.max(l.dx.abs() - 110, l.dy.abs() - 40).abs(),
-          lessThan(1e-6),
-        );
+        final ax = l.dx.abs(), ay = l.dy.abs();
+        final off = ax > 110 - 16 && ay > 40 - 16
+            ? Offset(ax - 94, ay - 24).distance - 16
+            : math.max(ax - 110, ay - 40);
+        expect(off.abs(), lessThan(1e-6));
       }
     });
 
@@ -481,6 +483,64 @@ void main() {
         math.max(local.dx.abs() - 88, local.dy.abs() - 58).abs(),
         lessThan(1e-6),
       );
+    });
+
+    test(
+      'a selected connector over a picture bends; a click picks beneath',
+      () {
+        final l = arrow(const Offset(250, 150), const Offset(650, 380));
+        final pin = l.end;
+        c.select([l.id]);
+        final grab = l.pointAt(0.85); // over the picture
+        expect(pic.hitTest(grab, 0, c.assets), isTrue);
+        final depth = c.undoDepth;
+        click(ix, grab);
+        expect(c.selection, ['pic']);
+        expect(c.undoDepth, depth);
+        c.select([l.id]);
+        drag(ix, grab, grab + const Offset(30, -60));
+        expect(l.anchorBend, isNotNull);
+        expect(l.end, pin);
+        expect(distanceToLine(l, grab + const Offset(30, -60)), lessThan(2));
+      },
+    );
+
+    test('a curved connector keeps its curve when a target goes', () {
+      final other = TextObject(
+        id: 'other',
+        name: 'other',
+        text: 'There',
+        center: const Offset(250, 600),
+        size: const Size(200, 60),
+        background: 0xFFFFFFFF,
+      );
+      c.currentLayer.objects.add(other);
+      c.notify();
+      final l = arrow(const Offset(260, 160), const Offset(260, 600));
+      expect(l.end, const Attachment('other'));
+      c.select([l.id]);
+      drag(ix, l.pointAt(0.5), l.pointAt(0.5) + const Offset(150, 0));
+      final mid = l.mid;
+      // Copied with only one of its boxes, the copy keeps the curve too.
+      c.select(['label', l.id]);
+      c.duplicateSelection();
+      final copy = c.selectedObjects.whereType<LineObject>().single;
+      expect((copy.mid - (mid + const Offset(24, 24))).distance, lessThan(0.5));
+      c.select(['other']);
+      c.deleteSelection();
+      expect(l.end, isNull);
+      expect((l.mid - mid).distance, lessThan(0.5));
+    });
+
+    test('an end aimed at a text box\'s round corner touches the arc', () {
+      label.border = 0xFF000000;
+      label.borderWidth = 6;
+      final p = rayExit(label, label.center + const Offset(1000, 300));
+      final l = label.toLocal(p);
+      // The corner arc: radius 6 + border, centred inside the outer corner.
+      const r = 12.0;
+      const centre = Offset(106 - r, 36 - r);
+      expect((Offset(l.dx, l.dy) - centre).distance, closeTo(r, 1e-6));
     });
 
     test('an end dropped on a picture\'s border band pins there', () {
