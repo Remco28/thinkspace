@@ -642,3 +642,18 @@ This answers every finding above:
 
 It is smaller than M2: no moving, no cross-layer rule. Built next; round 4
 checks it.
+Built in `14defe8`, with 5 new tests (316 in all).
+
+## Round 4, 2026-10-28, commit `14defe8`: merge only
+Predictions (written before the round):
+- **At most one MEDIUM**, and no HIGH. The most likely place is the refusal
+  rules: something that should merge is refused, or a refusal message that
+  doesn't help.
+- **No leak found.** Every path that un-hid in rounds 2 and 3 (moved, unmerged,
+  above the top, switched off) now has a test.
+- **The fix auditor finds the K4 and K6 fixes landed.**
+
+Cast:
+- **Fix auditor:** Codex, this time. Gemini missed K4 last round.
+- **Rules reader:** Claude, fresh, on B12, B13 and H1 in the real app.
+- **Disposition auditor:** over rounds 3 and 4.
