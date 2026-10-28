@@ -528,3 +528,36 @@ Cast:
 - **Fix auditor:** Gemini, with the diff `08888db..79c8c27`.
 - **Rules reader:** Claude, fresh.
 - **Disposition auditor:** after sorting.
+
+| # | Finding | Reader (their rating) | Ours | How checked | Reaches | Done |
+|---|---|---|---|---|---|---|
+| K1 | Things *between* the merged parts (above the lowest, below the highest) end up under the merged picture | Rules (MED) | MEDIUM | reproduced by the reader in the real app (sample + Hide box + arrow) | how it is used now | **to Frank**: what B12 means there |
+| K2 | A Hide box switched off (or on a hidden layer) at merge time stops working when shown again: it now sits under the merged picture | Rules (MED) | **HIGH**: details exposed in an export, unnoticed (the Layers panel says the box is on). An unusual sequence, but the stakes' #2 harm | read in source (`_withCoversBetween` takes only visible boxes) | how it is used now (Hide boxes are toggled) | redesign H1 |
+| K3 | Highlighter marks merged across a Hide box turn solid: `multiply: !covered && …` | Rules (MED) | MEDIUM | read in source (controller.dart:2120) | how it is used now | redesign H1 |
+| K4 | The right-click menu offers Merge where the button, M key and panel refuse (picture + Hide box); it re-renders the picture and frees its arrows | Rules (LOW) | LOW | read in source (context_menu.dart:128: no `canMerge` check) | how it is used now | fix |
+| K5 | Merge then unmerge piles up duplicate Hide boxes (the record keeps covers) | Rules (LOW) | LOW | design | how it is used now | redesign H1 |
+| K6 | The Align tooltip says "Align left edges" for a picture plus its mark, which now align to the page | Rules (LOW) | LOW | read in source | how it is used now | fix |
+
+The fix auditor (Gemini) said G1, G5, G3 and H1 were all GONE, "nothing
+missed". It **missed K4**, a change applied in one place and missed in
+another, which the rules reader found in the app. Its "nothing wrong" counts
+for less here.
+
+What happened against the predictions:
+- **Predicted** one or two problems, most likely in the merge change.
+  **Right about where:** every MEDIUM and above is in the merge change.
+  **Wrong about how many:** 3 MEDIUM+ and 3 LOW, and one of them is HIGH by our
+  rating.
+- **Predicted** that the Align rewrite holds. **Right.**
+- **Predicted** that the rules reader passes everything else. **Right**,
+  except merge.
+- **Predicted** no HIGH. **Wrong** (K2).
+
+Believed, and wrong: "Painting the covers in and never removing a Hide box
+means a merge can't un-hide anything." It ignored covers that are switched
+off at merge time, and how a cover interacts with `multiply`.
+
+Direction test (round 3): compared with round 2, the findings are **not** less
+severe, are in ordinary use, and **are** almost all in code written to fix the
+last round (the merge). The merge is not converging; the rest is.
+**Stakes check due**, put to Frank.
