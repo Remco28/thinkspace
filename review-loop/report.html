@@ -69,7 +69,7 @@
 <body>
 <main>
   <h1>Review: borders and connectors</h1>
-  <p class="sub">Two rounds of code review, after three rounds on the plan. Updated after round 2.</p>
+  <p class="sub">Five rounds of code review, after three rounds on the plan. Finished 2026-10-28, by your decision after round 5.</p>
 
   <section class="card stakes" aria-label="Stakes">
     <dl>
@@ -77,73 +77,33 @@
       <dt>Who relies on it</dt><dd>You, on Linux, sometimes with several windows open. Other people see your exported pictures.</dd>
       <dt>Worst outcomes</dt><dd>1. A file that won't open, or lost work. 2. An exported picture with an arrow quietly pointing at the wrong spot. 3. Old files looking different.</dd>
       <dt>We stop when</dt><dd>A round finds nothing serious, and needed no serious or medium fixes.</dd>
-      <dt>So far</dt><dd>Nothing found could lose a file or work. Old files open and look exactly as before, checked pixel by pixel in both rounds.</dd>
+      <dt>Result</dt><dd>Nothing found could lose a file or work. Old files open and look exactly as before (checked pixel by pixel three times). Every serious finding was fixed, including an older merge problem that could reveal hidden details.</dd>
     </dl>
   </section>
 
   <section class="card decide" aria-label="Decisions">
-    <strong>What I need you to decide</strong>
+    <strong>Nothing left for you to decide. What to try by hand:</strong>
     <ol>
-      <li><b>Text without a backdrop: what is "the text area"?</b> Your rule B4 says a border goes "around the backdrop, or around the text area if there is no backdrop". I built it as the whole text box. A box made by clicking is 320 px wide, so the border, and any arrow from it, sits up to about 90 px past the last letter. The auditor reads "text area" as the words themselves. I wrote that wording, so it's your call.
-        <div class="rec">My recommendation: the words. Without a backdrop, the border and arrow ends go round a box drawn tight round the lines of text. With a backdrop, nothing changes.</div></li>
-      <li><b>Merging puts the result on top.</b> Merge a screenshot and its label, but not the arrow between them, and the merged picture covers the arrow. This was already how merge worked; arrows just make it more noticeable.
-        <div class="rec">My recommendation: the merged picture takes the place of the highest merged part, not the very top of the layer. Anything that was above the merged parts stays above.</div></li>
-      <li><b>Round 3.</b> The rules say one more round is needed, because round 2 had a medium fix (Align). The findings are getting smaller and rarer.
-        <div class="rec">My recommendation: make round 3 smaller: a reader who checks the fixes, a reader who checks the rules in the app, and the auditor. Stop after it if it is clean.</div></li>
+      <li><b>Borders:</b> select a screenshot; in the panel, under Edit, pick a border colour and switch on the shadow. Select several screenshots, then click the small "all pictures" button.</li>
+      <li><b>Connectors:</b> draw an arrow from a label to a spot on a screenshot. Move the label, then the screenshot: the arrow follows both. Drag the middle of the arrow to curve it.</li>
+      <li><b>Arrows on a screenshot</b> (both ends on the picture) still move when you drag them, and stay put when you align them together with the screenshot.</li>
+      <li><b>Merge with a Hide box:</b> screenshot, a Hide box over a password, an arrow on top. Merge the screenshot and the arrow, then drag the merged picture away: the password stays hidden.</li>
     </ol>
+    <div class="rec">The loop stopped on your call: the last fix, for opening a file during a merge, skipped the extra round the rules ask for.</div>
   </section>
 
   <h2>Trend: serious and medium findings per pass</h2>
   <div class="card">
-    <svg viewBox="0 0 560 210" role="img" aria-label="Serious and medium findings per pass">
-      <!-- grid -->
-      <line x1="40" y1="170" x2="550" y2="170" stroke="var(--axis)"/>
-      <line x1="40" y1="120" x2="550" y2="120" stroke="var(--line)"/>
-      <line x1="40" y1="70" x2="550" y2="70" stroke="var(--line)"/>
-      <line x1="40" y1="20" x2="550" y2="20" stroke="var(--line)"/>
-      <text x="32" y="174" text-anchor="end" class="muted">0</text>
-      <text x="32" y="124" text-anchor="end" class="muted">4</text>
-      <text x="32" y="74" text-anchor="end" class="muted">8</text>
-      <text x="32" y="24" text-anchor="end" class="muted">12</text>
-      <!-- scale: 12.5 px per finding; bars 22 wide, 2 px gap -->
-      <g>
-        <rect x="62" y="132.5" width="22" height="37.5" rx="4" fill="var(--high)"><title>Plan pass 1: 3 serious</title></rect>
-        <rect x="86" y="32.5" width="22" height="137.5" rx="4" fill="var(--med)"><title>Plan pass 1: 11 medium</title></rect>
-        <text x="73" y="127" text-anchor="middle">3</text><text x="97" y="27" text-anchor="middle">11</text>
-        <text x="85" y="190" text-anchor="middle" class="muted">Plan 1</text>
-      </g>
-      <g>
-        <rect x="162" y="145" width="22" height="25" rx="4" fill="var(--high)"><title>Plan pass 2: 2 serious</title></rect>
-        <rect x="186" y="120" width="22" height="50" rx="4" fill="var(--med)"><title>Plan pass 2: 4 medium</title></rect>
-        <text x="173" y="140" text-anchor="middle">2</text><text x="197" y="115" text-anchor="middle">4</text>
-        <text x="185" y="190" text-anchor="middle" class="muted">Plan 2</text>
-      </g>
-      <g>
-        <rect x="286" y="107.5" width="22" height="62.5" rx="4" fill="var(--med)"><title>Plan pass 3: 0 serious, 5 medium</title></rect>
-        <text x="273" y="165" text-anchor="middle">0</text><text x="297" y="102" text-anchor="middle">5</text>
-        <text x="285" y="190" text-anchor="middle" class="muted">Plan 3</text>
-      </g>
-      <g>
-        <rect x="386" y="132.5" width="22" height="37.5" rx="4" fill="var(--med)"><title>Round 1: 0 serious, 3 medium</title></rect>
-        <text x="373" y="165" text-anchor="middle">0</text><text x="397" y="127" text-anchor="middle">3</text>
-        <text x="385" y="190" text-anchor="middle" class="muted">Round 1</text>
-      </g>
-      <g>
-        <rect x="486" y="107.5" width="22" height="62.5" rx="4" fill="var(--med)"><title>Round 2: 0 serious, 5 medium (3 fixed, 2 for you)</title></rect>
-        <text x="473" y="165" text-anchor="middle">0</text><text x="497" y="102" text-anchor="middle">5</text>
-        <text x="485" y="190" text-anchor="middle" class="muted">Round 2</text>
-      </g>
-      <!-- legend -->
-      <rect x="380" y="200" width="10" height="10" rx="2" fill="var(--high)"/><text x="394" y="209">serious</text>
-      <rect x="450" y="200" width="10" height="10" rx="2" fill="var(--med)"/><text x="464" y="209">medium</text>
+    <svg viewBox="0 0 740 215" role="img" aria-label="Serious and medium findings per pass">
+      <line x1="40" y1="170" x2="730" y2="170" stroke="var(--axis)"/><line x1="40" y1="120" x2="730" y2="120" stroke="var(--line)"/><line x1="40" y1="70" x2="730" y2="70" stroke="var(--line)"/><line x1="40" y1="20" x2="730" y2="20" stroke="var(--line)"/>
+      <text x="32" y="174" text-anchor="end" class="muted">0</text><text x="32" y="124" text-anchor="end" class="muted">4</text><text x="32" y="74" text-anchor="end" class="muted">8</text><text x="32" y="24" text-anchor="end" class="muted">12</text>
+      <rect x="60" y="132.5" width="22" height="37.5" rx="4" fill="var(--high)"><title>Plan 1: 3 serious</title></rect><text x="71" y="127.5" text-anchor="middle">3</text><rect x="84" y="32.5" width="22" height="137.5" rx="4" fill="var(--med)"><title>Plan 1: 11 medium</title></rect><text x="95" y="27.5" text-anchor="middle">11</text><text x="83" y="190" text-anchor="middle" class="muted">Plan 1</text><rect x="145" y="145.0" width="22" height="25.0" rx="4" fill="var(--high)"><title>Plan 2: 2 serious</title></rect><text x="156" y="140.0" text-anchor="middle">2</text><rect x="169" y="120.0" width="22" height="50.0" rx="4" fill="var(--med)"><title>Plan 2: 4 medium</title></rect><text x="180" y="115.0" text-anchor="middle">4</text><text x="168" y="190" text-anchor="middle" class="muted">Plan 2</text><text x="241" y="165" text-anchor="middle">0</text><rect x="254" y="107.5" width="22" height="62.5" rx="4" fill="var(--med)"><title>Plan 3: 5 medium</title></rect><text x="265" y="102.5" text-anchor="middle">5</text><text x="253" y="190" text-anchor="middle" class="muted">Plan 3</text><text x="326" y="165" text-anchor="middle">0</text><rect x="339" y="132.5" width="22" height="37.5" rx="4" fill="var(--med)"><title>Round 1: 3 medium</title></rect><text x="350" y="127.5" text-anchor="middle">3</text><text x="338" y="190" text-anchor="middle" class="muted">Round 1</text><text x="411" y="165" text-anchor="middle">0</text><rect x="424" y="107.5" width="22" height="62.5" rx="4" fill="var(--med)"><title>Round 2: 5 medium</title></rect><text x="435" y="102.5" text-anchor="middle">5</text><text x="423" y="190" text-anchor="middle" class="muted">Round 2</text><rect x="485" y="157.5" width="22" height="12.5" rx="4" fill="var(--high)"><title>Round 3: 1 serious</title></rect><text x="496" y="152.5" text-anchor="middle">1</text><rect x="509" y="132.5" width="22" height="37.5" rx="4" fill="var(--med)"><title>Round 3: 3 medium</title></rect><text x="520" y="127.5" text-anchor="middle">3</text><text x="508" y="190" text-anchor="middle" class="muted">Round 3</text><text x="581" y="165" text-anchor="middle">0</text><rect x="594" y="145.0" width="22" height="25.0" rx="4" fill="var(--med)"><title>Round 4: 2 medium</title></rect><text x="605" y="140.0" text-anchor="middle">2</text><text x="593" y="190" text-anchor="middle" class="muted">Round 4</text><text x="666" y="165" text-anchor="middle">0</text><rect x="679" y="157.5" width="22" height="12.5" rx="4" fill="var(--med)"><title>Round 5: 1 medium</title></rect><text x="690" y="152.5" text-anchor="middle">1</text><text x="678" y="190" text-anchor="middle" class="muted">Round 5</text>
+      <rect x="560" y="203" width="10" height="10" rx="2" fill="var(--high)"/><text x="574" y="212">serious</text><rect x="630" y="203" width="10" height="10" rx="2" fill="var(--med)"/><text x="644" y="212">medium</text>
     </svg>
     <details><summary>As a table</summary>
-      <table><tr><th>Pass</th><th>Serious</th><th>Medium</th></tr>
-        <tr><td>Plan 1</td><td>3</td><td>11</td></tr><tr><td>Plan 2</td><td>2</td><td>4</td></tr>
-        <tr><td>Plan 3</td><td>0</td><td>5</td></tr><tr><td>Round 1</td><td>0</td><td>3</td></tr>
-        <tr><td>Round 2</td><td>0</td><td>5</td></tr></table>
+      <table><tr><th>Pass</th><th>Serious</th><th>Medium</th></tr><tr><td>Plan 1</td><td>3</td><td>11</td></tr><tr><td>Plan 2</td><td>2</td><td>4</td></tr><tr><td>Plan 3</td><td>0</td><td>5</td></tr><tr><td>Round 1</td><td>0</td><td>3</td></tr><tr><td>Round 2</td><td>0</td><td>5</td></tr><tr><td>Round 3</td><td>1</td><td>3</td></tr><tr><td>Round 4</td><td>0</td><td>2</td></tr><tr><td>Round 5</td><td>0</td><td>1</td></tr></table>
     </details>
-    <p class="rec">The plan passes caught the serious problems before any code existed. Since the code was built, nothing serious has been found. Each count is after the auditor's check, which made my ratings stricter in both rounds.</p>
+    <p class="rec">The plan passes caught most serious problems before any code existed. The one serious problem in the code (round 3) was in merge, which I changed at your request. Each count is after the auditor's check, which made my ratings stricter in both rounds.</p>
   </div>
 
   <h2>Where the findings live</h2>
@@ -191,13 +151,35 @@
 
   <h2>Rounds</h2>
   <div class="tabs" role="tablist">
-    <button role="tab" aria-selected="true" data-t="r2">Round 2</button>
+    <button role="tab" aria-selected="true" data-t="r345">Rounds 3–5: merge</button>
+    <button role="tab" aria-selected="false" data-t="r2">Round 2</button>
     <button role="tab" aria-selected="false" data-t="r1">Round 1</button>
     <button role="tab" aria-selected="false" data-t="plan">The plan (3 passes)</button>
   </div>
 
-  <section class="tab on" id="r2">
-    <p>Three readers: one read all the code, one checked last round's fixes, one checked every rule in the running app. All of round 1's fixes held.</p>
+  <section class="tab on" id="r345">
+    <p>Your two decisions after round 2 (merged pictures keep their place; merge must not un-hide details) reopened merge, and the next three rounds were almost all about merge.</p>
+    <div class="card finding">
+      <h3><span class="tag high">serious</span> A switched-off Hide box stopped hiding after a merge <span class="tag now">how you use it now</span> <span class="tag done">fixed</span></h3>
+      <div class="facts">
+        <b>What happened</b><span>A Hide box switched off at merge time ended up under the merged picture. Switching it back on hid nothing, so the password showed in exports.</span>
+        <b>Fix</b><span>Merge was redesigned so the merged picture holds what the page shows. Hide boxes are painted in and come back on unmerge. A merge refuses, and says why, when a switched-off box or something visible lies between the parts.</span>
+      </div>
+    </div>
+    <div class="card finding">
+      <h3><span class="tag med">medium</span> Edits during a slow merge were thrown away <span class="tag done">fixed</span></h3>
+      <p>A big screenshot takes a second or two to merge. Anything you changed in that time (moving a Hide box, opening a file) was overwritten. Now the merge cancels itself and says "The page changed while merging. Merge again."</p>
+    </div>
+    <details><summary>Other medium and low findings (fixed or recorded)</summary>
+      <p><span class="tag med">medium</span> Highlights merged across a Hide box turned solid, or tinted the box. Fixed: such a merge is refused.</p>
+      <p><span class="tag med">medium</span> The right-click menu offered Merge when nothing could be merged. Fixed.</p>
+      <p><span class="tag low">low</span> Refusal messages that didn't say how to proceed; an Align tooltip that said the wrong thing. Fixed.</p>
+      <p><span class="tag low">known</span> A label merely near a diagonal arrow can make a merge refuse. That is safe, and the message says what to do. Older problems in Cut out and Remove colour are recorded in the office for later.</p>
+    </details>
+  </section>
+
+  <section class="tab" id="r2">
+    <p>Three readers: one read all the code, one checked last round's fixes, one checked every rule in the running app. All of round 1's fixes held. You decided G2 (keep the whole text box) and G3 (merged picture keeps its place).</p>
 
     <div class="card finding">
       <h3><span class="tag med">medium</span> G1: Align slid arrows off their spot <span class="tag now">how you use it now</span> <span class="tag done">fixed</span></h3>
@@ -217,7 +199,7 @@
     </div>
 
     <div class="card finding">
-      <h3><span class="tag med">medium</span> G2: Arrows from short labels start in thin air <span class="tag now">how you use it now</span> <span class="tag">your decision</span></h3>
+      <h3><span class="tag med">medium</span> G2: Arrows from short labels start in thin air <span class="tag now">how you use it now</span> <span class="tag">you: keep as is</span></h3>
       <svg viewBox="0 0 600 70" role="img" aria-label="G2 before and after">
         <text x="10" y="25">Now:</text>
         <text x="60" y="25">Look here</text>
@@ -235,7 +217,7 @@
     </div>
 
     <div class="card finding">
-      <h3><span class="tag med">medium</span> G3: A merge can cover an arrow <span class="tag now">how you use it now</span> <span class="tag">your decision</span></h3>
+      <h3><span class="tag med">medium</span> G3: A merge can cover an arrow <span class="tag now">how you use it now</span> <span class="tag done">fixed</span></h3>
       <div class="facts">
         <b>Steps</b><span>An arrow between a screenshot and its label. Select the screenshot and the label (not the arrow), then Merge. The merged picture goes to the top and hides the arrow.</span>
         <b>At risk</b><span>How the picture looks; the arrow is still there underneath. This is how merge already worked.</span>
