@@ -283,6 +283,92 @@ void main() {
       expect(await redAt(const Offset(80, 100)), lessThan(20));
     });
 
+    test('a switched-off box between the parts stops the merge', () async {
+      hide.visible = false;
+      final sig = c.doc.signature();
+      c.select(['a', 'b']);
+      expect(await c.flattenSelection(), isNull);
+      expect(c.doc.signature(), sig);
+      expect(c.toastMessage, contains('switched-off'));
+    });
+
+    test('something visible between the parts stops the merge', () async {
+      final label = TextObject(
+        id: 't',
+        name: 'Label',
+        text: 'Hi',
+        center: const Offset(110, 100),
+        size: const Size(40, 20),
+      );
+      c.currentLayer.objects.insert(1, label);
+      c.select(['a', 'b']);
+      expect(await c.flattenSelection(), isNull);
+      expect(c.toastMessage, contains('Label'));
+      // Outside every part it is no obstacle, even inside their outer box.
+      label.center = const Offset(160, 30);
+      expect(await c.flattenSelection(), isNotNull);
+    });
+
+    test('a box above every part is painted in too', () async {
+      c.currentLayer.objects
+        ..remove(hide)
+        ..add(hide);
+      c.select(['a', 'b']);
+      final merged = await c.flattenSelection();
+      expect(merged, isNotNull);
+      // Moved out from under the box, the merged picture still hides it.
+      c.select([merged!.id]);
+      c.nudge(const Offset(0, 60));
+      expect(await redAt(const Offset(80, 160)), lessThan(20));
+      expect(await redAt(const Offset(120, 160)), greaterThan(240));
+      // And unmerged there, the box comes back with the parts.
+      c.unmerge();
+      expect(await redAt(const Offset(80, 160)), lessThan(20));
+    });
+
+    test(
+      'a box on another layer is painted in; the merge goes ahead',
+      () async {
+        c.currentLayer.objects.remove(hide);
+        c.addLayer();
+        c.currentLayer.objects.add(hide);
+        c.currentLayer.objects.remove(b);
+        c.doc.layers.first.objects.remove(b);
+        c.addLayer();
+        c.currentLayer.objects.add(b);
+        c.select(['a', 'b']);
+        final merged = await c.flattenSelection();
+        expect(merged, isNotNull);
+        c.setObjectVisible('h', false);
+        expect(await redAt(const Offset(80, 100)), lessThan(20));
+      },
+    );
+
+    test('highlights merged across a box stay see-through', () async {
+      c.currentLayer.objects.removeWhere((o) => o.id != 'h');
+      final s1 = StrokeObject(
+        id: 's1',
+        name: 's1',
+        points: const [Offset(50, 100), Offset(150, 100)],
+        width: 20,
+        highlight: HighlightStyle.multiply,
+      );
+      final s2 = StrokeObject(
+        id: 's2',
+        name: 's2',
+        points: const [Offset(50, 140), Offset(150, 140)],
+        width: 20,
+        highlight: HighlightStyle.multiply,
+      );
+      c.currentLayer.objects
+        ..insert(0, s1)
+        ..add(s2);
+      c.select(['s1', 's2']);
+      final merged = await c.flattenSelection();
+      expect(merged!.multiply, isTrue);
+      expect(c.doc.objectById('h'), isNotNull);
+    });
+
     test('with no box over the parts, a merge is as before', () async {
       c.currentLayer.objects.remove(hide);
       c.select(['a', 'b']);

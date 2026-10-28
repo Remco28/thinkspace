@@ -125,7 +125,7 @@ Future<void> showObjectMenu(
           shortcut: 'U',
           width: w,
         )
-      else
+      else if (c.canMerge)
         menuItem(
           value: _Act.merge,
           label: sel.length > 1 ? 'Merge into one image' : 'Turn into an image',

@@ -1220,6 +1220,22 @@ class EditorController extends ChangeNotifier {
 
   /// Line objects up. With several selected they align to each other; with
   /// one, to the page. [how] is left, centre, right, top, middle or bottom.
+  /// Whether Align lines the selection up with the page (one thing, with any
+  /// lines it carries) rather than with each other.
+  bool get alignsToPage {
+    final selected = {for (final o in selectedObjects) o.id};
+    final own = selectedObjects.where(
+      (o) => !o.locked && !_carriedBy(o, selected),
+    );
+    return own.length <= 1;
+  }
+
+  static bool _carriedBy(SceneObject o, Set<String> selected) =>
+      o is LineObject &&
+      o.attached &&
+      (o.start == null || selected.contains(o.start!.to)) &&
+      (o.end == null || selected.contains(o.end!.to));
+
   void alignSelection(String how) {
     final objs = selectedObjects.where((o) => !o.locked).toList();
     if (objs.isEmpty) return;
@@ -1228,11 +1244,7 @@ class EditorController extends ChangeNotifier {
     // it is not aligned in its own right and does not widen the frame. A
     // locked picture still carries its marks; it just does not move.
     final selected = {for (final o in selectedObjects) o.id};
-    bool carried(SceneObject o) =>
-        o is LineObject &&
-        o.attached &&
-        (o.start == null || selected.contains(o.start!.to)) &&
-        (o.end == null || selected.contains(o.end!.to));
+    bool carried(SceneObject o) => _carriedBy(o, selected);
     final own = objs.where((o) => !carried(o)).toList();
     if (own.isEmpty) return;
     final frame = own.length > 1
@@ -2069,12 +2081,26 @@ class EditorController extends ChangeNotifier {
     // Locked and hidden things are left where they are: a merge only takes
     // what you can see and are free to change.
     // A merge never takes a Hide details box off the page: it may be hiding
-    // other things too. Boxes over the parts are painted into the picture.
+    // other things too.
     final ordered = mergeParts;
     final chosen = {for (final o in ordered) o.id};
     if (ordered.isEmpty) return null;
     final b = unionRects(ordered.map((o) => o.paintBounds)).inflate(1);
-    final drawn = _withCoversBetween(ordered, b);
+    final (shown, refusal) = _mergePlan(ordered);
+    if (refusal != null) {
+      showToast(refusal);
+      return null;
+    }
+    // Marks made with the highlighter multiply onto the page. Merged into a
+    // picture they would turn into solid colour and hide what they were
+    // marking, so a merge of nothing but such marks multiplies as one; the
+    // Hide boxes over them stay on the page and keep hiding what is below.
+    final multiply = ordered.every(
+      (o) =>
+          (o is StrokeObject && o.highlight == HighlightStyle.multiply) ||
+          (o is ShapeObject && o.highlight == HighlightStyle.multiply),
+    );
+    final drawn = multiply ? ordered : shown;
     final covered = drawn.length > ordered.length;
     var scale = 1.0;
     for (final o in ordered) {
@@ -2114,16 +2140,7 @@ class EditorController extends ChangeNotifier {
         // comes back above the box that hid it.
         parts: [for (final o in drawn) o.toJson()],
       ),
-      // Marks made with the highlighter multiply onto the page. Merged into a
-      // picture they would turn into solid colour and hide what they were
-      // marking, so a merge of nothing but such marks multiplies as one.
-      multiply:
-          !covered &&
-          ordered.every(
-            (o) =>
-                (o is StrokeObject && o.highlight == HighlightStyle.multiply) ||
-                (o is ShapeObject && o.highlight == HighlightStyle.multiply),
-          ),
+      multiply: multiply,
     );
     transact('merge into one image', () {
       // The merged picture takes the place of the highest part, so whatever
@@ -2144,28 +2161,48 @@ class EditorController extends ChangeNotifier {
     return merged;
   }
 
-  /// What a merge paints: [parts] in page order, with every visible Hide
-  /// details box that lies over them, from the lowest part up to the highest.
-  /// One above the highest part stays above the merged picture anyway.
-  List<SceneObject> _withCoversBetween(List<SceneObject> parts, Rect area) {
+  /// What a merge paints, and whether it must refuse. The merged picture
+  /// holds what the page shows: [parts] in page order, with every shown Hide
+  /// details box over them from the lowest part up, painted in. A merge
+  /// refuses (with the reason) when something it would have to bury lies
+  /// between the parts: a visible thing nobody selected, or a Hide details box
+  /// that is switched off and would no longer cover the merged picture once
+  /// switched on.
+  (List<SceneObject>, String?) _mergePlan(List<SceneObject> parts) {
     final ids = {for (final o in parts) o.id};
+    final areas = [for (final o in parts) o.paintBounds];
     final last = parts.last.id;
     final out = <SceneObject>[];
+    var above = false;
     for (final layer in doc.layers) {
       for (final o in layer.objects) {
         if (ids.contains(o.id)) {
           out.add(o);
-          if (o.id == last) return out;
-        } else if (o is HideObject &&
-            out.isNotEmpty &&
-            layer.visible &&
-            o.visible &&
-            o.bounds.overlaps(area)) {
-          out.add(o);
+          if (o.id == last) above = true;
+          continue;
+        }
+        if (out.isEmpty) continue;
+        final area = o is HideObject ? o.bounds : o.paintBounds;
+        if (!areas.any((a) => a.overlaps(area))) continue;
+        final seen = layer.visible && o.visible;
+        if (o is HideObject) {
+          if (seen) {
+            out.add(o);
+          } else if (!above) {
+            return (
+              out,
+              'The switched-off Hide details box “${o.name}” lies between these. Switch it on or delete it first.',
+            );
+          }
+        } else if (seen && !above) {
+          return (
+            out,
+            '“${o.name}” lies between these. Select it too, or merge them in two steps.',
+          );
         }
       }
     }
-    return out;
+    return (out, null);
   }
 
   /// What a merge turns into one picture: the mergeable things, except Hide

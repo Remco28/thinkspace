@@ -637,9 +637,9 @@ class PropertiesPanel extends StatelessWidget {
                   buttons: [
                     GroupButton(
                       icon: Icons.align_horizontal_left,
-                      tooltip: objs.length > 1
-                          ? 'Align left edges'
-                          : 'Align to the left of the page',
+                      tooltip: c.alignsToPage
+                          ? 'Align to the left of the page'
+                          : 'Align left edges',
                       onPressed: () => c.alignSelection('left'),
                     ),
                     GroupButton(
