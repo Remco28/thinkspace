@@ -1223,14 +1223,26 @@ class EditorController extends ChangeNotifier {
   void alignSelection(String how) {
     final objs = selectedObjects.where((o) => !o.locked).toList();
     if (objs.isEmpty) return;
-    final frame = objs.length > 1
-        ? unionRects(objs.map((o) => o.bounds))
+    // A line attached only to things selected with it (a mark on its
+    // picture, a connector between two selected boxes) is carried by them:
+    // it is not aligned in its own right and does not widen the frame. A
+    // locked picture still carries its marks; it just does not move.
+    final selected = {for (final o in selectedObjects) o.id};
+    bool carried(SceneObject o) =>
+        o is LineObject &&
+        o.attached &&
+        (o.start == null || selected.contains(o.start!.to)) &&
+        (o.end == null || selected.contains(o.end!.to));
+    final own = objs.where((o) => !carried(o)).toList();
+    if (own.isEmpty) return;
+    final frame = own.length > 1
+        ? unionRects(own.map((o) => o.bounds))
         : Offset.zero & doc.canvasSize;
     transact('align', () {
-      final shifts = <SceneObject, Offset>{};
-      for (final o in objs) {
+      final shifts = <String, Offset>{};
+      for (final o in own) {
         final b = o.bounds;
-        shifts[o] = switch (how) {
+        shifts[o.id] = switch (how) {
           'left' => Offset(frame.left - b.left, 0),
           'right' => Offset(frame.right - b.right, 0),
           'centre' => Offset(frame.center.dx - b.center.dx, 0),
@@ -1240,26 +1252,23 @@ class EditorController extends ChangeNotifier {
           _ => Offset.zero,
         };
       }
-      // A line attached only to things aligned with it rides along with them:
-      // it is not aligned in its own right.
-      final ids = {for (final o in objs) o.id};
+      // A carried line moves with the first thing it is attached to, so a
+      // free end keeps its place beside it; its attached ends follow their
+      // targets anyway.
       for (final o in objs) {
-        if (o is LineObject &&
-            o.attached &&
-            (o.start == null || ids.contains(o.start!.to)) &&
-            (o.end == null || ids.contains(o.end!.to))) {
-          shifts[o] = Offset.zero;
+        if (o is LineObject && carried(o)) {
+          final by = (o.start ?? o.end)!.to;
+          shifts[o.id] = shifts[by] ?? Offset.zero;
         }
       }
       // Pins come off only lines that really shift, and only where their
-      // picture is not aligned with them: selected together, a mark stays on
-      // its spot even when its picture does not move.
+      // picture is not selected with them.
       final held = holdPins([
-        for (final e in shifts.entries)
-          if (e.value != Offset.zero) e.key,
-      ], group: objs);
-      for (final e in shifts.entries) {
-        e.key.translate(e.value);
+        for (final o in objs)
+          if ((shifts[o.id] ?? Offset.zero) != Offset.zero) o,
+      ], group: selectedObjects);
+      for (final o in objs) {
+        o.translate(shifts[o.id] ?? Offset.zero);
       }
       repin(held);
     });

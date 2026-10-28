@@ -308,6 +308,53 @@ void main() {
       expect(caption.bounds.top, closeTo(l.bounds.top, 1e-6));
     });
 
+    test(
+      'aligned with its picture, a half-free mark and one that sticks out',
+      () {
+        // One end pinned on the picture, the other out in the page, past its
+        // left edge.
+        final l = arrow(const Offset(600, 350), const Offset(400, 300));
+        expect(l.start!.to, 'pic');
+        expect(l.end, isNull);
+        final caption = TextObject(
+          id: 'cap',
+          name: 'cap',
+          text: 'Caption',
+          center: const Offset(1000, 600),
+          size: const Size(160, 40),
+        );
+        c.currentLayer.objects.add(caption);
+        final free = l.p2 - pic.center;
+        c.select(['pic', l.id, 'cap']);
+        c.alignSelection('left');
+        // The frame is the picture and the caption: the mark does not widen it.
+        expect(pic.bounds.left, closeTo(550, 1e-6));
+        expect(caption.bounds.left, closeTo(550, 1e-6));
+        // The free end kept its place beside the picture.
+        expect(l.p2 - pic.center, free);
+        c.alignSelection('right');
+        expect(l.p2 - pic.center, free);
+      },
+    );
+
+    test('a locked picture still carries its marks in an align', () {
+      final l = arrow(const Offset(600, 350), const Offset(700, 420));
+      final caption = TextObject(
+        id: 'cap',
+        name: 'cap',
+        text: 'Caption',
+        center: const Offset(1000, 600),
+        size: const Size(160, 40),
+      );
+      c.currentLayer.objects.add(caption);
+      pic.locked = true;
+      final p1 = l.p1;
+      c.select(['pic', l.id, 'cap']);
+      c.alignSelection('top');
+      expect(l.p1, p1);
+      expect(l.start!.to, 'pic');
+    });
+
     test('a mark that need not move keeps its pins, even under another', () {
       final l = arrow(const Offset(600, 350), const Offset(700, 420));
       final caption = TextObject(
