@@ -692,3 +692,49 @@ Direction test (round 4):
   (pre-existing).
 
 Converging. Stakes check: put to Frank with the disposition audit.
+
+### Peer step for L1 and L2 (a Claude critic; summarised here)
+- **The plans close L1 and L2.**
+- **MEDIUM, taken:** a gesture that begins during the render but has changed
+  nothing yet (holding the mouse down, grabbing a slider, opening a text
+  box) would let the merge apply inside it, and the next undo would take the
+  merge back. The fix counts the edits begun: the merge is refused if any
+  began during the render, or if text is being edited.
+- **Taken:**
+  - the L2 message says "merge them in two steps" (selecting the box would
+    not help);
+  - the unused picture is dropped from the store at once
+    (`AssetStore.forget`);
+  - a second press says "Still merging…".
+- **Declined:**
+  - the refusal also counts boxes that overlap only parts above them. Safe,
+    and consistent with B13;
+  - the signature includes the collection and page settings, so a merge is
+    refused for an unrelated change. Safe;
+  - reopening the same unchanged file during a render. Rare, and nothing is
+    lost.
+- **Recorded, outside this work (pre-existing, same pattern):**
+  - `cutout` adds a piece at the top of its layer if its source vanished
+    during the cut, possibly above a Hide box;
+  - `removeColorAt` run twice quickly loses the first removal.
+
+  Put in the office as known issues and told to Frank.
+
+### Disposition audit, rounds 3–4 (Codex; `round-4/audit/`)
+- **Upheld:**
+  - L3's rejection: no hidden detail is shown;
+  - L1 and L2 at MEDIUM; L4 and L5 at LOW;
+  - G4's rejection;
+  - G2 as a rule question, now settled by Frank.
+- **Rated too soft, accepted:**
+  - **P14** (the border vanishing while typing) LOW → **MEDIUM**;
+  - **R6** (a curve changing while its target is hidden) LOW → **MEDIUM**;
+  - **K4** (the menu's merge re-rendered the picture and freed its arrows)
+    LOW → **MEDIUM**.
+
+  All three were fixed, and all three **without the peer step**: the same
+  breach as F2, F4 and G5. **Pattern: I rate my own visual defects LOW.** It
+  happened in every audit so far.
+- **Gentler on my own items:** yes (above).
+
+L1, L2, L5 and the second-press toast are built in `fb25342` (318 tests).
