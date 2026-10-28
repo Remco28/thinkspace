@@ -738,3 +738,16 @@ Converging. Stakes check: put to Frank with the disposition audit.
 - **Gentler on my own items:** yes (above).
 
 L1, L2, L5 and the second-press toast are built in `fb25342` (318 tests).
+
+## Round 5, 2026-10-28, commit `fb25342`: the fix auditor on L1, L2 and L5
+Predictions (written before the round):
+- **No HIGH.**
+- **At most one LOW,** most likely in the wording of a refusal, or a refusal
+  that is too eager (an unrelated change cancelling a merge).
+- **L1 and L2 land.**
+
+If so, the profile's stop rule is met, and the loop stops.
+
+Cast:
+- **Fix auditor:** Gemini, on the diff `14defe8..fb25342`.
+- **Disposition auditor:** after sorting.
