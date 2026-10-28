@@ -2114,6 +2114,9 @@ class EditorController extends ChangeNotifier {
     // rendered no longer matches it, so nothing is applied.
     final before = doc.signature();
     final edits = _editsBegun;
+    // Opening a file (or undo) swaps the whole document, even one that
+    // reads the same.
+    final same = doc;
     final drawn = multiply ? ordered : shown;
     final covered = drawn.length > ordered.length;
     var scale = 1.0;
@@ -2139,7 +2142,8 @@ class EditorController extends ChangeNotifier {
       (b.height * scale).ceil(),
     );
     final asset = await assets.addImage(img);
-    if (doc.signature() != before ||
+    if (!identical(doc, same) ||
+        doc.signature() != before ||
         _editsBegun != edits ||
         editingTextId != null) {
       assets.forget(asset.id);

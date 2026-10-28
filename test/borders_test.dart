@@ -390,6 +390,15 @@ void main() {
       expect(c.doc.objectById('a'), isNotNull);
     });
 
+    test('opening the same project during a merge cancels it', () async {
+      c.select(['a', 'b']);
+      final pending = c.flattenSelection();
+      // The same project, swapped in before the picture is ready.
+      c.replaceDocument(Document.decode(c.doc.encode()));
+      expect(await pending, isNull);
+      expect(c.doc.objectById('a'), isNotNull);
+    });
+
     test(
       'a gesture begun during a merge, unchanged so far, cancels it too',
       () async {
