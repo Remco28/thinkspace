@@ -272,3 +272,29 @@ starts a body bend, whatever the click-cycling flags say. The flags are still
 worked out, and on a release without movement the existing click behaviour
 runs (`_finishClick`: pick what is beneath, cycle, or select the top). That
 covers presses on a connector with things above or below it.
+
+Peer reports: `round-1/peer-f1/`. Critic: Codex. Blind solver: Claude, whose
+report is summarised here.
+- The solver independently designed the same fix, and added a `_bodyBend`
+  flag: ignore movement below the drag threshold, then run `_finishClick` on
+  release.
+- The critic's MEDIUM: `lineEnd` mode never calls `_finishClick`, so the plan
+  as worded loses click-to-cycle. That is the mechanism the solver's design
+  supplies; it was taken.
+- The critic also noted that the double-click-on-text check and the Alt/Shift
+  handling run before the bend branch. That is correct and intended.
+
+A detail-only pass, so the peer step stopped there.
+
+Fixes, commit `08888db`:
+- F1: the bend branch keys on "the press hits the single selected connector".
+  A click without movement ends the edit (no change, no undo step) and runs
+  `_finishClick`.
+- F2: `refitBend` extends the drawn quadratic to the new anchors when an end
+  goes free (in relink) or is dropped from a copy (`remapAttachments`).
+- F3: the Border row shows when any selected object takes a border, and
+  changes only those.
+- F4: the outline has round corners for text (radius 6 + border width).
+- F5: `borderWidth` is written only with a border.
+
+All fixes have tests; there are 303 tests in all.
