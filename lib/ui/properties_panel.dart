@@ -614,7 +614,7 @@ class PropertiesPanel extends StatelessWidget {
         if (one is BoxObject)
           Section(title: 'Size and rotation', children: _transform(one)),
         ?specific,
-        if (c.mergeable.length > 1)
+        if (c.mergeParts.length > 1)
           Section(
             title: 'Combine',
             children: [

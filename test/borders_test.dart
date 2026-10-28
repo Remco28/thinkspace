@@ -216,6 +216,82 @@ void main() {
     });
   });
 
+  group('merging never un-hides', () {
+    late EditorController c;
+    late ImageObject a, b;
+    late HideObject hide;
+
+    setUp(() async {
+      c = newEditor();
+      c.doc.canvasSize = const Size(300, 200);
+      c.doc.background = 0xFFFFFFFF;
+      final red = await makeAsset(c, w: 100, h: 100, color: 0xFFFF0000);
+      final green = await makeAsset(c, w: 40, h: 40, color: 0xFF00FF00);
+      a = ImageObject(
+        id: 'a',
+        name: 'a',
+        assetId: red.id,
+        center: const Offset(100, 100),
+        size: const Size(100, 100),
+      );
+      hide = HideObject(
+        id: 'h',
+        name: 'h',
+        center: const Offset(80, 100),
+        size: const Size(30, 30),
+        solid: true,
+        color: 0xFF000000,
+      );
+      b = ImageObject(
+        id: 'b',
+        name: 'b',
+        assetId: green.id,
+        center: const Offset(200, 100),
+        size: const Size(40, 40),
+      );
+      c.currentLayer.objects.addAll([a, hide, b]);
+    });
+
+    Future<int> redAt(Offset p) async {
+      final img = await renderDocument(c.doc, c.assets);
+      final px = (await img.toByteData())!;
+      return px.getUint8((p.dy.round() * img.width + p.dx.round()) * 4);
+    }
+
+    test('a Hide box between the parts is painted in, and stays', () async {
+      expect(await redAt(const Offset(80, 100)), lessThan(20));
+      c.select(['a', 'b']);
+      final merged = await c.flattenSelection();
+      expect(merged, isNotNull);
+      expect(c.doc.objectById('h'), isNotNull);
+      // Even with the box hidden, the merged picture itself keeps it covered.
+      c.setObjectVisible('h', false);
+      expect(await redAt(const Offset(80, 100)), lessThan(20));
+      expect(await redAt(const Offset(120, 100)), greaterThan(240));
+      c.setObjectVisible('h', true);
+      // Taken apart again, the cover comes back above the part it hid.
+      c.select([merged!.id]);
+      c.unmerge();
+      c.setObjectVisible('h', false);
+      expect(await redAt(const Offset(80, 100)), lessThan(20));
+    });
+
+    test('a selected Hide box is not taken off the page', () async {
+      c.select(['a', 'h', 'b']);
+      await c.flattenSelection();
+      expect(c.doc.objectById('h'), isNotNull);
+      expect(await redAt(const Offset(80, 100)), lessThan(20));
+    });
+
+    test('with no box over the parts, a merge is as before', () async {
+      c.currentLayer.objects.remove(hide);
+      c.select(['a', 'b']);
+      final merged = await c.flattenSelection();
+      expect(merged!.merged!.parts, hasLength(2));
+      expect(await redAt(const Offset(80, 100)), greaterThan(240));
+    });
+  });
+
   group('the panel', () {
     Future<EditorController> pump(WidgetTester tester) async {
       tester.view.physicalSize = const Size(1500, 900);

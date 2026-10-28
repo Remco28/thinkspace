@@ -137,7 +137,7 @@ class _CanvasViewState extends State<CanvasView> {
       c.editingTextId == null &&
       c.pendingPaste == null &&
       c.selection.isNotEmpty &&
-      (c.mergeable.length > 1 || c.canUnmerge);
+      (c.mergeParts.length > 1 || c.canUnmerge);
 
   @override
   Widget build(BuildContext context) {

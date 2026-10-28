@@ -2068,10 +2068,14 @@ class EditorController extends ChangeNotifier {
   Future<ImageObject?> _flattenSelection() async {
     // Locked and hidden things are left where they are: a merge only takes
     // what you can see and are free to change.
-    final ordered = mergeable;
+    // A merge never takes a Hide details box off the page: it may be hiding
+    // other things too. Boxes over the parts are painted into the picture.
+    final ordered = mergeParts;
     final chosen = {for (final o in ordered) o.id};
     if (ordered.isEmpty) return null;
     final b = unionRects(ordered.map((o) => o.paintBounds)).inflate(1);
+    final drawn = _withCoversBetween(ordered, b);
+    final covered = drawn.length > ordered.length;
     var scale = 1.0;
     for (final o in ordered) {
       if (o is ImageObject) {
@@ -2087,7 +2091,7 @@ class EditorController extends ChangeNotifier {
     canvas.scale(scale);
     canvas.translate(-b.left, -b.top);
     paintObjects(canvas, [
-      for (final o in ordered)
+      for (final o in drawn)
         if (o.visible) o,
     ], assets);
     final img = await rec.endRecording().toImage(
@@ -2106,16 +2110,20 @@ class EditorController extends ChangeNotifier {
         assetId: asset.id,
         center: b.center,
         size: b.size,
-        parts: [for (final o in ordered) o.toJson()],
+        // The covers come back with the parts on unmerge, so a part never
+        // comes back above the box that hid it.
+        parts: [for (final o in drawn) o.toJson()],
       ),
       // Marks made with the highlighter multiply onto the page. Merged into a
       // picture they would turn into solid colour and hide what they were
       // marking, so a merge of nothing but such marks multiplies as one.
-      multiply: ordered.every(
-        (o) =>
-            (o is StrokeObject && o.highlight == HighlightStyle.multiply) ||
-            (o is ShapeObject && o.highlight == HighlightStyle.multiply),
-      ),
+      multiply:
+          !covered &&
+          ordered.every(
+            (o) =>
+                (o is StrokeObject && o.highlight == HighlightStyle.multiply) ||
+                (o is ShapeObject && o.highlight == HighlightStyle.multiply),
+          ),
     );
     transact('merge into one image', () {
       // The merged picture takes the place of the highest part, so whatever
@@ -2132,8 +2140,40 @@ class EditorController extends ChangeNotifier {
       selection = [merged.id];
       currentLayerId = topLayer.id;
     });
+    if (covered) showToast('Merged, with the hidden details over it');
     return merged;
   }
+
+  /// What a merge paints: [parts] in page order, with every visible Hide
+  /// details box that lies over them, from the lowest part up to the highest.
+  /// One above the highest part stays above the merged picture anyway.
+  List<SceneObject> _withCoversBetween(List<SceneObject> parts, Rect area) {
+    final ids = {for (final o in parts) o.id};
+    final last = parts.last.id;
+    final out = <SceneObject>[];
+    for (final layer in doc.layers) {
+      for (final o in layer.objects) {
+        if (ids.contains(o.id)) {
+          out.add(o);
+          if (o.id == last) return out;
+        } else if (o is HideObject &&
+            out.isNotEmpty &&
+            layer.visible &&
+            o.visible &&
+            o.bounds.overlaps(area)) {
+          out.add(o);
+        }
+      }
+    }
+    return out;
+  }
+
+  /// What a merge turns into one picture: the mergeable things, except Hide
+  /// details boxes, which stay on the page.
+  List<SceneObject> get mergeParts => [
+    for (final o in mergeable)
+      if (o is! HideObject) o,
+  ];
 
   /// The selected things a merge would take, bottom to top: visible, not
   /// locked, and not on a hidden or locked layer.
@@ -2150,7 +2190,7 @@ class EditorController extends ChangeNotifier {
   /// Merging needs two or more things, or one thing that is not already a
   /// picture.
   bool get canMerge {
-    final sel = mergeable;
+    final sel = mergeParts;
     return sel.length > 1 || (sel.length == 1 && sel.first is! ImageObject);
   }
 
