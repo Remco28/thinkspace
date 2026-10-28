@@ -281,6 +281,50 @@ void main() {
       expect(l.p1, const Offset(645, 360));
     });
 
+    test('aligned with its picture, a mark stays on its spot', () {
+      final l = arrow(const Offset(600, 350), const Offset(700, 420));
+      final caption = TextObject(
+        id: 'cap',
+        name: 'cap',
+        text: 'Caption',
+        center: const Offset(1000, 600),
+        size: const Size(160, 40),
+      );
+      c.currentLayer.objects.add(caption);
+      final p1 = l.p1, at = l.start!.at;
+      for (final how in ['left', 'top', 'right']) {
+        c.select(['pic', l.id, 'cap']);
+        c.alignSelection(how);
+        final moved = pic.center - const Offset(700, 400);
+        expect(l.start!.at, at, reason: how);
+        expect(l.p1, p1 + moved, reason: how);
+      }
+      // Aligned without its picture, it moves and pins where it lands.
+      pic.center = const Offset(700, 400);
+      c.notify();
+      c.select([l.id, 'cap']);
+      c.alignSelection('top');
+      expect(l.start!.to, 'pic');
+      expect(caption.bounds.top, closeTo(l.bounds.top, 1e-6));
+    });
+
+    test('a mark that need not move keeps its pins, even under another', () {
+      final l = arrow(const Offset(600, 350), const Offset(700, 420));
+      final caption = TextObject(
+        id: 'cap',
+        name: 'cap',
+        text: 'Caption',
+        center: const Offset(1000, 600),
+        size: const Size(160, 40),
+      );
+      c.currentLayer.objects.add(caption);
+      final at = l.end!.at;
+      c.select([l.id, 'cap']);
+      // The mark is the leftmost: Align left leaves it where it is.
+      c.alignSelection('left');
+      expect(l.end, Attachment('pic', at));
+    });
+
     test('a mark dragged onto a label stays a mark on the picture', () {
       label.center = const Offset(700, 400); // over the picture
       c.notify();

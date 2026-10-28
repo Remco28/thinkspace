@@ -920,7 +920,15 @@ class EditorController extends ChangeNotifier {
       final x = l.dx / hw, y = l.dy / hh;
       return x * x + y * y <= 1;
     }
-    return l.dx.abs() <= hw && l.dy.abs() <= hh;
+    final ax = l.dx.abs(), ay = l.dy.abs();
+    if (ax > hw || ay > hh) return false;
+    // Past a round corner's arc is outside it.
+    final r = out.corner + reach;
+    final cx = hw - r, cy = hh - r;
+    if (out.corner > 0 && ax > cx && ay > cy) {
+      return Offset(ax - cx, ay - cy).distance <= r;
+    }
+    return true;
   }
 
   /// The object a line end is about to attach to, outlined while dragging.
@@ -929,10 +937,14 @@ class EditorController extends ChangeNotifier {
   /// Before moving [moving] (lines among it) without the pictures their pins
   /// are on: take those pins off, so the ends can move. [repin] puts them
   /// back where the ends end up. A pin whose picture moves too keeps it.
+  /// [group] is everything moving together, if more than [moving] itself (an
+  /// align moves some of the selection by nothing): a pin on any of it is
+  /// kept.
   Map<String, (Attachment?, Attachment?)> holdPins(
-    Iterable<SceneObject> moving,
-  ) {
-    final ids = {for (final o in moving) o.id};
+    Iterable<SceneObject> moving, {
+    Iterable<SceneObject>? group,
+  }) {
+    final ids = {for (final o in group ?? moving) o.id};
     bool held(Attachment? a) => a != null && a.pinned && !ids.contains(a.to);
     final out = <String, (Attachment?, Attachment?)>{};
     for (final o in moving) {
@@ -1228,11 +1240,24 @@ class EditorController extends ChangeNotifier {
           _ => Offset.zero,
         };
       }
-      // Only what actually moves counts as moving, for the pins.
+      // A line attached only to things aligned with it rides along with them:
+      // it is not aligned in its own right.
+      final ids = {for (final o in objs) o.id};
+      for (final o in objs) {
+        if (o is LineObject &&
+            o.attached &&
+            (o.start == null || ids.contains(o.start!.to)) &&
+            (o.end == null || ids.contains(o.end!.to))) {
+          shifts[o] = Offset.zero;
+        }
+      }
+      // Pins come off only lines that really shift, and only where their
+      // picture is not aligned with them: selected together, a mark stays on
+      // its spot even when its picture does not move.
       final held = holdPins([
         for (final e in shifts.entries)
           if (e.value != Offset.zero) e.key,
-      ]);
+      ], group: objs);
       for (final e in shifts.entries) {
         e.key.translate(e.value);
       }
