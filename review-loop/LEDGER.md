@@ -444,3 +444,37 @@ Critic (Codex, fresh; `round-2/peer-g1b/`):
 
 Built in commit `cdbe22d`, with tests for the half-free mark,
 the mark that sticks out, and the locked picture. There are 307 tests.
+
+### Frank's answers, 2026-10-27
+- **G2 (text without a backdrop): "the whole text box".** B4 stands as built:
+  the border and the arrow ends go round the whole text box. Closed, with no
+  change.
+- **G3 (merge order): "where its highest part was".** A new rule, B12: a merged
+  picture takes the place of the highest merged part, so whatever was above
+  the merged parts stays above. It is a MEDIUM fix, so it gets the peer step.
+- **Round 3: the smaller round.** A fix auditor on the round-2 fixes and G3, a
+  rules reader in the app, and the disposition auditor. Stop after it if it is
+  clean.
+
+### Peer step for G3 (`round-2/peer-g3/`)
+Plan: in `_flattenSelection`, the merged picture is inserted into the layer of
+the topmost merged part, at that part's index. Merged parts that sat below it
+in the same layer are removed, so the index shifts down by their count.
+`currentLayerId` and the selection are unchanged. Unmerge already replaces the
+merged picture in place.
+
+Peer reports: Codex critic, plus a blind solver (Claude).
+- The solver designed the same rule more simply: replace the topmost part in
+  its slot, then remove the others, with no index arithmetic. **Taken.**
+- Codex: the plan is right.
+  - **HIGH, pre-existing:** a Hide details box between merged parts, or under
+    the highest one, stops covering. The merge paints the parts without it,
+    and the merged picture sits above it, so hidden details can show in an
+    export. The solver found the same thing independently.
+  - **MEDIUM, pre-existing:** unmerge puts cross-layer parts all on one layer.
+
+  Neither is introduced by this work, and the placement change neither causes
+  nor fixes them. The HIGH goes to Frank; the MEDIUM is recorded.
+
+G3 built with a test (merge, undo, redo, unmerge keep the arrow above). There
+are 308 tests.
