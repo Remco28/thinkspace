@@ -478,3 +478,53 @@ Peer reports: Codex critic, plus a blind solver (Claude).
 
 G3 built with a test (merge, undo, redo, unmerge keep the arrow above). There
 are 308 tests.
+
+### H1: a merge must not un-hide details (pre-existing HIGH, fixed at Frank's request)
+Frank: "Yes, merge takes covers." Plan:
+- The merge paints in every Hide details box that lies over its parts, found
+  as copy finds them (`withCovers`), so the merged picture has those details
+  hidden.
+- A Hide box that was not itself selected is **not removed**: it may also
+  cover other things on the page. It stays where it is.
+- A selected Hide box is merged and removed, as today.
+- The merged picture still takes the highest part's place (B12).
+
+Peer step (`round-2/peer-h1/`): Codex critic, plus a blind solver (Claude).
+- Both independently: keep **two lists**.
+  - **Parts** for the size, placement, removal and `multiply`.
+  - **Parts plus covers** for painting.
+  - Feeding `withCovers` straight in would have removed unselected boxes
+    (HIGH) and enlarged the picture (MEDIUM).
+- The solver also found **two more leaks of the same kind**:
+  - a *selected* Hide box is removed by a merge today, exposing an
+    unselected screenshot under it;
+  - unmerge puts parts back above their covers.
+- Taken, with three refinements:
+  - a merge never removes a Hide box;
+  - covers from the lowest part up to the highest are painted in. One above
+    the highest stays above anyway, which avoids pixelating twice;
+  - the record keeps the covers, so unmerge brings back a copy above the
+    parts. A duplicate box is harmless; a missing one is not.
+
+  Also: `multiply` is off when there are covers, and the toast says
+  "Merged, with the hidden details over it".
+- The plan **grew** in this pass (unmerge covers). That is justified by a
+  privacy leak and recorded here.
+
+Built in `79c8c27`, with 3 tests. There are 311 tests.
+
+## Round 3, 2026-10-27, commit `79c8c27` (the smaller round, Frank's choice)
+Predictions (written before the round):
+- The fix auditor finds **one or two** problems in this round's fixes. The
+  likeliest is in the merge change: H1 is the largest, newest and least
+  peer-checked. For example, the duplicate covers from unmerge, or a cover on
+  another layer painted in the wrong order.
+- The Align rewrite holds.
+- The rules reader passes everything, including B12 and the merge covers, in
+  the real app. At most one LOW.
+- No HIGH.
+
+Cast:
+- **Fix auditor:** Gemini, with the diff `08888db..79c8c27`.
+- **Rules reader:** Claude, fresh.
+- **Disposition auditor:** after sorting.
