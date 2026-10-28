@@ -763,3 +763,59 @@ L1 and L2 landed (right).
 
 Believed, and wrong: none found this round. That is exactly what the
 disposition auditor is asked to doubt.
+
+### Disposition audit, round 5 (Codex; `round-5/audit/`)
+- **Upheld:** the peer-step declines; L2 and L5; L1 and L2 at MEDIUM.
+- **A new MEDIUM, N1:** the L1 guard misses a project being reopened during
+  the render whose document reads the same but whose pixels differ. It is
+  checked by reading the source: `loadProjectJson` swaps the store without
+  `beginEdit`, and the signature does not hold the pixels. The "same file"
+  decline did not cover it. **The stop rule was not met.**
+- **Round 5's clean result:** not enough on its own, because of that
+  auditor's earlier miss. The auditor's own check of L1, L2 and L5 found only
+  N1.
+
+### Frank's decision (stakes check), 2026-10-28: "Fix it and stop"
+- N1 is fixed in `dcc5a8e`: the merge also refuses if the document object itself
+  was swapped (opened, new, undo). There is a test, and it was **shown to
+  fail without the fix**.
+- By Frank's choice, **without the peer step and without a round 6**. This
+  kind of rare timing is not worth chasing further.
+- **The profile's stop rule is therefore not formally met.** The loop stops
+  on the owner's decision, and this is recorded as such.
+
+## Closing
+- **Final state:** commit `dcc5a8e` on `polish`. **319 tests**, `flutter analyze`
+  clean.
+- **Every HIGH found was fixed:**
+  - in the plan: P1, P2, P12, Q1, Q2;
+  - K2 (merge);
+  - H1, a pre-existing merge privacy leak, fixed at Frank's request.
+- **No HIGH stands** by audited ratings.
+- **Known and not fixed, recorded in the office:**
+  - pre-existing async gaps in cut-out and remove-colour;
+  - L4 (over-eager refusal by bounding box);
+  - a slight softening of merged pictures (pre-existing resampling);
+  - hidden ordinary objects between merged parts end up beneath (outside
+    B13; Frank's call).
+
+## Mistakes the next author will make
+1. **Rating your own visual defects LOW** because they are "visible", "a few
+   pixels" or "cosmetic". Every audit (rounds 1 to 4) raised at least one,
+   and each time the fix had already been built without the peer step.
+   *Recognise it:* a LOW whose reason is visibility or recoverability.
+2. **Writing a "precise" rule from a critic's wording question** (R8's
+   "actually translated") without asking what it does to the common case. It
+   caused G1.
+3. **Testing gestures over empty page.** F1 passed every test, because the
+   tests drew connectors over nothing. Frank's arrows always sit on a
+   screenshot. *Recognise it:* a gesture test with nothing under the
+   pointer.
+4. **Fixing a pre-existing area (merge) inside a feature review.** It drew
+   three more rounds than the feature itself. *Recognise it:* "while we're
+   here" fixes in code the change doesn't own. Ask the human to split it out
+   first.
+5. **Patching a design that grows with each pass** (merge M1 → M2) instead of
+   simplifying. M3 was smaller and held.
+6. **Trusting one fix auditor's "nothing missed".** Gemini missed K4; the
+   rules reader in the real app found it.
