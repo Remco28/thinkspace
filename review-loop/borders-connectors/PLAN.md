@@ -1,8 +1,8 @@
-# Plan: borders and connectors (v2)
+# Plan: borders and connectors (v3)
 
 Base commit: `500f942` (branch `polish`). The rules (B1–B11, C1–C16) are in
-`../LEDGER.md`, confirmed by Frank on 2026-10-27. v2 takes in peer pass 1 (see
-the ledger for what was taken and declined, and why).
+`../LEDGER.md`, confirmed by Frank on 2026-10-27. v2 took in peer pass 1, v3 takes in peer pass 2
+(see the ledger for what was taken and declined, and why).
 
 ## The problem, plainly
 
@@ -121,7 +121,8 @@ the ledger for what was taken and declined, and why).
   first, and visible objects, topmost first, locked included, and returns the
   first attachable object where:
   - **picture:** an opaque pixel is under `p`, by the existing alpha mask (a
-    cut-out's transparent parts don't count);
+    cut-out's transparent parts don't count), or `p` is on its border band
+    (B11);
   - **text, marker, filled shape:** `p` is inside the box/ellipse grown by
     border width plus `9/zoom` (the handle grab radius);
   - **unfilled shape (C15):** `p` is within `9/zoom` + half the stroke width of
@@ -150,21 +151,38 @@ For each line with an attachment:
      Curved lines aim at the quadratic's control point, worked out over the
      anchor chord with the line's `bend`, because a quadratic's tangent at an
      end points at its control point.
-   - **Meet the outline.** Intersect that ray with the target's outline grown
-     by its border width (rotated rectangle, ellipse, or marker circle), so the
-     tip touches the border's outside at any angle (C2).
+   - **Meet the outline.** Intersect with the target's *drawn* outline: grown
+     by `borderWidth` for text, by `strokeWidth/2` for a rectangle or ellipse,
+     and by the ring's outer half for a marker. The outline is a rotated
+     rectangle, an ellipse or a circle. This way the tip touches what you see,
+     at any angle (C2).
+     - Straight: the ray from the centre towards the aim.
+     - Curved: the anchor-chord quadratic itself (control point from
+       `anchorBend`). The crossing is found by bisection on the curve's
+       parameter, from the anchor outwards. There is one crossing per
+       edge-riding end; a pinned or free end is the curve's end itself.
    - **Plain ends.** A plain (non-arrowhead) end is pulled back by half the line
      width, so its round cap doesn't overlap the outline.
-   - **Degenerate cases.** If the other anchor is inside the outline, or the
-     same as the centre, the end sits at the outline point straight above the
-     centre. That is deterministic, never "keep previous".
-6. **Write back.** Write the results to `p1`/`p2`. For a curved attached line,
-   recompute `bend` so the curve keeps the shape it had over the anchor chord:
-   the drawn curve is the anchor-chord quadratic cut at the two outline
-   crossings, and a piece of a quadratic is an exact quadratic. To let this
-   recomputation be exact and repeatable, an attached curved line also stores
-   `anchorBend` (the bend over the anchor chord); `bend` is derived from it.
-   Older builds read `bend` and draw the same curve.
+   - **Degenerate cases.**
+     - If the other anchor is inside the outline, the ray is still well
+       defined and is used as it is.
+     - Only when the other anchor is exactly the centre does the end sit at the
+       outline point straight above the centre.
+     - Both are deterministic, never "keep previous".
+6. **Write back.** Write the results to `p1`/`p2`. A curved attached line also
+   stores `anchorBend`, the bend over the anchor chord, which is the line's
+   authoritative shape.
+   - The drawn curve is the piece of the anchor-chord quadratic between the
+     crossings found in step 5. A piece of a quadratic is an exact quadratic, so
+     `bend` (over `p1`–`p2`) is recomputed from that piece and stored.
+   - Older builds read `bend` and draw the same curve; when they save, they drop
+     `start`, `end` and `anchorBend` together, leaving a free curved line.
+   - **Why not derive the shape from `p1`, `p2`, `bend` alone?** The ends depend
+     on the curve and the curve on the ends. Re-deriving each pass drifts, and
+     drift would make phantom undo steps and dirty files.
+   - **When a curved line gets its first attachment**, or is bent while
+     attached, `anchorBend` is set from the current curve over the anchor chord.
+     A straight line writes no `anchorBend`.
 
 **Locked lines follow** their targets: lock stops you dragging a line, not
 keeping it attached.
@@ -178,23 +196,38 @@ keeping it attached.
 - In `loadProjectJson` and `restoreRecovery`, **before `markSaved`**, so a file
   with a dangling attachment is cleaned before its saved signature is taken.
 
+### Gestures that move a line itself: re-pinning
+Relink derives pinned ends from their targets. A gesture that moves the *line*
+without moving its target must therefore first change the pin, or relink pulls
+the end straight back.
+- **The re-pin rule.** For each moved line, each pinned end whose **target is not
+  itself being moved** re-pins:
+  - during a live drag, the end's attachment is held aside in the interactor and
+    the end is treated as free, so relink leaves it alone;
+  - on release, and at once for arrow keys, align and the position boxes, the
+    end looks up `attachTargetAt` at its new point. It pins there (a new `at`,
+    on the same or another picture) or becomes free.
+- **A pin whose target moves with it keeps its attachment unchanged.** Relink
+  carries it, so a group move never re-attaches it to a different picture
+  underneath (C7).
+- **Edge-riding ends** are never held aside by a move. Relink keeps them on their
+  outline.
+
 ### Moving connectors (C6, C7, C16)
 A line whose attached ends are **all pins** (or that has none) is a mark on a
 picture. A line with **any edge-riding end** is a connector between things.
 - **Dragging the body.** When the line is the only thing selected (or becomes so
   by the press):
-  - **mark on a picture:** it moves as today. On release, each pinned end
-    re-pins to whatever attachable object is under it then (by
-    `attachTargetAt`), or becomes free if there is none.
+  - **mark on a picture:** it moves as today, using the re-pin rule above.
   - **connector:** it bends. The grabbed point stays under the pointer: the
     press position becomes a fixed parameter `t` along the curve (clamped to
     0.2–0.8). During the drag, `anchorBend` is solved so that the point at `t`
     follows the pointer, and relink then places the ends. The existing
     snap-straight slack applies, measured over the anchor chord.
 - **Multi-selection moves, arrow keys, align, typed position boxes.** Everything
-  selected translates; then pinned and free ends of selected lines take the
-  translation, and pinned ends re-pin on finish as above. Edge-riding ends stay
-  on their outlines. So a line moved with all its targets moves whole (C7), and
+  selected translates. Pinned and free ends of selected lines take the
+  translation, with the re-pin rule for pins whose target did not move.
+  Edge-riding ends stay on their outlines. So a line moved with all its targets moves whole (C7), and
   a connector nudged on its own changes only its free ends.
 - **Ends handles.** An attached end's handle is drawn filled; a free one hollow,
   as now.
@@ -206,9 +239,13 @@ picture. A line with **any edge-riding end** is a connector between things.
   outlines it. On release, the far end attaches there, unless Ctrl is held.
 - **Dragging an end handle.** Nothing changes until the pointer has actually
   moved (`_moved`): a click on a handle leaves the attachment exactly as it was.
-  Once moving, the end is shown where release would put it: on the hover
-  target's pin or edge point, or free and snapped. On release, it attaches if
-  over a target and Ctrl is not held; otherwise it is free (C5).
+  - On the first movement, the end's attachment is removed from the line and
+    held in the interactor; Escape puts it back (`abortEdit`).
+  - On each move, the line's end gets a **preview attachment** for the hover
+    target (so relink shows it on the pin or edge point), or none, in which case
+    the end is free and snapped under the pointer.
+  - On release, the preview stays if there is one and Ctrl is not held;
+    otherwise the end is free (C5).
 - **Precedence.** Attaching beats grid snapping and the Shift angle constraint.
   Ctrl means neither attaching nor snapping, as Ctrl already means for snapping.
 
@@ -249,6 +286,12 @@ Lines are already removable; nothing changes (C13).
   - an end dropped inside an unfilled frame pins to the picture below, and near
     its line rides it;
   - a locked background takes a pin;
+  - a mark on a picture moves by drag, arrow keys and align, and re-pins;
+  - a group move with the pin's target keeps the same target even over another
+    picture;
+  - an end dragged off its target follows the pointer during the drag;
+  - an arrow end attaches on a picture's border band;
+  - an arrow tip on a thick-stroked rectangle touches the stroke's outside;
   - moving a target is one undo step.
 - **Controller:**
   - delete, cut, merge, delete layer and Remove marks each leave a free line in

@@ -137,6 +137,36 @@ Frank decided, not new mechanism; `anchorBend` is the one new piece of state.
 Pass 2 decides whether it is growing for good.
 
 ## Peer step 2, 2026-10-27, plan v2
+Cast (fresh; neither saw pass 1's reports):
+- Critic A: Codex `gpt-6-luna`, read-only.
+- Critic B: Gemini (`agy`).
+
+No blind solver this pass: pass 1's Claude solver had independently arrived at
+the anchor-chord bend that v2 added as `anchorBend`.
+
+| # | Finding | From (their rating) | Ours | How checked | Done |
+|---|---|---|---|---|---|
+| Q1 | Relink pulls a moved mark-on-a-picture back to its pins: drag freezes, and nudge/align are discarded with no undo step | Gemini (HIGH) | HIGH | read in source (`_doMove`, `nudge`, `endEdit`) against plan v2 | v3: the re-pin rule |
+| Q2 | During an end drag the old attachment is still set, so relink holds the end on its target | Gemini (HIGH) | HIGH | plan v2 text (v1 had "set aside at press", v2 lost it) | v3: held aside on first move, preview attachment |
+| Q3 | A group move re-pins a pin to another picture underneath | Codex (MED) | MEDIUM | plan v2 text | v3: a pin whose target moves keeps it |
+| Q4 | A picture's border band is not counted by `attachTargetAt` (B11) | Gemini (MED) | MEDIUM | plan v2 text | v3: fixed |
+| Q5 | Shapes' stroke width ignored at the outline, burying the tip | Gemini (MED) | MEDIUM | read in source (`_paintShape`, `ShapeObject.bounds`) | v3: drawn outline |
+| Q6 | The "straight above the centre" degenerate rule jumps when one object sits inside another | Gemini (MED) | MEDIUM | plan v2 text | v3: only for anchor == centre |
+| Q7 | "Cut `anchorBend`; and the plan's 'cut at the outline crossings' contradicts aiming the ray at the control point" | Gemini (cut) | The contradiction is real; the cut is declined | geometry | v3: curved ends cut the curve itself at its crossing (bisection); `anchorBend` kept |
+
+Declined:
+- **Cut `anchorBend` (Gemini).** Gemini says `p1`, `p2` and `bend` alone are
+  enough. But the ends depend on the curve and the curve on the ends, so
+  re-deriving each pass drifts, and drift makes phantom undo steps and dirty
+  files. Pass 1's blind solver B independently stored the same thing.
+  Second opinion: put to the fresh critics of pass 3.
+
+Direction: the plan grew by one subsection, the re-pin rule. That is a
+mechanism Frank's C16 needs, not new state; no new fields. Both HIGHs came
+from v2's own additions (C16 and the end-drag rewrite), the pattern the skill
+warns of: fixes cause new problems. Pass 3 runs with fresh critics.
+
+## Peer step 3, 2026-10-27, plan v3
 
 ## Mistakes the next author will make
 (filled in as the work goes)
