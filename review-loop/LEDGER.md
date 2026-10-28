@@ -751,3 +751,15 @@ If so, the profile's stop rule is met, and the loop stops.
 Cast:
 - **Fix auditor:** Gemini, on the diff `14defe8..fb25342`.
 - **Disposition auditor:** after sorting.
+
+Fix auditor (Gemini; `round-5/`):
+- **L1, L2 and L5 are GONE.**
+- **Nothing broken, nothing missed.** It ran the tests, and scratch tests of
+  its own, then removed them.
+- Its clean verdict counts for less: the same auditor missed K4 in round 3.
+
+Against the predictions: no HIGH (right), no LOW (better than predicted), and
+L1 and L2 landed (right).
+
+Believed, and wrong: none found this round. That is exactly what the
+disposition auditor is asked to doubt.
