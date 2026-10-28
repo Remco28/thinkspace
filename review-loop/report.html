@@ -84,8 +84,8 @@
   <section class="card decide" aria-label="Decisions">
     <strong>What I need you to decide</strong>
     <ol>
-      <li><b>Arrows from text without a backdrop.</b> A text box made by clicking is 320 px wide, so an arrow from a short label starts at the invisible edge of that box, up to about 90 px past the last letter. Should the arrow start at the words instead?
-        <div class="rec">My recommendation: yes. Without a backdrop, the end rides a box drawn tight round the lines of text. With a backdrop, nothing changes.</div></li>
+      <li><b>Text without a backdrop: what is "the text area"?</b> Your rule B4 says a border goes "around the backdrop, or around the text area if there is no backdrop". I built it as the whole text box. A box made by clicking is 320 px wide, so the border, and any arrow from it, sits up to about 90 px past the last letter. The auditor reads "text area" as the words themselves. I wrote that wording, so it's your call.
+        <div class="rec">My recommendation: the words. Without a backdrop, the border and arrow ends go round a box drawn tight round the lines of text. With a backdrop, nothing changes.</div></li>
       <li><b>Merging puts the result on top.</b> Merge a screenshot and its label, but not the arrow between them, and the merged picture covers the arrow. This was already how merge worked; arrows just make it more noticeable.
         <div class="rec">My recommendation: the merged picture takes the place of the highest merged part, not the very top of the layer. Anything that was above the merged parts stays above.</div></li>
       <li><b>Round 3.</b> The rules say one more round is needed, because round 2 had a medium fix (Align). The findings are getting smaller and rarer.
@@ -129,8 +129,8 @@
         <text x="385" y="190" text-anchor="middle" class="muted">Round 1</text>
       </g>
       <g>
-        <rect x="486" y="132.5" width="22" height="37.5" rx="4" fill="var(--med)"><title>Round 2: 0 serious, 3 medium (1 fixed, 2 for you)</title></rect>
-        <text x="473" y="165" text-anchor="middle">0</text><text x="497" y="127" text-anchor="middle">3</text>
+        <rect x="486" y="107.5" width="22" height="62.5" rx="4" fill="var(--med)"><title>Round 2: 0 serious, 5 medium (3 fixed, 2 for you)</title></rect>
+        <text x="473" y="165" text-anchor="middle">0</text><text x="497" y="102" text-anchor="middle">5</text>
         <text x="485" y="190" text-anchor="middle" class="muted">Round 2</text>
       </g>
       <!-- legend -->
@@ -141,9 +141,9 @@
       <table><tr><th>Pass</th><th>Serious</th><th>Medium</th></tr>
         <tr><td>Plan 1</td><td>3</td><td>11</td></tr><tr><td>Plan 2</td><td>2</td><td>4</td></tr>
         <tr><td>Plan 3</td><td>0</td><td>5</td></tr><tr><td>Round 1</td><td>0</td><td>3</td></tr>
-        <tr><td>Round 2</td><td>0</td><td>3</td></tr></table>
+        <tr><td>Round 2</td><td>0</td><td>5</td></tr></table>
     </details>
-    <p class="rec">The plan passes caught the serious problems before any code existed. Since the code was built, nothing serious has been found. Each count is after the auditor's check, which twice made my ratings stricter.</p>
+    <p class="rec">The plan passes caught the serious problems before any code existed. Since the code was built, nothing serious has been found. Each count is after the auditor's check, which made my ratings stricter in both rounds.</p>
   </div>
 
   <h2>Where the findings live</h2>
@@ -212,7 +212,7 @@
         <b>Who / how often</b><span>Whenever you align a screenshot together with its arrows and the screenshot itself doesn't need to move.</span>
         <b>What you'd see</b><span>The arrow points at a different part of the screenshot. Undo puts it back.</span>
         <b>At risk</b><span>A wrong picture, if you didn't notice before exporting. No lost work.</span>
-        <b>Fix</b><span>Done. An arrow selected with its picture stays on its spot, whether or not the picture moves. This was caused by a choice I made in the plan.</span>
+        <b>Fix</b><span>Done, in two goes. My first fix still went wrong in two cases: an arrow with one loose end, and an arrow sticking out past its picture. The auditor caught it. Now an arrow selected with its picture (even a locked one) moves with it and doesn't affect where things align. The bug came from a choice I made in the plan.</span>
       </div>
     </div>
 
@@ -243,8 +243,8 @@
       </div>
     </div>
 
-    <details><summary>Low and rejected findings (2)</summary>
-      <p><span class="tag low">low</span> Dropping an arrow end just outside a text box's round corner still caught the box. Fixed.</p>
+    <details><summary>Smaller and rejected findings (2)</summary>
+      <p><span class="tag med">medium</span> Dropping an arrow end just outside a text box's round corner still caught the box. Fixed. I first rated it low; the auditor corrected that.</p>
       <p><span class="tag low">rejected</span> "The arrow tip sits 5 px outside a thick text border." I checked the drawn pixels: the tip touches the border exactly.</p>
     </details>
   </section>
@@ -289,7 +289,7 @@
     <dt>Mark on a picture</dt><dd>An arrow whose attached ends are all pinned to spots on pictures. It moves like any arrow.</dd>
     <dt>Pin</dt><dd>An arrow end fixed to one spot of a picture, following it when the picture moves, turns or flips.</dd>
     <dt>Serious / medium / low</dt><dd>Serious: a wrong picture or lost work nobody would notice. Medium: rare, or wrong but visible and undoable. Low: an annoyance or an odd edge case.</dd>
-    <dt>Disposition auditor</dt><dd>A separate reader who checks whether I rated the findings fairly. Twice it made me rate them more strictly.</dd>
+    <dt>Disposition auditor</dt><dd>A separate reader who checks whether I rated the findings fairly. In both rounds it made me rate some findings more strictly, and in round 2 it caught a fix of mine that didn't fully work.</dd>
   </dl>
 </main>
 <script>
