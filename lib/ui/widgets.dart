@@ -303,6 +303,115 @@ class ColorRow extends StatelessWidget {
   }
 }
 
+/// One small swatch showing [value] (a crossed-out one for none). Clicking
+/// it opens the usual colours in a popover, so a colour choice that is not
+/// used often takes one control's width instead of a row of swatches.
+class SwatchButton extends StatelessWidget {
+  const SwatchButton({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    required this.tooltip,
+    this.allowNone = true,
+  });
+  final int value;
+  final ValueChanged<int> onChanged;
+  final String tooltip;
+  final bool allowNone;
+
+  void _open(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox;
+    final anchor = box.localToGlobal(Offset.zero) & box.size;
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close the colours',
+      barrierColor: Colors.transparent,
+      transitionDuration: kQuick,
+      transitionBuilder: (context, anim, _, child) =>
+          FadeTransition(opacity: anim, child: child),
+      pageBuilder: (dialog, _, _) {
+        const w = 236.0;
+        final screen = MediaQuery.sizeOf(dialog);
+        final left = anchor.left.clamp(8.0, screen.width - w - 8).toDouble();
+        final top = (anchor.bottom + kSpace4)
+            .clamp(8.0, screen.height - 120)
+            .toDouble();
+        return Stack(
+          children: [
+            Positioned(
+              left: left,
+              top: top,
+              width: w,
+              child: Material(
+                key: const ValueKey('swatch-popover'),
+                color: Colors.white,
+                elevation: 10,
+                shadowColor: kShadow,
+                borderRadius: BorderRadius.circular(kRadiusLarge),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(kRadiusLarge),
+                    border: Border.all(color: kBorder),
+                  ),
+                  padding: const EdgeInsets.all(kSpace12),
+                  child: ColorRow(
+                    value: value,
+                    allowNone: allowNone,
+                    onChanged: (v) {
+                      Navigator.of(dialog).pop();
+                      onChanged(v);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    waitDuration: kTooltipWait,
+    child: Builder(
+      builder: (context) => InkWell(
+        onTap: () => _open(context),
+        borderRadius: BorderRadius.circular(kRadius),
+        child: Container(
+          height: kControlHeight,
+          padding: const EdgeInsets.symmetric(horizontal: kSpace8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(kRadius),
+            border: Border.all(color: kControlBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: kSwatch - 4,
+                height: kSwatch - 4,
+                decoration: BoxDecoration(
+                  color: value == 0 ? Colors.white : Color(value),
+                  borderRadius: BorderRadius.circular(kRadius),
+                  border: Border.all(color: kOutline),
+                ),
+                child: value == 0
+                    ? const Icon(Icons.block, size: kIconSmall, color: kDanger)
+                    : null,
+              ),
+              const Icon(Icons.arrow_drop_down, size: kIconSmall, color: kInk),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// The outline every text and number box in the panels shares.
 OutlineInputBorder fieldBorder({bool focused = false}) => OutlineInputBorder(
   borderRadius: BorderRadius.circular(kRadius),

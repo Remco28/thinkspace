@@ -11,6 +11,16 @@ Offset _off(dynamic j) =>
     Offset((j[0] as num).toDouble(), (j[1] as num).toDouble());
 List<double> _offJson(Offset o) => [o.dx, o.dy];
 
+Offset? _tryOff(Object? j) {
+  try {
+    if (j == null) return null;
+    final o = _off(j);
+    return o.dx.isFinite && o.dy.isFinite ? o : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Something on the page. Position, size and look are all plain data so the
 /// whole document can be snapshotted for undo and written to disk.
 abstract class SceneObject {
@@ -32,6 +42,11 @@ abstract class SceneObject {
 
   /// Axis-aligned bounds in page coordinates, including rotation and stroke.
   Rect get bounds;
+
+  /// Everything drawn for this object, including a border and its shadow.
+  /// Selecting, snapping and aligning use [bounds]; whatever must hold the
+  /// drawn pixels (a layer, a merge, a copy) uses this.
+  Rect get paintBounds => bounds;
 
   bool hitTest(Offset p, double tolerance, AssetStore assets);
   void translate(Offset d);
@@ -133,6 +148,82 @@ abstract class BoxObject extends SceneObject {
   }
 }
 
+/// How far the shadow under a framed object falls, and how soft it is.
+const Offset kShadowOffset = Offset(0, 3);
+const double kShadowBlur = 6;
+
+/// A border and a soft shadow around a picture or a text box. The border is
+/// drawn outside the edge, so the object's own size never changes.
+mixin Framed on BoxObject {
+  /// 0 means no border.
+  int border = 0;
+  double borderWidth = 4;
+  bool shadow = false;
+
+  static const double defaultWidth = 4;
+
+  /// How far the drawn border reaches beyond the edge.
+  double get frameWidth => border != 0 ? borderWidth : 0;
+
+  bool get framed => border != 0 || shadow;
+
+  /// The box grown by the border, in the object's own frame.
+  Rect get frameRect => Rect.fromCenter(
+    center: Offset.zero,
+    width: size.width + frameWidth * 2,
+    height: size.height + frameWidth * 2,
+  );
+
+  @override
+  Rect get paintBounds {
+    if (!framed) return bounds;
+    final r = frameRect;
+    var out = rectFromPoints([
+      toScene(r.topLeft),
+      toScene(r.topRight),
+      toScene(r.bottomRight),
+      toScene(r.bottomLeft),
+    ]);
+    if (shadow) {
+      out = out.expandToInclude(
+        out.shift(kShadowOffset).inflate(kShadowBlur * 3),
+      );
+    }
+    return out.expandToInclude(bounds);
+  }
+
+  /// Whether [p] is on the border itself (not the object inside it).
+  bool onBorder(Offset p, double tolerance) {
+    if (border == 0) return false;
+    final l = toLocal(p);
+    final hw = size.width / 2, hh = size.height / 2;
+    final fw = hw + frameWidth + tolerance, fh = hh + frameWidth + tolerance;
+    if (l.dx.abs() > fw || l.dy.abs() > fh) return false;
+    return l.dx.abs() >= hw || l.dy.abs() >= hh;
+  }
+
+  void copyFrame(Framed from) {
+    border = from.border;
+    borderWidth = from.borderWidth;
+    shadow = from.shadow;
+  }
+
+  Map<String, dynamic> frameJson() => {
+    if (border != 0) 'border': border,
+    if (borderWidth != defaultWidth) 'borderWidth': borderWidth,
+    if (shadow) 'shadow': true,
+  };
+
+  /// A damaged value falls back to no border, never to a file that won't open.
+  void readFrame(Map<String, dynamic> j) {
+    final b = j['border'];
+    border = b is int ? b : 0;
+    final w = j['borderWidth'];
+    borderWidth = w is num && w.isFinite && w > 0 ? w.toDouble() : defaultWidth;
+    shadow = j['shadow'] == true;
+  }
+}
+
 /// What a merged picture was made from, so it can be taken apart again.
 class MergeRecord {
   MergeRecord({
@@ -197,7 +288,7 @@ class MergeRecord {
   }
 }
 
-class ImageObject extends BoxObject {
+class ImageObject extends BoxObject with Framed {
   ImageObject({
     required super.id,
     required super.name,
@@ -273,7 +364,7 @@ class ImageObject extends BoxObject {
     locked: locked,
     merged: merged,
     multiply: multiply,
-  );
+  )..copyFrame(this);
 
   @override
   Map<String, dynamic> toJson() => {
@@ -281,6 +372,7 @@ class ImageObject extends BoxObject {
     'asset': assetId,
     if (canUnmerge) 'merged': merged!.toJson(),
     if (multiply) 'multiply': true,
+    ...frameJson(),
   };
 
   factory ImageObject.fromJson(Map<String, dynamic> j) {
@@ -296,6 +388,7 @@ class ImageObject extends BoxObject {
       multiply: j['multiply'] == true,
     );
     o.readBox(j);
+    o.readFrame(j);
     // The merge record is a convenience: a damaged one must not stop the
     // picture itself from opening.
     try {
@@ -329,7 +422,7 @@ enum TextFont {
       values.firstWhere((f) => f.name == n, orElse: () => sans);
 }
 
-class TextObject extends BoxObject {
+class TextObject extends BoxObject with Framed {
   TextObject({
     required super.id,
     required super.name,
@@ -383,7 +476,7 @@ class TextObject extends BoxObject {
     opacity: opacity,
     visible: visible,
     locked: locked,
-  );
+  )..copyFrame(this);
 
   @override
   Map<String, dynamic> toJson() => {
@@ -396,6 +489,7 @@ class TextObject extends BoxObject {
     if (font != TextFont.sans) 'font': font.name,
     'background': background,
     'align': align.index,
+    ...frameJson(),
   };
 
   factory TextObject.fromJson(Map<String, dynamic> j) {
@@ -421,6 +515,7 @@ class TextObject extends BoxObject {
       locked: j['locked'] ?? false,
     );
     o.readBox(j);
+    o.readFrame(j);
     return o;
   }
 }
@@ -675,6 +770,42 @@ class HideObject extends BoxObject {
   }
 }
 
+/// What one end of a line is attached to: [to] is the object's id. With [at]
+/// the end is pinned to that spot of a picture, in the picture's own frame as
+/// fractions of its size, measured before flipping (so the pin flips with
+/// it). Without it the end rides the object's outline.
+class Attachment {
+  const Attachment(this.to, [this.at]);
+  final String to;
+  final Offset? at;
+
+  bool get pinned => at != null;
+
+  Map<String, dynamic> toJson() => {
+    'to': to,
+    if (at != null) 'at': _offJson(at!),
+  };
+
+  /// A damaged note leaves a free end rather than a file that won't open.
+  static Attachment? tryRead(Object? j) {
+    try {
+      if (j is! Map || j['to'] is! String) return null;
+      final at = j['at'] == null ? null : _off(j['at']);
+      if (at != null && !(at.dx.isFinite && at.dy.isFinite)) return null;
+      return Attachment(j['to'] as String, at);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is Attachment && other.to == to && other.at == at;
+
+  @override
+  int get hashCode => Object.hash(to, at);
+}
+
 /// A line or arrow between two points. Dragging the ends resizes it; dragging
 /// its middle bends it into a curve.
 class LineObject extends SceneObject {
@@ -689,12 +820,33 @@ class LineObject extends SceneObject {
     this.headStart = false,
     this.dashed = false,
     this.bend = Offset.zero,
+    this.start,
+    this.end,
+    this.anchorBend,
     super.opacity,
     super.visible,
     super.locked,
   });
 
   Offset p1, p2;
+
+  /// What each end is attached to, if anything. [p1] and [p2] are always the
+  /// real ends, kept up to date by `relinkConnectors`; these only say where
+  /// they come from.
+  Attachment? start, end;
+
+  /// For a curved line with an end riding an outline: its bend measured over
+  /// the line between the ends' anchors (the pins, or the centres of what the
+  /// ends ride), which is what keeps its shape as those move. [bend] is
+  /// worked out from it.
+  Offset? anchorBend;
+
+  bool get attached => start != null || end != null;
+
+  /// An end rides an outline: the line connects things, rather than being a
+  /// mark on a picture.
+  bool get connects =>
+      (start != null && !start!.pinned) || (end != null && !end!.pinned);
   int color;
   double width;
   bool headEnd, headStart, dashed;
@@ -778,6 +930,9 @@ class LineObject extends SceneObject {
     headStart: headStart,
     dashed: dashed,
     bend: bend,
+    start: start,
+    end: end,
+    anchorBend: anchorBend,
     opacity: opacity,
     visible: visible,
     locked: locked,
@@ -794,6 +949,9 @@ class LineObject extends SceneObject {
     'headStart': headStart,
     'dashed': dashed,
     if (curved) 'bend': _offJson(bend),
+    if (start != null) 'start': start!.toJson(),
+    if (end != null) 'end': end!.toJson(),
+    if (anchorBend != null) 'anchorBend': _offJson(anchorBend!),
   };
 
   factory LineObject.fromJson(Map<String, dynamic> j) => LineObject(
@@ -807,6 +965,9 @@ class LineObject extends SceneObject {
     headStart: j['headStart'] ?? false,
     dashed: j['dashed'] ?? false,
     bend: j['bend'] == null ? Offset.zero : _off(j['bend']),
+    start: Attachment.tryRead(j['start']),
+    end: Attachment.tryRead(j['end']),
+    anchorBend: _tryOff(j['anchorBend']),
     opacity: ((j['opacity'] ?? 1) as num).toDouble(),
     visible: j['visible'] ?? true,
     locked: j['locked'] ?? false,

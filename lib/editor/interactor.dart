@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 
+import '../model/connect.dart';
 import '../model/geometry.dart';
 import '../model/scene.dart';
 import 'controller.dart';
@@ -57,6 +58,17 @@ class CanvasInteractor {
   bool _additive = false;
   Offset _cyclePoint = const Offset(double.infinity, 0);
   int _cycleIndex = 0;
+
+  // connectors
+  /// The end being dragged has let go of what it was attached to.
+  bool _endLoose = false;
+
+  /// Where along the curve (0 to 1, between the anchors) a connector was
+  /// grabbed to bend it: that point stays under the pointer.
+  double _bendT = 0.5;
+
+  /// Pins taken off the lines being moved; put back on release.
+  Map<String, (Attachment?, Attachment?)>? _heldPins;
 
   // handles
   HandleSpot? _handle;
@@ -250,6 +262,10 @@ class CanvasInteractor {
       final obj = c.single!;
       _handle = handle;
       _startObj = obj.copyWith();
+      _endLoose = false;
+      if (handle.kind == HandleKind.lineBend && obj is LineObject) {
+        _bendT = _grabT(obj, handle.pos);
+      }
       _token = c.beginEdit(switch (handle.kind) {
         HandleKind.rotate => 'rotate',
         HandleKind.lineBend => 'bend',
@@ -325,11 +341,63 @@ class CanvasInteractor {
       c.select([target.id]);
     }
 
+    // A line that connects things bends when its middle is dragged; it moves
+    // with what it connects.
+    final only = c.single;
+    if (only is LineObject &&
+        only.connects &&
+        !only.locked &&
+        c.selection.length == 1 &&
+        !_clickOnSelectedTop &&
+        !_stickyCycle &&
+        !_selectTopOnRelease) {
+      _handle = HandleSpot(HandleKind.lineBend, p);
+      _startObj = only.copyWith();
+      _bendT = _grabT(only, p);
+      _token = c.beginEdit('bend');
+      _mode = _Mode.lineEnd;
+      return;
+    }
+
     _startBounds = c.selectionBounds;
     _applied = Offset.zero;
     _startObj = null;
+    _heldPins = null;
     _token = c.beginEdit('move');
     _mode = _Mode.move;
+  }
+
+  /// The parameter along [l]'s curve between its anchors nearest to [p],
+  /// kept away from the ends so the solve stays steady.
+  double _grabT(LineObject l, Offset p) {
+    final (a1, a2) = anchorsOf(l, c.doc);
+    final cp = l.connects
+        ? controlFor(a1, a2, l.anchorBend ?? Offset.zero)
+        : l.control;
+    final s = l.connects ? a1 : l.p1, e = l.connects ? a2 : l.p2;
+    var best = 0.5;
+    var bestD = double.infinity;
+    for (int i = 0; i <= 100; i++) {
+      final t = i / 100, u = 1 - t;
+      final q = s * (u * u) + cp * (2 * u * t) + e * (t * t);
+      final d = (q - p).distanceSquared;
+      if (d < bestD) {
+        bestD = d;
+        best = t;
+      }
+    }
+    return best.clamp(0.2, 0.8);
+  }
+
+  /// What a line's end at [p] would attach to. An end may not ride the same
+  /// outline its other end rides.
+  BoxObject? _attachAt(LineObject l, Offset p, Modifiers m, bool isStart) {
+    if (m.ctrl) return null;
+    final t = c.attachTargetAt(p, exclude: l.id);
+    if (t == null) return null;
+    final other = isStart ? l.end : l.start;
+    if (t is! ImageObject && other != null && other.to == t.id) return null;
+    return t;
   }
 
   void _downLine(Offset p, Modifiers m) {
@@ -345,6 +413,11 @@ class CanvasInteractor {
       width: style.width,
       headEnd: c.tool == Tool.arrow,
     );
+    final t = _attachAt(l, p, m, true);
+    if (t != null) {
+      l.start = attachmentFor(t, p);
+      l.p1 = l.p2 = p;
+    }
     c.currentLayer.objects.add(l);
     c.selection = [l.id];
     _createId = l.id;
@@ -526,6 +599,9 @@ class CanvasInteractor {
     if (_snapping(m)) total = _snapDelta(_startBounds, total);
     final step = total - _applied;
     if (step == Offset.zero) return;
+    // Lines moved without the pictures they are pinned to let go of them for
+    // the drag, and pin again where they land.
+    _heldPins ??= c.holdPins(c.selectedObjects.where((o) => !o.locked));
     for (final o in c.selectedObjects) {
       if (!o.locked) o.translate(step);
     }
@@ -604,9 +680,29 @@ class CanvasInteractor {
       _doBend(live, p, m);
       return;
     }
-    final fixed = h.kind == HandleKind.lineStart ? start.p2 : start.p1;
-    final np = _constrain(fixed, _snapPoint(p, m), m);
-    if (h.kind == HandleKind.lineStart) {
+    // A click on an end handle changes nothing; only a real drag lets go.
+    if (!_moved) return;
+    final isStart = h.kind == HandleKind.lineStart;
+    if (!_endLoose) {
+      _endLoose = true;
+      if (isStart) {
+        live.start = null;
+      } else {
+        live.end = null;
+      }
+    }
+    final t = _attachAt(live, p, m, isStart);
+    c.attachHover = t?.id;
+    final a = t == null ? null : attachmentFor(t, p);
+    if (isStart) {
+      live.start = a;
+    } else {
+      live.end = a;
+    }
+    final np = t != null
+        ? p
+        : _constrain(isStart ? live.p2 : live.p1, _snapPoint(p, m), m);
+    if (isStart) {
       live.p1 = np;
     } else {
       live.p2 = np;
@@ -618,6 +714,10 @@ class CanvasInteractor {
   /// snaps straight again, and close to the middle it snaps to an even arc
   /// (Shift keeps it even; Ctrl turns the snapping off).
   void _doBend(LineObject live, Offset p, Modifiers m) {
+    if (live.connects) {
+      _bendConnector(live, p, m);
+      return;
+    }
     live.mid = p;
     final len = live.length;
     if (!m.ctrl && len > 0) {
@@ -627,6 +727,31 @@ class CanvasInteractor {
       } else if (m.shift || (live.bend.dx * len).abs() < slack) {
         live.bend = Offset(0, live.bend.dy);
       }
+    }
+    c.notify();
+  }
+
+  /// Bend a connector so the point grabbed ([_bendT] along the curve between
+  /// its anchors) follows the pointer; the ends then settle on their outlines.
+  void _bendConnector(LineObject live, Offset p, Modifiers m) {
+    final (a1, a2) = anchorsOf(live, c.doc);
+    final t = _bendT, u = 1 - t;
+    final cp = (p - a1 * (u * u) - a2 * (t * t)) / (2 * t * u);
+    var ab = bendFor(a1, a2, cp);
+    final len = (a2 - a1).distance;
+    if (!m.ctrl && len > 0) {
+      final slack = (c.touchInput ? 12 : 6) / c.zoom;
+      if ((ab.dy * len).abs() < slack) {
+        ab = Offset.zero;
+      } else if (m.shift || (ab.dx * len).abs() < slack) {
+        ab = Offset(0, ab.dy);
+      }
+    }
+    if (ab == Offset.zero) {
+      live.anchorBend = null;
+      live.bend = Offset.zero;
+    } else {
+      live.anchorBend = ab;
     }
     c.notify();
   }
@@ -644,7 +769,10 @@ class CanvasInteractor {
   void _doCreate(Offset p, Modifiers m) {
     final o = c.doc.objectById(_createId!);
     if (o is LineObject) {
-      o.p2 = _constrain(o.p1, _snapPoint(p, m), m);
+      final t = _attachAt(o, p, m, false);
+      c.attachHover = t?.id;
+      o.end = t == null ? null : attachmentFor(t, p);
+      o.p2 = t != null ? p : _constrain(o.p1, _snapPoint(p, m), m);
     } else if (o is ShapeObject || o is HideObject) {
       o as BoxObject;
       final a = _snapPoint(_startScene, m);
@@ -810,6 +938,7 @@ class CanvasInteractor {
     final mode = _mode;
     _mode = _Mode.none;
     c.draggingGrip = null;
+    c.attachHover = null;
     final token = _token;
     _token = null;
 
@@ -821,6 +950,9 @@ class CanvasInteractor {
         if (!_moved) {
           _finishClick(p);
         }
+        final held = _heldPins;
+        _heldPins = null;
+        if (held != null) c.repin(held);
         if (token != null) c.endEdit(token);
       case _Mode.resize:
         // The next marker comes out this size too.
@@ -899,7 +1031,8 @@ class CanvasInteractor {
   void _finishCreate(EditToken? token, Offset p, Modifiers m) {
     final o = c.doc.objectById(_createId!);
     var keep = true;
-    if (o is LineObject && o.length < 4) keep = false;
+    // A click is not a line, even one that starts on an outline.
+    if (o is LineObject && (!_moved || o.length < 4)) keep = false;
     // A click is not a box worth hiding anything with.
     if (o is HideObject && (o.size.width < 6 || o.size.height < 6)) {
       keep = false;
@@ -960,6 +1093,8 @@ class CanvasInteractor {
     final t = _token;
     _mode = _Mode.none;
     c.draggingGrip = null;
+    c.attachHover = null;
+    _heldPins = null;
     _token = null;
     c.marquee = null;
     c.lasso = null;

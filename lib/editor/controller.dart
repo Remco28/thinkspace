@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import '../io/clipboard.dart';
 import '../io/paths.dart';
 import '../model/assets.dart';
+import '../model/connect.dart';
 import '../model/geometry.dart';
 import '../model/scene.dart';
 import 'image_ops.dart';
@@ -176,6 +177,9 @@ class EditorController extends ChangeNotifier {
 
   /// Note that what is on the page now is what is on disk.
   void markSaved() {
+    // A file whose connectors were out of step (a dangling one, say) is put
+    // right before its signature is taken, so it does not open as changed.
+    relinkConnectors(doc);
     _savedSig = doc.signature();
     dirty = false;
   }
@@ -458,6 +462,14 @@ class EditorController extends ChangeNotifier {
 
   void notify() => notifyListeners();
 
+  /// Every change is drawn through here, so attached line ends are put in
+  /// step first: whatever moved, what is attached to it follows.
+  @override
+  void notifyListeners() {
+    relinkConnectors(doc);
+    super.notifyListeners();
+  }
+
   void showToast(String msg) {
     toastMessage = msg;
     _toastTimer?.cancel();
@@ -482,6 +494,8 @@ class EditorController extends ChangeNotifier {
 
   /// Record [token]'s state for undo if the document changed since.
   void endEdit(EditToken token) {
+    // The moved ends of connectors belong to the same undo step.
+    relinkConnectors(doc);
     // Resizing the page by hand is a deliberate choice; never undo it.
     if (autoGrow && token._snap.label != 'resize canvas') _growToFit();
     if (token._snap.signature == doc.signature()) {
@@ -860,10 +874,102 @@ class EditorController extends ChangeNotifier {
       if (!layer.visible || layer.locked) continue;
       for (final o in layer.objects.reversed) {
         if (!o.visible || o.locked) continue;
-        if (o.hitTest(p, tol, assets)) out.add(o);
+        if (o.hitTest(p, tol, assets) || (o is Framed && o.onBorder(p, tol))) {
+          out.add(o);
+        }
       }
     }
     return out;
+  }
+
+  /// The object a line's end dropped at [p] attaches to: the topmost one it
+  /// can attach to, locked ones included (hidden ones not). Pictures count
+  /// where they are not see-through, and on their border; an unfilled
+  /// rectangle or ellipse only near its outline, so an end dropped inside a
+  /// frame reaches what is in it. [exclude] is the line itself. With
+  /// [picturesOnly], only pictures count, and everything else is passed
+  /// through.
+  BoxObject? attachTargetAt(
+    Offset p, {
+    String? exclude,
+    bool picturesOnly = false,
+  }) {
+    final reach = (touchInput ? 20 : 9) / zoom;
+    for (final layer in doc.layers.reversed) {
+      if (!layer.visible) continue;
+      for (final o in layer.objects.reversed) {
+        if (!o.visible || o.id == exclude || !canAttachTo(o)) continue;
+        o as BoxObject;
+        if (picturesOnly && o is! ImageObject) continue;
+        final hit = switch (o) {
+          ImageObject() => o.hitTest(p, 0, assets) || o.onBorder(p, reach),
+          ShapeObject() => o.hitTest(p, reach, assets),
+          _ => _withinOutline(o, p, reach),
+        };
+        if (hit) return o;
+      }
+    }
+    return null;
+  }
+
+  static bool _withinOutline(BoxObject o, Offset p, double reach) {
+    final out = outlineOf(o);
+    final l = o.toLocal(p);
+    final hw = out.hw + reach, hh = out.hh + reach;
+    if (out.round) {
+      final x = l.dx / hw, y = l.dy / hh;
+      return x * x + y * y <= 1;
+    }
+    return l.dx.abs() <= hw && l.dy.abs() <= hh;
+  }
+
+  /// The object a line end is about to attach to, outlined while dragging.
+  String? attachHover;
+
+  /// Before moving [moving] (lines among it) without the pictures their pins
+  /// are on: take those pins off, so the ends can move. [repin] puts them
+  /// back where the ends end up. A pin whose picture moves too keeps it.
+  Map<String, (Attachment?, Attachment?)> holdPins(
+    Iterable<SceneObject> moving,
+  ) {
+    final ids = {for (final o in moving) o.id};
+    bool held(Attachment? a) => a != null && a.pinned && !ids.contains(a.to);
+    final out = <String, (Attachment?, Attachment?)>{};
+    for (final o in moving) {
+      if (o is! LineObject || o.locked) continue;
+      final s = held(o.start) ? o.start : null;
+      final e = held(o.end) ? o.end : null;
+      if (s == null && e == null) continue;
+      out[o.id] = (s, e);
+      if (s != null) o.start = null;
+      if (e != null) o.end = null;
+    }
+    return out;
+  }
+
+  /// Pin the ends [holdPins] took off again where they are now: on the
+  /// picture under them (passing through text, shapes and markers, so a mark
+  /// on a picture stays one), or free if there is none. A pin on a hidden
+  /// picture stays on that picture.
+  void repin(Map<String, (Attachment?, Attachment?)> held) {
+    for (final e in held.entries) {
+      final l = doc.objectById(e.key);
+      if (l is! LineObject) continue;
+      Attachment? again(Attachment? was, Offset at) {
+        if (was == null) return null;
+        final old = doc.objectById(was.to);
+        final layer = doc.layerOf(was.to);
+        if (old is BoxObject && (!old.visible || layer?.visible == false)) {
+          return Attachment(old.id, pinAt(old, at));
+        }
+        final t = attachTargetAt(at, exclude: l.id, picturesOnly: true);
+        return t == null ? null : attachmentFor(t, at);
+      }
+
+      final (s, en) = e.value;
+      if (s != null) l.start = again(s, l.p1);
+      if (en != null) l.end = again(en, l.p2);
+    }
   }
 
   List<HandleSpot> handlesFor(SceneObject o) {
@@ -1082,13 +1188,18 @@ class EditorController extends ChangeNotifier {
     final src = doc.layerById(id);
     if (src == null) return;
     transact('duplicate layer', () {
+      final map = <String, String>{};
       final copy = Layer(
         id: doc.newId('l'),
         name: '${src.name} copy',
         visible: src.visible,
         locked: src.locked,
-        objects: [for (final o in src.objects) o.copyWith(id: doc.newId('o'))],
+        objects: [
+          for (final o in src.objects)
+            o.copyWith(id: map[o.id] = doc.newId('o')),
+        ],
       );
+      remapAttachments(copy.objects, map);
       doc.layers.insert(doc.layers.indexOf(src) + 1, copy);
       _madeLayer(copy);
       selection = [for (final o in copy.objects) o.id];
@@ -1104,9 +1215,10 @@ class EditorController extends ChangeNotifier {
         ? unionRects(objs.map((o) => o.bounds))
         : Offset.zero & doc.canvasSize;
     transact('align', () {
+      final shifts = <SceneObject, Offset>{};
       for (final o in objs) {
         final b = o.bounds;
-        final d = switch (how) {
+        shifts[o] = switch (how) {
           'left' => Offset(frame.left - b.left, 0),
           'right' => Offset(frame.right - b.right, 0),
           'centre' => Offset(frame.center.dx - b.center.dx, 0),
@@ -1115,8 +1227,16 @@ class EditorController extends ChangeNotifier {
           'middle' => Offset(0, frame.center.dy - b.center.dy),
           _ => Offset.zero,
         };
-        o.translate(d);
       }
+      // Only what actually moves counts as moving, for the pins.
+      final held = holdPins([
+        for (final e in shifts.entries)
+          if (e.value != Offset.zero) e.key,
+      ]);
+      for (final e in shifts.entries) {
+        e.key.translate(e.value);
+      }
+      repin(held);
     });
   }
 
@@ -1168,13 +1288,18 @@ class EditorController extends ChangeNotifier {
     if (objs.isEmpty) return;
     transact('duplicate', () {
       final ids = <String>[];
+      final map = <String, String>{};
+      final copies = <SceneObject>[];
       for (final o in objs) {
         final layer = doc.layerOf(o.id) ?? currentLayer;
         final copy = o.copyWith(id: doc.newId('o'))
           ..translate(const Offset(24, 24));
         layer.objects.add(copy);
         ids.add(copy.id);
+        map[o.id] = copy.id;
+        copies.add(copy);
       }
+      remapAttachments(copies, map);
       selection = ids;
     });
   }
@@ -1183,9 +1308,11 @@ class EditorController extends ChangeNotifier {
     final objs = selectedObjects.where((o) => !o.locked).toList();
     if (objs.isEmpty) return;
     transact('nudge', () {
+      final held = holdPins(objs);
       for (final o in objs) {
         o.translate(d);
       }
+      repin(held);
     });
   }
 
@@ -1208,6 +1335,53 @@ class EditorController extends ChangeNotifier {
       if (o is TextObject) o.size = Size(o.size.width, measureTextHeight(o));
     }
     notifyListeners();
+  }
+
+  /// Change the border or shadow of every selected picture and text box, as
+  /// one undo step.
+  void editFrames(String label, void Function(Framed f) f) =>
+      editSelected(label, (o) {
+        if (o is Framed) f(o);
+      });
+
+  /// Give every picture the border and shadow of [like], as one undo step.
+  /// Locked pictures, and pictures on locked or hidden layers, are left as
+  /// they are.
+  void matchPictureBorders(ImageObject like) {
+    transact('match picture borders', () {
+      for (final l in doc.layers) {
+        if (!l.visible || l.locked) continue;
+        for (final o in l.objects) {
+          if (o is ImageObject && !o.locked) o.copyFrame(like);
+        }
+      }
+    });
+  }
+
+  /// Flip the selected pictures left to right. A curved mark pinned at both
+  /// ends to a flipped picture is mirrored with it.
+  void flipSelected() {
+    final pics = {
+      for (final o in selectedObjects)
+        if (o is ImageObject) o.id: o,
+    };
+    if (pics.isEmpty) return;
+    transact('flip', () {
+      for (final p in pics.values) {
+        p.flipX = !p.flipX;
+      }
+      for (final o in doc.allObjects) {
+        if (o is LineObject &&
+            !o.connects &&
+            o.start != null &&
+            o.end != null &&
+            o.start!.to == o.end!.to &&
+            pics.containsKey(o.start!.to)) {
+          // The bend is measured across the line, which a flip turns over.
+          o.bend = Offset(o.bend.dx, -o.bend.dy);
+        }
+      }
+    });
   }
 
   /// Whether the selection counts as locked: any of it is.
@@ -1745,7 +1919,7 @@ class EditorController extends ChangeNotifier {
   List<SceneObject> withCovers(List<SceneObject> objs) {
     if (objs.isEmpty) return const [];
     final chosen = {for (final o in objs) o.id};
-    final area = unionRects(objs.map((o) => o.bounds));
+    final area = unionRects(objs.map((o) => o.paintBounds));
     final out = <SceneObject>[];
     for (final layer in doc.layers) {
       for (final o in layer.objects) {
@@ -1765,7 +1939,7 @@ class EditorController extends ChangeNotifier {
 
   /// The selection drawn as one picture, as it is copied to the clipboard.
   Future<ui.Image> renderObjects(List<SceneObject> objs) {
-    final b = unionRects(objs.map((o) => o.bounds)).inflate(2);
+    final b = unionRects(objs.map((o) => o.paintBounds)).inflate(2);
     final rec = ui.PictureRecorder();
     final c = ui.Canvas(rec);
     c.translate(-b.left, -b.top);
@@ -1804,11 +1978,16 @@ class EditorController extends ChangeNotifier {
     final off = Offset(24.0 * _pasteCount, 24.0 * _pasteCount);
     transact('paste', () {
       final ids = <String>[];
+      final map = <String, String>{};
+      final copies = <SceneObject>[];
       for (final o in _clip) {
         final copy = o.copyWith(id: doc.newId('o'))..translate(off);
         currentLayer.objects.add(copy);
         ids.add(copy.id);
+        map[o.id] = copy.id;
+        copies.add(copy);
       }
+      remapAttachments(copies, map);
       selection = ids;
     });
   }
@@ -1858,7 +2037,7 @@ class EditorController extends ChangeNotifier {
     final ordered = mergeable;
     final chosen = {for (final o in ordered) o.id};
     if (ordered.isEmpty) return null;
-    final b = unionRects(ordered.map((o) => o.bounds)).inflate(1);
+    final b = unionRects(ordered.map((o) => o.paintBounds)).inflate(1);
     var scale = 1.0;
     for (final o in ordered) {
       if (o is ImageObject) {
@@ -1978,8 +2157,10 @@ class EditorController extends ChangeNotifier {
   ) {
     return transact('unmerge', () {
       final made = <SceneObject>[];
+      final ids = <String, String>{};
       for (final j in rec.parts) {
         final json = Map<String, dynamic>.from(j)..['id'] = doc.newId('o');
+        if (j['id'] is String) ids[j['id'] as String] = json['id'] as String;
         final p = SceneObject.fromJson(json);
         p.opacity *= o.opacity;
         switch (p) {
@@ -1997,18 +2178,25 @@ class EditorController extends ChangeNotifier {
             } else if (p is ShapeObject) {
               p.strokeWidth *= k;
             }
+            if (p is Framed) p.borderWidth *= k;
           case LineObject():
             final mid = map(p.mid);
             p.p1 = map(p.p1);
             p.p2 = map(p.p2);
             p.mid = mid;
             p.width *= k;
+            // A bend is measured across the line, which a flip turns over.
+            if (o.flipX && p.anchorBend != null) {
+              p.anchorBend = Offset(p.anchorBend!.dx, -p.anchorBend!.dy);
+            }
           case StrokeObject():
             p.points = [for (final q in p.points) map(q)];
             p.width *= k;
         }
         made.add(p);
       }
+      // Links between the parts come back; links to anything else are gone.
+      remapAttachments(made, ids);
       final idx = layer.objects.indexWhere((x) => x.id == o.id);
       if (idx < 0) {
         layer.objects.addAll(made);

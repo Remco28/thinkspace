@@ -39,6 +39,12 @@ class CanvasPainter extends CustomPainter {
       hidden: {if (c.editingTextId != null) c.editingTextId!},
       faded: c.removing,
     );
+    final editing = c.editingTextId == null
+        ? null
+        : c.doc.objectById(c.editingTextId!);
+    if (editing is TextObject && editing.visible) {
+      paintTextFrame(canvas, editing);
+    }
     canvas.drawRect(
       page,
       Paint()
@@ -95,6 +101,20 @@ class CanvasPainter extends CustomPainter {
           _s(c.selectionBounds.bottomRight),
         ).inflate(4),
         accent,
+      );
+    }
+    // What a line's end is about to attach to.
+    final hover = c.attachHover == null
+        ? null
+        : c.doc.objectById(c.attachHover!);
+    if (hover is BoxObject) {
+      _outline(
+        canvas,
+        hover,
+        Paint()
+          ..color = kAccent
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5,
       );
     }
     final one = c.single;
@@ -282,7 +302,15 @@ class CanvasPainter extends CustomPainter {
         stroke.strokeWidth = 1.5;
       } else if (h.kind == HandleKind.lineStart ||
           h.kind == HandleKind.lineEnd) {
-        canvas.drawCircle(p, 6.5 * k, fill);
+        // An end that is attached to something is filled in.
+        final attached =
+            o is LineObject &&
+            (h.kind == HandleKind.lineStart ? o.start : o.end) != null;
+        canvas.drawCircle(
+          p,
+          6.5 * k,
+          attached ? (Paint()..color = kAccent) : fill,
+        );
         canvas.drawCircle(p, 6.5 * k, stroke);
       } else if (h.kind == HandleKind.lineBend) {
         // A small diamond in the middle: pull it to bend the line.

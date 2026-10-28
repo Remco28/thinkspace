@@ -80,7 +80,7 @@ void paintObjects(
     );
     if (faded.contains(o.id)) {
       canvas.saveLayer(
-        o.bounds.inflate(4),
+        o.paintBounds.inflate(4),
         Paint()..color = const Color.fromRGBO(0, 0, 0, 0.22),
       );
       paint();
@@ -110,7 +110,7 @@ void paintObject(
   final grouped = o.opacity < 0.999 || multiply;
   if (grouped) {
     canvas.saveLayer(
-      o.bounds.inflate(4),
+      o.paintBounds.inflate(4),
       Paint()
         ..color = Color.fromRGBO(0, 0, 0, o.opacity.clamp(0.0, 1.0))
         ..blendMode = multiply ? BlendMode.multiply : BlendMode.srcOver,
@@ -178,7 +178,7 @@ void _paintHide(
     under,
     [
       for (final o in below)
-        if (o.bounds.overlaps(area)) o,
+        if (o.paintBounds.overlaps(area)) o,
     ],
     assets,
     background: background,
@@ -214,44 +214,130 @@ void _boxTransform(ui.Canvas canvas, BoxObject b) {
   canvas.rotate(b.rotation);
 }
 
+/// A framed object's soft shadow: [shape] draws its outline in its own frame
+/// (any colour; only where it is opaque counts), and the shadow falls
+/// straight down the page whatever the object's rotation.
+void _paintShadow(ui.Canvas canvas, Framed o, void Function() shape) {
+  canvas.saveLayer(
+    o.paintBounds.inflate(4),
+    Paint()
+      ..colorFilter = const ColorFilter.mode(Color(0x40000000), BlendMode.srcIn)
+      ..imageFilter = ui.ImageFilter.blur(
+        sigmaX: kShadowBlur,
+        sigmaY: kShadowBlur,
+      ),
+  );
+  canvas.translate(kShadowOffset.dx, kShadowOffset.dy);
+  _boxTransform(canvas, o);
+  shape();
+  canvas.restore();
+  canvas.restore();
+}
+
+/// The border of [o], in its own frame: drawn outside [box], so it covers
+/// none of what is inside. A text box's follows its backdrop's round corners.
+void _paintBorder(ui.Canvas canvas, Framed o, Rect box, {Color? colour}) {
+  if (o.border == 0) return;
+  final w = o.borderWidth;
+  final paint = Paint()
+    ..color = colour ?? Color(o.border)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = w;
+  if (o is TextObject) {
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(box.inflate(w / 2), Radius.circular(6 + w / 2)),
+      paint,
+    );
+  } else {
+    canvas.drawRect(box.inflate(w / 2), paint..strokeJoin = StrokeJoin.miter);
+  }
+}
+
+Rect _boxRect(BoxObject o) => Rect.fromCenter(
+  center: Offset.zero,
+  width: o.size.width,
+  height: o.size.height,
+);
+
 void _paintImage(ui.Canvas canvas, ImageObject o, AssetStore assets) {
   final a = assets[o.assetId];
-  final dst = Rect.fromCenter(
-    center: Offset.zero,
-    width: o.size.width,
-    height: o.size.height,
-  );
-  _boxTransform(canvas, o);
-  if (a == null) {
-    canvas.drawRect(dst, Paint()..color = const Color(0xFFCCCCCC));
-  } else {
+  final dst = _boxRect(o);
+  void picture(Paint paint) {
+    if (a == null) {
+      canvas.drawRect(dst, paint..color = const Color(0xFFCCCCCC));
+      return;
+    }
+    canvas.save();
     if (o.flipX) canvas.scale(-1, 1);
     canvas.drawImageRect(
       a.image,
       Rect.fromLTWH(0, 0, a.width.toDouble(), a.height.toDouble()),
       dst,
-      Paint()..filterQuality = FilterQuality.high,
+      paint..filterQuality = FilterQuality.high,
     );
+    canvas.restore();
   }
+
+  // A cut-out's shadow follows its outline, not its box.
+  if (o.shadow) {
+    _paintShadow(canvas, o, () {
+      picture(Paint());
+      _paintBorder(canvas, o, dst, colour: const Color(0xFF000000));
+    });
+  }
+  _boxTransform(canvas, o);
+  picture(Paint());
+  _paintBorder(canvas, o, dst);
   canvas.restore();
 }
 
 void _paintText(ui.Canvas canvas, TextObject t) {
-  _boxTransform(canvas, t);
-  final rect = Rect.fromCenter(
-    center: Offset.zero,
-    width: t.size.width,
-    height: t.size.height,
+  final rect = _boxRect(t);
+  void backdrop(Color colour) => canvas.drawRRect(
+    RRect.fromRectAndRadius(rect, const Radius.circular(6)),
+    Paint()..color = colour,
   );
-  if (t.background != 0) {
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(6)),
-      Paint()..color = Color(t.background),
+  void letters() {
+    final tp = textPainterFor(t);
+    tp.paint(
+      canvas,
+      rect.topLeft + const Offset(TextObject.pad, TextObject.pad),
     );
+    tp.dispose();
   }
-  final tp = textPainterFor(t);
-  tp.paint(canvas, rect.topLeft + const Offset(TextObject.pad, TextObject.pad));
-  tp.dispose();
+
+  // Without a backdrop, the shadow is the letters'.
+  if (t.shadow) {
+    _paintShadow(canvas, t, () {
+      t.background != 0 ? backdrop(const Color(0xFF000000)) : letters();
+      _paintBorder(canvas, t, rect, colour: const Color(0xFF000000));
+    });
+  }
+  _boxTransform(canvas, t);
+  if (t.background != 0) backdrop(Color(t.background));
+  letters();
+  _paintBorder(canvas, t, rect);
+  canvas.restore();
+}
+
+/// The border and shadow of a text box being typed in: its letters and
+/// backdrop are drawn by the text field, but the frame stays on show.
+void paintTextFrame(ui.Canvas canvas, TextObject t) {
+  if (!t.framed) return;
+  final rect = _boxRect(t);
+  if (t.shadow && (t.background != 0 || t.border != 0)) {
+    _paintShadow(canvas, t, () {
+      if (t.background != 0) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(6)),
+          Paint()..color = const Color(0xFF000000),
+        );
+      }
+      _paintBorder(canvas, t, rect, colour: const Color(0xFF000000));
+    });
+  }
+  _boxTransform(canvas, t);
+  _paintBorder(canvas, t, rect);
   canvas.restore();
 }
 
@@ -517,5 +603,5 @@ Rect contentBounds(Document doc) => unionRects([
   for (final l in doc.layers)
     if (l.visible)
       for (final o in l.objects)
-        if (o.visible) o.bounds,
+        if (o.visible) o.paintBounds,
 ]);

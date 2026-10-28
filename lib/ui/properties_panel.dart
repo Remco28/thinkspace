@@ -522,6 +522,9 @@ class PropertiesPanel extends StatelessWidget {
         ? _typeSection(context, one)
         : sameKind
         ? _typeSectionMulti(objs)
+        : objs.every((o) => o is Framed)
+        // Pictures and text boxes together still share their border.
+        ? Section(children: [_borderRow(first as Framed)])
         : null;
 
     return Column(
@@ -853,10 +856,7 @@ class PropertiesPanel extends StatelessWidget {
                     icon: Icons.flip,
                     tooltip: 'Flip left to right',
                     active: one.flipX,
-                    onPressed: () => c.editSelected(
-                      'flip',
-                      (x) => (x as ImageObject).flipX = !x.flipX,
-                    ),
+                    onPressed: c.flipSelected,
                   ),
               ],
             ),
@@ -883,8 +883,77 @@ class PropertiesPanel extends StatelessWidget {
     c.rememberStyle(o, (s) => s.color = v);
   }
 
+  /// Border colour, width and shadow on one row, for pictures and text boxes.
+  Widget _borderRow(Framed f) {
+    final one = c.single;
+    return PropRow(
+      'Border',
+      Row(
+        children: [
+          SwatchButton(
+            key: const ValueKey('border-colour'),
+            value: f.border,
+            tooltip: 'Border colour',
+            onChanged: (v) =>
+                c.editFrames('border colour', (x) => x.border = v),
+          ),
+          const SizedBox(width: kSpace8),
+          Opacity(
+            opacity: f.border == 0 ? 0.4 : 1,
+            child: IgnorePointer(
+              ignoring: f.border == 0,
+              child: Tooltip(
+                message: 'Border width',
+                waitDuration: kTooltipWait,
+                child: ValueField(
+                  key: const ValueKey('border-width'),
+                  value: f.borderWidth.roundToDouble(),
+                  unit: 'px',
+                  onSubmitted: (v) => c.editFrames(
+                    'border width',
+                    (x) => x.borderWidth = v.clamp(1, 40).roundToDouble(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: kSpace8),
+          IconGroup(
+            buttons: [
+              GroupButton(
+                key: const ValueKey('border-shadow'),
+                icon: Icons.filter_none,
+                tooltip: f.shadow ? 'Remove the shadow' : 'Add a soft shadow',
+                active: f.shadow,
+                onPressed: () {
+                  final on = !f.shadow;
+                  c.editFrames(
+                    on ? 'shadow' : 'no shadow',
+                    (x) => x.shadow = on,
+                  );
+                },
+              ),
+              if (one is ImageObject)
+                GroupButton(
+                  key: const ValueKey('match-borders'),
+                  icon: Icons.photo_library_outlined,
+                  tooltip:
+                      'Give all pictures this border and shadow (locked ones stay as they are)',
+                  onPressed: () => c.matchPictureBorders(one),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget? _typeSectionMulti(List<SceneObject> objs) {
     final f = objs.first;
+    // Pictures and text boxes, in any mix, share their border.
+    if (objs.every((o) => o is Framed)) {
+      return Section(children: [_borderRow(f as Framed)]);
+    }
     if (f is LineObject || f is StrokeObject || f is ShapeObject) {
       return Section(
         children: [
@@ -1197,6 +1266,7 @@ class PropertiesPanel extends StatelessWidget {
               (x) => (x as TextObject).background = v,
             );
           }, allowNone: true),
+          _borderRow(o),
           ActionButton(
             label: 'Edit text',
             icon: Icons.text_fields,
@@ -1207,38 +1277,48 @@ class PropertiesPanel extends StatelessWidget {
       );
     }
     if (o is ImageObject) {
-      return Section(
-        title: 'Edit',
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ActionButton(
-            key: const ValueKey('cutout-button'),
-            label: 'Cut out…',
-            icon: Icons.content_cut,
-            tooltip:
-                'Draw around the part you want. It becomes its own image.  (C)',
-            onPressed: () => c.setTool(Tool.cutout),
-          ),
-          ActionButton(
-            key: const ValueKey('remove-bg-button'),
-            label: 'Remove background',
-            icon: Icons.auto_fix_high,
-            tooltip:
-                'Make the background around the image see-through. You can fine-tune it afterwards.',
-            onPressed: () => c.removeBackgroundFrom(o),
-          ),
-
-          if (c.canUnmerge)
-            ActionButton(
-              key: const ValueKey('unmerge-button'),
-              label: 'Unmerge into the original pieces',
-              icon: Icons.call_split,
-              tooltip: 'Take this merged image apart again  (U)',
-              onPressed: c.unmerge,
-            ),
+          _imageEdit(o),
+          Section(children: [_borderRow(o)]),
         ],
       );
     }
     return null;
+  }
+
+  Section _imageEdit(ImageObject o) {
+    return Section(
+      title: 'Edit',
+      children: [
+        ActionButton(
+          key: const ValueKey('cutout-button'),
+          label: 'Cut out…',
+          icon: Icons.content_cut,
+          tooltip:
+              'Draw around the part you want. It becomes its own image.  (C)',
+          onPressed: () => c.setTool(Tool.cutout),
+        ),
+        ActionButton(
+          key: const ValueKey('remove-bg-button'),
+          label: 'Remove background',
+          icon: Icons.auto_fix_high,
+          tooltip:
+              'Make the background around the image see-through. You can fine-tune it afterwards.',
+          onPressed: () => c.removeBackgroundFrom(o),
+        ),
+
+        if (c.canUnmerge)
+          ActionButton(
+            key: const ValueKey('unmerge-button'),
+            label: 'Unmerge into the original pieces',
+            icon: Icons.call_split,
+            tooltip: 'Take this merged image apart again  (U)',
+            onPressed: c.unmerge,
+          ),
+      ],
+    );
   }
 }
 
