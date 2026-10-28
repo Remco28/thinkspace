@@ -108,6 +108,13 @@ class AssetStore {
     _made.removeWhere((id, _) => !_assets.containsKey(id));
   }
 
+  /// Forget a picture nothing refers to yet (one made for an edit that was
+  /// then given up). The image is left for the garbage collector.
+  void forget(String id) {
+    _assets.remove(id);
+    _made.remove(id);
+  }
+
   /// For tests: pretend a picture was made [by] ago.
   void backdate(String id, Duration by) =>
       _made[id] = DateTime.now().subtract(by);

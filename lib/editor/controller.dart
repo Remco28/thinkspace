@@ -490,7 +490,14 @@ class EditorController extends ChangeNotifier {
     label,
   );
 
-  EditToken beginEdit(String label) => EditToken._(_capture(label));
+  EditToken beginEdit(String label) {
+    _editsBegun++;
+    return EditToken._(_capture(label));
+  }
+
+  /// How many edits have begun, ever: a merge that takes a while checks it
+  /// did not overlap one (even one that has changed nothing yet).
+  int _editsBegun = 0;
 
   /// Record [token]'s state for undo if the document changed since.
   void endEdit(EditToken token) {
@@ -2066,7 +2073,10 @@ class EditorController extends ChangeNotifier {
   /// Merge the selected objects into one picture. The originals are replaced
   /// (undo brings them back).
   Future<ImageObject?> flattenSelection() async {
-    if (_flattening) return null; // a second press while one is under way
+    if (_flattening) {
+      showToast('Still merging…');
+      return null; // a second press while one is under way
+    }
     _flattening = true;
     try {
       return await _flattenSelection();
@@ -2086,11 +2096,6 @@ class EditorController extends ChangeNotifier {
     final chosen = {for (final o in ordered) o.id};
     if (ordered.isEmpty) return null;
     final b = unionRects(ordered.map((o) => o.paintBounds)).inflate(1);
-    final (shown, refusal) = _mergePlan(ordered);
-    if (refusal != null) {
-      showToast(refusal);
-      return null;
-    }
     // Marks made with the highlighter multiply onto the page. Merged into a
     // picture they would turn into solid colour and hide what they were
     // marking, so a merge of nothing but such marks multiplies as one; the
@@ -2100,6 +2105,15 @@ class EditorController extends ChangeNotifier {
           (o is StrokeObject && o.highlight == HighlightStyle.multiply) ||
           (o is ShapeObject && o.highlight == HighlightStyle.multiply),
     );
+    final (shown, refusal) = _mergePlan(ordered, highlights: multiply);
+    if (refusal != null) {
+      showToast(refusal);
+      return null;
+    }
+    // Rendering takes a moment. If the page changes meanwhile, what was
+    // rendered no longer matches it, so nothing is applied.
+    final before = doc.signature();
+    final edits = _editsBegun;
     final drawn = multiply ? ordered : shown;
     final covered = drawn.length > ordered.length;
     var scale = 1.0;
@@ -2125,6 +2139,13 @@ class EditorController extends ChangeNotifier {
       (b.height * scale).ceil(),
     );
     final asset = await assets.addImage(img);
+    if (doc.signature() != before ||
+        _editsBegun != edits ||
+        editingTextId != null) {
+      assets.forget(asset.id);
+      showToast('The page changed while merging. Merge again.');
+      return null;
+    }
     final topLayer = doc.layerOf(ordered.last.id) ?? currentLayer;
     final merged = ImageObject(
       id: doc.newId('o'),
@@ -2168,7 +2189,14 @@ class EditorController extends ChangeNotifier {
   /// between the parts: a visible thing nobody selected, or a Hide details box
   /// that is switched off and would no longer cover the merged picture once
   /// switched on.
-  (List<SceneObject>, String?) _mergePlan(List<SceneObject> parts) {
+  ///
+  /// A merge of highlights does not paint Hide boxes in (it stays
+  /// see-through), so with [highlights] a box between the parts counts as
+  /// something it would have to bury.
+  (List<SceneObject>, String?) _mergePlan(
+    List<SceneObject> parts, {
+    bool highlights = false,
+  }) {
     final ids = {for (final o in parts) o.id};
     final areas = [for (final o in parts) o.paintBounds];
     final last = parts.last.id;
@@ -2186,18 +2214,33 @@ class EditorController extends ChangeNotifier {
         if (!areas.any((a) => a.overlaps(area))) continue;
         final seen = layer.visible && o.visible;
         if (o is HideObject) {
-          if (seen) {
-            out.add(o);
-          } else if (!above) {
+          if (above) {
+            if (seen) out.add(o);
+          } else if (!layer.visible) {
+            return (
+              out,
+              'The Hide details box “${o.name}” is on a hidden layer and lies between these. Show the layer or delete the box first.',
+            );
+          } else if (!o.visible) {
             return (
               out,
               'The switched-off Hide details box “${o.name}” lies between these. Switch it on or delete it first.',
             );
+          } else if (highlights) {
+            return (
+              out,
+              'The Hide details box “${o.name}” lies between these highlights. Merge them in two steps.',
+            );
+          } else {
+            out.add(o);
           }
         } else if (seen && !above) {
+          final locked = o.locked || layer.locked;
           return (
             out,
-            '“${o.name}” lies between these. Select it too, or merge them in two steps.',
+            locked
+                ? '“${o.name}” is locked and lies between these. Unlock it, or merge them in two steps.'
+                : '“${o.name}” lies between these. Select it too, or merge them in two steps.',
           );
         }
       }

@@ -364,10 +364,43 @@ void main() {
         ..insert(0, s1)
         ..add(s2);
       c.select(['s1', 's2']);
+      // A box between the highlights would end up tinted: refused.
+      expect(await c.flattenSelection(), isNull);
+      expect(c.toastMessage, contains('between these highlights'));
+      // With the box above them both, they merge and stay see-through.
+      c.currentLayer.objects
+        ..remove(hide)
+        ..add(hide);
       final merged = await c.flattenSelection();
       expect(merged!.multiply, isTrue);
       expect(c.doc.objectById('h'), isNotNull);
     });
+
+    test('an edit made while a merge renders cancels the merge', () async {
+      c.select(['a', 'b']);
+      final pending = c.flattenSelection();
+      // Before the picture is ready, the Hide box is moved.
+      final t = c.beginEdit('move');
+      hide.center += const Offset(0, 40);
+      c.endEdit(t);
+      final sig = c.doc.signature();
+      expect(await pending, isNull);
+      expect(c.toastMessage, contains('changed while merging'));
+      expect(c.doc.signature(), sig);
+      expect(c.doc.objectById('a'), isNotNull);
+    });
+
+    test(
+      'a gesture begun during a merge, unchanged so far, cancels it too',
+      () async {
+        c.select(['a', 'b']);
+        final pending = c.flattenSelection();
+        final t = c.beginEdit('move');
+        expect(await pending, isNull);
+        c.abortEdit(t);
+        expect(c.doc.objectById('a'), isNotNull);
+      },
+    );
 
     test('with no box over the parts, a merge is as before', () async {
       c.currentLayer.objects.remove(hide);

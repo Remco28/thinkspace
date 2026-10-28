@@ -491,7 +491,9 @@ class _EditorShellState extends State<EditorShell> {
           c.flattenSelection();
         } else if (c.selection.isNotEmpty) {
           c.showToast(
-            'Nothing to merge: select two or more things that are visible and unlocked',
+            c.selectedObjects.any((o) => o is HideObject)
+                ? 'Nothing to merge: Hide details boxes stay on the page, so select two or more other things'
+                : 'Nothing to merge: select two or more things that are visible and unlocked',
           );
         }
       case LogicalKeyboardKey.keyU:
