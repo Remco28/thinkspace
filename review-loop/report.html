@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review: borders and connectors</title>
+<style>
+  :root {
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+    --line: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,.10);
+    --high: #d03b3b; --med: #fab219; --low: #898781; --good: #006300; --accent: #2a6fdb;
+    --box: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+      --line: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+      --good: #0ca30c; --accent: #7aa7f0; --box: #232321;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 28px 0 10px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  p { margin: 6px 0; }
+  .sub { color: var(--ink2); margin-bottom: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
+  .stakes dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+  .stakes dt { color: var(--ink2); }
+  .stakes dd { margin: 0; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px;
+         border: 1px solid var(--ring); white-space: nowrap; }
+  .tag.high { background: var(--high); color: #fff; }
+  .tag.med { background: var(--med); color: #0b0b0b; }
+  .tag.low { background: transparent; color: var(--ink2); }
+  .tag.now { color: var(--ink2); }
+  .tag.done { color: var(--good); }
+  .decide { border: 2px solid var(--accent); }
+  .decide ol { margin: 6px 0 0 18px; padding: 0; }
+  .decide li { margin: 10px 0; }
+  .rec { color: var(--ink2); }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+  .tabs button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--ring);
+                 background: var(--surface); color: var(--ink); cursor: pointer; }
+  .tabs button[aria-selected="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .tab { display: none; }
+  .tab.on { display: block; }
+  .finding h3 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 14px; }
+  .facts b { font-weight: 500; color: var(--ink2); }
+  svg { display: block; max-width: 100%; height: auto; }
+  svg text { fill: var(--ink); font: 12px system-ui, sans-serif; }
+  svg .muted { fill: var(--muted); }
+  svg .box { fill: var(--box); stroke: var(--axis); }
+  svg .bad { fill: var(--box); stroke: var(--high); stroke-width: 2; }
+  svg .warn { fill: var(--box); stroke: var(--med); stroke-width: 2; }
+  svg .wire { stroke: var(--axis); fill: none; stroke-width: 1.5; }
+  details { margin: 8px 0; }
+  summary { cursor: pointer; color: var(--ink2); }
+  table { border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 3px 10px 3px 0; text-align: left; }
+  .gloss dt { font-weight: 600; margin-top: 6px; }
+  .gloss dd { margin: 0 0 0 0; color: var(--ink2); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Review: borders and connectors</h1>
+  <p class="sub">Two rounds of code review, after three rounds on the plan. Updated after round 2.</p>
+
+  <section class="card stakes" aria-label="Stakes">
+    <dl>
+      <dt>What</dt><dd>Borders and shadows on pictures and text boxes; arrows whose ends stay on the things they point at.</dd>
+      <dt>Who relies on it</dt><dd>You, on Linux, sometimes with several windows open. Other people see your exported pictures.</dd>
+      <dt>Worst outcomes</dt><dd>1. A file that won't open, or lost work. 2. An exported picture with an arrow quietly pointing at the wrong spot. 3. Old files looking different.</dd>
+      <dt>We stop when</dt><dd>A round finds nothing serious, and needed no serious or medium fixes.</dd>
+      <dt>So far</dt><dd>Nothing found could lose a file or work. Old files open and look exactly as before, checked pixel by pixel in both rounds.</dd>
+    </dl>
+  </section>
+
+  <section class="card decide" aria-label="Decisions">
+    <strong>What I need you to decide</strong>
+    <ol>
+      <li><b>Arrows from text without a backdrop.</b> A text box made by clicking is 320 px wide, so an arrow from a short label starts at the invisible edge of that box, up to about 90 px past the last letter. Should the arrow start at the words instead?
+        <div class="rec">My recommendation: yes. Without a backdrop, the end rides a box drawn tight round the lines of text. With a backdrop, nothing changes.</div></li>
+      <li><b>Merging puts the result on top.</b> Merge a screenshot and its label, but not the arrow between them, and the merged picture covers the arrow. This was already how merge worked; arrows just make it more noticeable.
+        <div class="rec">My recommendation: the merged picture takes the place of the highest merged part, not the very top of the layer. Anything that was above the merged parts stays above.</div></li>
+      <li><b>Round 3.</b> The rules say one more round is needed, because round 2 had a medium fix (Align). The findings are getting smaller and rarer.
+        <div class="rec">My recommendation: make round 3 smaller: a reader who checks the fixes, a reader who checks the rules in the app, and the auditor. Stop after it if it is clean.</div></li>
+    </ol>
+  </section>
+
+  <h2>Trend: serious and medium findings per pass</h2>
+  <div class="card">
+    <svg viewBox="0 0 560 210" role="img" aria-label="Serious and medium findings per pass">
+      <!-- grid -->
+      <line x1="40" y1="170" x2="550" y2="170" stroke="var(--axis)"/>
+      <line x1="40" y1="120" x2="550" y2="120" stroke="var(--line)"/>
+      <line x1="40" y1="70" x2="550" y2="70" stroke="var(--line)"/>
+      <line x1="40" y1="20" x2="550" y2="20" stroke="var(--line)"/>
+      <text x="32" y="174" text-anchor="end" class="muted">0</text>
+      <text x="32" y="124" text-anchor="end" class="muted">4</text>
+      <text x="32" y="74" text-anchor="end" class="muted">8</text>
+      <text x="32" y="24" text-anchor="end" class="muted">12</text>
+      <!-- scale: 12.5 px per finding; bars 22 wide, 2 px gap -->
+      <g>
+        <rect x="62" y="132.5" width="22" height="37.5" rx="4" fill="var(--high)"><title>Plan pass 1: 3 serious</title></rect>
+        <rect x="86" y="32.5" width="22" height="137.5" rx="4" fill="var(--med)"><title>Plan pass 1: 11 medium</title></rect>
+        <text x="73" y="127" text-anchor="middle">3</text><text x="97" y="27" text-anchor="middle">11</text>
+        <text x="85" y="190" text-anchor="middle" class="muted">Plan 1</text>
+      </g>
+      <g>
+        <rect x="162" y="145" width="22" height="25" rx="4" fill="var(--high)"><title>Plan pass 2: 2 serious</title></rect>
+        <rect x="186" y="120" width="22" height="50" rx="4" fill="var(--med)"><title>Plan pass 2: 4 medium</title></rect>
+        <text x="173" y="140" text-anchor="middle">2</text><text x="197" y="115" text-anchor="middle">4</text>
+        <text x="185" y="190" text-anchor="middle" class="muted">Plan 2</text>
+      </g>
+      <g>
+        <rect x="286" y="107.5" width="22" height="62.5" rx="4" fill="var(--med)"><title>Plan pass 3: 0 serious, 5 medium</title></rect>
+        <text x="273" y="165" text-anchor="middle">0</text><text x="297" y="102" text-anchor="middle">5</text>
+        <text x="285" y="190" text-anchor="middle" class="muted">Plan 3</text>
+      </g>
+      <g>
+        <rect x="386" y="132.5" width="22" height="37.5" rx="4" fill="var(--med)"><title>Round 1: 0 serious, 3 medium</title></rect>
+        <text x="373" y="165" text-anchor="middle">0</text><text x="397" y="127" text-anchor="middle">3</text>
+        <text x="385" y="190" text-anchor="middle" class="muted">Round 1</text>
+      </g>
+      <g>
+        <rect x="486" y="132.5" width="22" height="37.5" rx="4" fill="var(--med)"><title>Round 2: 0 serious, 3 medium (1 fixed, 2 for you)</title></rect>
+        <text x="473" y="165" text-anchor="middle">0</text><text x="497" y="127" text-anchor="middle">3</text>
+        <text x="485" y="190" text-anchor="middle" class="muted">Round 2</text>
+      </g>
+      <!-- legend -->
+      <rect x="380" y="200" width="10" height="10" rx="2" fill="var(--high)"/><text x="394" y="209">serious</text>
+      <rect x="450" y="200" width="10" height="10" rx="2" fill="var(--med)"/><text x="464" y="209">medium</text>
+    </svg>
+    <details><summary>As a table</summary>
+      <table><tr><th>Pass</th><th>Serious</th><th>Medium</th></tr>
+        <tr><td>Plan 1</td><td>3</td><td>11</td></tr><tr><td>Plan 2</td><td>2</td><td>4</td></tr>
+        <tr><td>Plan 3</td><td>0</td><td>5</td></tr><tr><td>Round 1</td><td>0</td><td>3</td></tr>
+        <tr><td>Round 2</td><td>0</td><td>3</td></tr></table>
+    </details>
+    <p class="rec">The plan passes caught the serious problems before any code existed. Since the code was built, nothing serious has been found. Each count is after the auditor's check, which twice made my ratings stricter.</p>
+  </div>
+
+  <h2>Where the findings live</h2>
+  <div class="card">
+    <svg viewBox="0 0 600 230" role="img" aria-label="Map of the feature with findings pinned">
+      <rect class="box" x="10" y="20" width="150" height="60" rx="8"/>
+      <text x="85" y="45" text-anchor="middle">Panel: Border row</text>
+      <text x="85" y="63" text-anchor="middle" class="muted">colour, width, shadow</text>
+
+      <rect class="warn" x="10" y="140" width="150" height="70" rx="8"/>
+      <text x="85" y="163" text-anchor="middle">Canvas: drag, align</text>
+      <text x="85" y="181" text-anchor="middle" class="muted">F1 bend · G1 align</text>
+      <text x="85" y="198" text-anchor="middle" class="muted">(both fixed)</text>
+
+      <rect class="box" x="225" y="80" width="150" height="70" rx="8"/>
+      <text x="300" y="105" text-anchor="middle">The page's contents</text>
+      <text x="300" y="123" text-anchor="middle" class="muted">pictures, text, arrows</text>
+      <text x="300" y="139" text-anchor="middle" class="muted">+ what each end is on</text>
+
+      <rect class="warn" x="225" y="175" width="150" height="45" rx="8"/>
+      <text x="300" y="195" text-anchor="middle">Keep arrows in step</text>
+      <text x="300" y="211" text-anchor="middle" class="muted">F2, F4 fixed · G2 for you</text>
+
+      <rect class="box" x="440" y="20" width="150" height="50" rx="8"/>
+      <text x="515" y="42" text-anchor="middle">Export / copy</text>
+      <text x="515" y="59" text-anchor="middle" class="muted">matches the canvas</text>
+
+      <rect class="box" x="440" y="90" width="150" height="50" rx="8"/>
+      <text x="515" y="112" text-anchor="middle">Save / open</text>
+      <text x="515" y="129" text-anchor="middle" class="muted">old files unchanged</text>
+
+      <rect class="warn" x="440" y="160" width="150" height="50" rx="8"/>
+      <text x="515" y="182" text-anchor="middle">Merge</text>
+      <text x="515" y="199" text-anchor="middle" class="muted">G3 for you</text>
+
+      <path class="wire" d="M160 50 L225 100"/>
+      <path class="wire" d="M160 175 L225 130"/>
+      <path class="wire" d="M300 150 L300 175"/>
+      <path class="wire" d="M375 100 L440 45"/>
+      <path class="wire" d="M375 115 L440 115"/>
+      <path class="wire" d="M375 130 L440 180"/>
+    </svg>
+    <p class="rec">Yellow outline: a medium finding lives here. Nothing serious anywhere.</p>
+  </div>
+
+  <h2>Rounds</h2>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-t="r2">Round 2</button>
+    <button role="tab" aria-selected="false" data-t="r1">Round 1</button>
+    <button role="tab" aria-selected="false" data-t="plan">The plan (3 passes)</button>
+  </div>
+
+  <section class="tab on" id="r2">
+    <p>Three readers: one read all the code, one checked last round's fixes, one checked every rule in the running app. All of round 1's fixes held.</p>
+
+    <div class="card finding">
+      <h3><span class="tag med">medium</span> G1: Align slid arrows off their spot <span class="tag now">how you use it now</span> <span class="tag done">fixed</span></h3>
+      <svg viewBox="0 0 600 70" role="img" aria-label="Steps leading to G1">
+        <rect class="box" x="5" y="10" width="130" height="48" rx="6"/><text x="70" y="30" text-anchor="middle">Screenshot, arrow</text><text x="70" y="46" text-anchor="middle">on it, a caption</text>
+        <rect class="box" x="160" y="10" width="130" height="48" rx="6"/><text x="225" y="30" text-anchor="middle">Select all three</text><text x="225" y="46" text-anchor="middle">Align left</text>
+        <rect class="box" x="315" y="10" width="130" height="48" rx="6"/><text x="380" y="30" text-anchor="middle">Screenshot is</text><text x="380" y="46" text-anchor="middle">already leftmost</text>
+        <rect class="bad" x="470" y="10" width="125" height="48" rx="6"/><text x="532" y="30" text-anchor="middle">Arrow slides</text><text x="532" y="46" text-anchor="middle">140 px across it</text>
+        <path class="wire" d="M135 34 H160 M290 34 H315 M445 34 H470"/>
+      </svg>
+      <div class="facts">
+        <b>Who / how often</b><span>Whenever you align a screenshot together with its arrows and the screenshot itself doesn't need to move.</span>
+        <b>What you'd see</b><span>The arrow points at a different part of the screenshot. Undo puts it back.</span>
+        <b>At risk</b><span>A wrong picture, if you didn't notice before exporting. No lost work.</span>
+        <b>Fix</b><span>Done. An arrow selected with its picture stays on its spot, whether or not the picture moves. This was caused by a choice I made in the plan.</span>
+      </div>
+    </div>
+
+    <div class="card finding">
+      <h3><span class="tag med">medium</span> G2: Arrows from short labels start in thin air <span class="tag now">how you use it now</span> <span class="tag">your decision</span></h3>
+      <svg viewBox="0 0 600 70" role="img" aria-label="G2 before and after">
+        <text x="10" y="25">Now:</text>
+        <text x="60" y="25">Look here</text>
+        <rect x="56" y="10" width="220" height="24" fill="none" stroke="var(--muted)" stroke-dasharray="4 3"/>
+        <line x1="276" y1="22" x2="380" y2="22" stroke="var(--high)" stroke-width="3"/>
+        <text x="10" y="58">Proposed:</text>
+        <text x="80" y="58">Look here</text>
+        <line x1="148" y1="54" x2="380" y2="54" stroke="var(--good)" stroke-width="3"/>
+      </svg>
+      <div class="facts">
+        <b>What you'd see</b><span>A gap between the words and the start of the arrow. The text box's edge, which you can't see, is where the arrow starts.</span>
+        <b>At risk</b><span>How the picture looks. Nothing is lost, and resizing the box fixes it by hand.</span>
+        <b>Fix cost</b><span>Small: the arrow end rides a box drawn tight round the words when there is no backdrop.</span>
+      </div>
+    </div>
+
+    <div class="card finding">
+      <h3><span class="tag med">medium</span> G3: A merge can cover an arrow <span class="tag now">how you use it now</span> <span class="tag">your decision</span></h3>
+      <div class="facts">
+        <b>Steps</b><span>An arrow between a screenshot and its label. Select the screenshot and the label (not the arrow), then Merge. The merged picture goes to the top and hides the arrow.</span>
+        <b>At risk</b><span>How the picture looks; the arrow is still there underneath. This is how merge already worked.</span>
+        <b>Fix cost</b><span>Small: put the merged picture where its highest part was.</span>
+      </div>
+    </div>
+
+    <details><summary>Low and rejected findings (2)</summary>
+      <p><span class="tag low">low</span> Dropping an arrow end just outside a text box's round corner still caught the box. Fixed.</p>
+      <p><span class="tag low">rejected</span> "The arrow tip sits 5 px outside a thick text border." I checked the drawn pixels: the tip touches the border exactly.</p>
+    </details>
+  </section>
+
+  <section class="tab" id="r1">
+    <p>Same three kinds of reader. Two found nothing; the one checking rules in the app found these five.</p>
+    <div class="card finding">
+      <h3><span class="tag med">medium</span> F1: Dragging a selected arrow moved it instead of bending it <span class="tag now">how you use it now</span> <span class="tag done">fixed</span></h3>
+      <svg viewBox="0 0 600 70" role="img" aria-label="Steps leading to F1">
+        <rect class="box" x="5" y="10" width="130" height="48" rx="6"/><text x="70" y="30" text-anchor="middle">Arrow from a label</text><text x="70" y="46" text-anchor="middle">to a screenshot</text>
+        <rect class="box" x="160" y="10" width="130" height="48" rx="6"/><text x="225" y="38" text-anchor="middle">Click it (selected)</text>
+        <rect class="box" x="315" y="10" width="130" height="48" rx="6"/><text x="380" y="30" text-anchor="middle">Drag its middle</text><text x="380" y="46" text-anchor="middle">to curve it</text>
+        <rect class="bad" x="470" y="10" width="125" height="48" rx="6"/><text x="532" y="30" text-anchor="middle">Tip jumps to</text><text x="532" y="46" text-anchor="middle">another spot</text>
+        <path class="wire" d="M135 34 H160 M290 34 H315 M445 34 H470"/>
+      </svg>
+      <div class="facts">
+        <b>Who / how often</b><span>Almost every time, because your arrows sit on screenshots.</span>
+        <b>Fix</b><span>Done: it bends. A click without dragging still picks what is beneath, as before.</span>
+      </div>
+    </div>
+    <div class="card finding">
+      <h3><span class="tag med">medium</span> F2: A curved arrow changed shape when one end lost its object <span class="tag done">fixed</span></h3>
+      <p>Deleting one of the two boxes a curved arrow joins shifted the curve by 8 to 16 px. Now it keeps its exact curve.</p>
+    </div>
+    <div class="card finding">
+      <h3><span class="tag med">medium</span> F4: Arrow tips stopped short of a text box's round corner <span class="tag done">fixed</span></h3>
+      <p>The tip stopped 4 to 8 px short of the drawn corner. Now it touches it.</p>
+    </div>
+    <details><summary>Low findings (2)</summary>
+      <p><span class="tag low">low</span> No Border row when screenshots were selected together with an arrow. Fixed.</p>
+      <p><span class="tag low">low</span> A border width was saved even with no border. Fixed.</p>
+    </details>
+  </section>
+
+  <section class="tab" id="plan">
+    <p>Before any code: three rounds of critics trying to break the plan, plus two designers working the problem out independently. They found five serious problems. The worst: just clicking an arrow end would quietly detach it, and dragging an arrow on a screenshot would bend it instead of moving it. You decided four rules from this, including "arrows on pictures move, connectors bend".</p>
+  </section>
+
+  <h2>Glossary</h2>
+  <dl class="card gloss">
+    <dt>Connector</dt><dd>An arrow with an end riding the edge of a text box, shape or marker. Dragging its middle bends it.</dd>
+    <dt>Mark on a picture</dt><dd>An arrow whose attached ends are all pinned to spots on pictures. It moves like any arrow.</dd>
+    <dt>Pin</dt><dd>An arrow end fixed to one spot of a picture, following it when the picture moves, turns or flips.</dd>
+    <dt>Serious / medium / low</dt><dd>Serious: a wrong picture or lost work nobody would notice. Medium: rare, or wrong but visible and undoable. Low: an annoyance or an odd edge case.</dd>
+    <dt>Disposition auditor</dt><dd>A separate reader who checks whether I rated the findings fairly. Twice it made me rate them more strictly.</dd>
+  </dl>
+</main>
+<script>
+  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === b.dataset.t));
+  }));
+</script>
+</body>
+</html>

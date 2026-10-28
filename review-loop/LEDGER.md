@@ -388,3 +388,59 @@ What happened against the predictions:
 Believed, and wrong: "Align should count only what actually moves." I wrote
 that into v4 from a critic's wording question (R8). It reads as more precise,
 and it is exactly what makes a mark slide off its unmoved picture.
+
+### Disposition audit, round 2 (Gemini; `round-2/audit/`)
+- **G5 rated too soft: LOW → MEDIUM, accepted.** It is the same mechanism as
+  F4 (round corners missed), which was rated MEDIUM in round 1, and the
+  profile's precedent rule decides. It was fixed **without the peer step
+  again**: the round-1 breach, repeated. Round 3's fix auditor reviews it.
+- **The G1 decline does not hold, and the fix had a bug; accepted, checked in
+  the source.** In `alignSelection`, a line attached only to aligned things
+  gets a zero shift:
+  - so a line with one pin on the picture and one **free** end
+    (`end == null` passes the test) keeps its free end still while the
+    picture moves, and the line stretches;
+  - a mark sticking out past its picture still widens the frame, so the
+    picture aligns to the mark's edge and the mark, riding along, overshoots.
+
+  The solver's "leave carried lines out of the frame", which I declined, was
+  right. A MEDIUM fix to a fix.
+- **G2, "it follows B4/C2 as written", is called convenient, and is
+  partly accepted.** B4 says "around the text area if there is no backdrop".
+  I read "text area" as the text box, the auditor as the words. The wording
+  was mine. It stays **Frank's decision**, now put to him with both readings,
+  and it is rated MEDIUM. It concerns the border too, not only arrow ends.
+- **G4's rejection is upheld (real); the earlier declines are upheld.**
+- **Codex's G1 side effects "minimised":** not accepted. They are recorded,
+  and the design taken was chosen to remove them. But the new design's own
+  side effects were not checked: no fresh critic saw it. That was the miss.
+
+Round 2, after the audit: **0 HIGH; MEDIUM: G1, G5, the G1 fix itself; plus G2
+and G3 put to Frank.**
+
+### Peer step for the corrected Align fix (`round-2/peer-g1b/`)
+Plan:
+- A line is **carried** when every attached end of it is on an aligned
+  object.
+- Carried lines are **left out of the alignment frame**.
+- They **translate by the shift of their first attached target**, so a free
+  end keeps its place relative to the picture. Relink then puts each pinned
+  end on its spot.
+- "Align to each other or to the page" counts only objects that are not
+  carried, so a picture plus its own marks aligns like the picture alone.
+- Pins come off only lines that really shift and whose picture is not
+  aligned with them (unchanged).
+
+Critic (Codex, fresh; `round-2/peer-g1b/`):
+- Plan fixes (a) and (b).
+- Two MEDIUMs:
+  - a mark pinned to two selected pictures that align by different amounts
+    stretches. That is what the pins say (C7/C3): **declined** as intended;
+  - a line pinned on a selected **locked** picture would not count as carried
+    and would re-pin across it. **Taken**: "carried" and the pin group use
+    all selected objects, locked ones included; only unlocked ones are moved
+    and make the frame.
+- The rest were confirmed as no bug.
+
+Built in commit `cdbe22d`, with tests for the half-free mark,
+the mark that sticks out, and the locked picture. There are 307 tests.
