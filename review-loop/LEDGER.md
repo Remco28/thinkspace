@@ -657,3 +657,38 @@ Cast:
 - **Fix auditor:** Codex, this time. Gemini missed K4 last round.
 - **Rules reader:** Claude, fresh, on B12, B13 and H1 in the real app.
 - **Disposition auditor:** over rounds 3 and 4.
+
+Cast as run: the fix auditor (Codex) and the rules reader (Claude). Reports
+are in `round-4/`.
+- Codex's scope breach: blocked from writing the SDK cache, it re-ran with
+  elevated access, which rewrote `~/development/flutter/bin/cache/engine.stamp`
+  and `engine.realm` (cache stamps, harmless). Recorded in the office.
+
+| # | Finding | Reader (their rating) | Ours | How checked | Reaches | Done |
+|---|---|---|---|---|---|---|
+| L1 | Edits made while a merge is rendering (seconds, input not blocked) are thrown away. A Hide box moved meanwhile leaves its new spot unhidden under the merged picture, and a deleted part comes back | Rules (MED) | MEDIUM: rare timing (a big picture), visible, one undo. **Pre-existing** in kind; the cover logic makes it matter | reproduced by the reader in the real app | how it is used now (big screenshots) | fix after a peer step: refuse if the page changed during the render |
+| L2 | A highlight merge across a Hide box puts the lower highlight above the box, tinting it (pixel test: 128,128,128 → 128,121,0) | Codex fix auditor (MED, "K3 replaced by a new problem") | MEDIUM: visible, recoverable, no detail exposed (it is a tint over the box) | the reader's pixel test + read in source (`multiply ? ordered : shown`, then the highest part's slot) | how it is used now | fix after a peer step: a highlight merge treats a shown Hide box between its parts as B13 does, and refuses |
+| L3 | "A merged picture moved over another object shows it through a transparent gap in the baked Hide area" | Codex (HIGH) | **rejected** | read in source. The original box **stays in place** (H1), so everything it hid stays hidden there. What shows through the moved picture's transparent part is content at its new spot, which was never hidden. No hidden detail becomes visible | — | none; for the disposition auditor to check |
+| L4 | The B13 refusal uses bounding boxes, so a label near a diagonal arrow is refused | Rules (LOW) | LOW: an annoyance; the refusal is safe and says what to do | reader's probe | how it is used now | declined: exact shape overlap is a larger change than the annoyance merits |
+| L5 | Refusal messages: a locked object ("Select it too" can't help); a switched-on box on a hidden layer ("switched-off"); a screenshot plus a Hide box ("Nothing to merge … visible and unlocked") | Rules (LOW) | LOW | read in source | how it is used now | fix the wording |
+
+K1, K2, K4, K6 and the H1 rework: **GONE** (fix auditor), and H1 passes in the
+real app (rules reader).
+
+Against the predictions:
+- **Predicted** at most one MEDIUM and no HIGH. **Two MEDIUM** (one
+  pre-existing in kind); the only HIGH claimed was rejected.
+- **Predicted** no leak. **Right**, on both readers' evidence.
+- **Predicted** that K4 and K6 landed. **Right.**
+
+Believed, and wrong: "A highlight merge is safe if it just skips painting
+covers." The merged picture's new place above the box was forgotten.
+
+Direction test (round 4):
+- less severe than round 3 (no HIGH stands): **yes**;
+- rarer situations (a merge during a long render; highlights across a box):
+  **yes**;
+- mostly in code written to fix the last round: **L2 yes, L1 no**
+  (pre-existing).
+
+Converging. Stakes check: put to Frank with the disposition audit.
