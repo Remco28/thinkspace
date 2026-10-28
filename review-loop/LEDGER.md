@@ -371,7 +371,7 @@ SDK wanted to write outside its sandbox) and read the source instead.
   frame. That would change today's align results for lines that stick out,
   which nobody asked for.
 
-Fixes, commit after `3bceef5`: G1 and G5, with tests. There are 305 tests in
+Fixes, commit `988327c`: G1 and G5, with tests. There are 305 tests in
 all.
 
 What happened against the predictions:
