@@ -167,6 +167,32 @@ from v2's own additions (C16 and the end-drag rewrite), the pattern the skill
 warns of: fixes cause new problems. Pass 3 runs with fresh critics.
 
 ## Peer step 3, 2026-10-27, plan v3
+Cast (fresh; neither saw earlier reports):
+- Critic A: Codex `gpt-6-luna`, read-only.
+- Critic B: Claude subagent.
+
+| # | Finding | From (their rating) | Ours | How checked | Done |
+|---|---|---|---|---|---|
+| R1 | Re-pinning frees a pin whose target is hidden (lookup skips hidden things), against C11 | Codex (HIGH) | MEDIUM: needs an unusual sequence (hide the picture, then move the line) | plan v3 text vs `objectsAt` | v4: hidden target re-pins on the same target |
+| R2 | A mark moved onto a label or near a frame silently becomes a connector | Claude (MED) | MEDIUM | plan v3 text vs `attachTargetAt` | v4: re-pin finds pictures only |
+| R3 | The bend handle on a connector is unspecified, so it does nothing or swims | Claude (MED) | MEDIUM | read in source (`handlesFor`, `_doBend`) | v4: same solve as the body drag |
+| R4 | Flip and unmerge don't update `anchorBend` | Claude (MED, rare) | MEDIUM | read in source (properties_panel.dart:858, `_unmergeInto`) | v4: fixed |
+| R5 | A bordered cut-out gets a rectangular shadow, against B10 | Codex (MED) | LOW: visible, cosmetic, and fixed cheaply | plan v3 text | v4: ring plus outline |
+| R6 | A frozen edge end anchors at its outline point, so a curve changes while its target is hidden | Claude (LOW) | LOW | geometry | v4: keeps the centre as its anchor |
+| R7 | Clamping pins pulls drops on the border band in to the edge | Claude (LOW) | LOW | plan v3 text | v4: clamp to border band |
+| R8 | Define "being moved"; don't widen `ImageObject.hitTest` (used by `imageAt`); read `anchorBend` defensively | Claude (LOW) | LOW | read in source (`imageAt` callers) | v4: fixed |
+
+Second opinion on the `anchorBend` decline (pass 2): **both** fresh critics say
+keep it. The decline stands.
+
+Direction test: compared with pass 2, the findings are **less severe** (no
+HIGH by our rating), **in rarer situations** (hidden targets, flip, unmerge),
+and **all in v3's own additions** (the re-pin rule, `anchorBend`). The plan is
+converging, and the plan grew only by sentences, not state. **The peer step
+stops here.** The one decision rated lower than its reviewer (R1, HIGH →
+MEDIUM) goes to the round-1 disposition auditor.
+
+## Build
 
 ## Mistakes the next author will make
 (filled in as the work goes)

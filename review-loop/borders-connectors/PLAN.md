@@ -1,8 +1,8 @@
-# Plan: borders and connectors (v3)
+# Plan: borders and connectors (v4)
 
 Base commit: `500f942` (branch `polish`). The rules (B1–B11, C1–C16) are in
-`../LEDGER.md`, confirmed by Frank on 2026-10-27. v2 took in peer pass 1, v3 takes in peer pass 2
-(see the ledger for what was taken and declined, and why).
+`../LEDGER.md`, confirmed by Frank on 2026-10-27. v2 took in peer pass 1, v3 took in peer pass 2,
+v4 takes in peer pass 3 (see the ledger for what was taken and declined, and why).
 
 ## The problem, plainly
 
@@ -37,7 +37,11 @@ Base commit: `500f942` (branch `polish`). The rules (B1–B11, C1–C16) are in
 - **Shadow (B10)** follows the visible shape and always falls straight down the
   page: offset (0, 3) in page space, whatever the rotation; blur sigma 6; black
   at 25%. It is drawn before the content and is made of:
-  - **the border's outer rectangle**, filled, when there is a border;
+  - **the border's ring** (outer rectangle minus the box), when there is a
+    border, plus the content's own shape below;
+  - plus, for a bordered picture, the picture itself tinted black (so a
+    bordered cut-out's shadow is the border ring and its outline, never its
+    transparent inside: the ring is filled as a ring, not a solid rectangle);
   - otherwise, for a picture, **the picture itself** tinted black
     (`ColorFilter.mode(black, srcIn)`), so a cut-out's shadow follows its
     outline;
@@ -67,8 +71,10 @@ Base commit: `500f942` (branch `polish`). The rules (B1–B11, C1–C16) are in
 
   `bounds` is unchanged, so selection outlines, snapping, alignment and the size
   boxes use the object's own edge (B7).
-- **Hit-testing (B11).** A bordered object's `hitTest` also counts the border
-  band, so clicking a thick border selects the object.
+- **Hit-testing (B11).** Selecting (`objectsAt`) and `attachTargetAt` also count
+  a bordered object's border band, so clicking a thick border selects the
+  object. `ImageObject.hitTest` itself is unchanged, because `imageAt` (used by
+  cut-out and remove-colour) must only find points on the picture.
 
 ### Panel
 - **One `Border` row:**
@@ -98,8 +104,9 @@ Base commit: `500f942` (branch `polish`). The rules (B1–B11, C1–C16) are in
   - `at == null`: the end **rides the edge** of `to`.
   - `at` set: the end is **pinned** there, in the target's own frame, as
     fractions of its size, before flipping, so the pin flips with the picture.
-    It is clamped to `-0.5..0.5`, so a pin never sits outside its picture.
-- **JSON keys.** `start` and `end`, written only when set: `{"to": "o12"}` or
+    It is clamped to the picture plus its border band, so a pin never sits
+    outside what is drawn of its picture.
+- **JSON keys.** `start`, `end` and `anchorBend`, written only when set: `{"to": "o12"}` or
   `{"to": "o12", "at": [u, v]}`. Read defensively: a malformed one is dropped and
   leaves a free end. The key `asset` is never used inside them (`pruneAssets`
   and `MergeRecord.assets` look for it).
@@ -144,7 +151,10 @@ For each line with an attachment:
 3. **Anchors.** Each end has one:
    - a pin's anchor is its page point, `target.toScene(unflip(at) * size)`;
    - an edge end's anchor is its target's centre;
-   - a free or frozen end's anchor is its stored point.
+   - a free end's anchor is its stored point;
+   - a frozen end (hidden target) keeps the anchor it would have if visible
+     (its pin's page point, or its target's centre), while the end itself stays
+     at its stored point.
 4. **Pinned end:** the end is its anchor.
 5. **Edge end:**
    - **Aim.** Straight lines aim from the centre at the other end's anchor.
@@ -200,13 +210,19 @@ keeping it attached.
 Relink derives pinned ends from their targets. A gesture that moves the *line*
 without moving its target must therefore first change the pin, or relink pulls
 the end straight back.
+- **"Being moved"** means selected and unlocked, and, for align, actually
+  translated by a non-zero amount.
 - **The re-pin rule.** For each moved line, each pinned end whose **target is not
   itself being moved** re-pins:
   - during a live drag, the end's attachment is held aside in the interactor and
     the end is treated as free, so relink leaves it alone;
   - on release, and at once for arrow keys, align and the position boxes, the
-    end looks up `attachTargetAt` at its new point. It pins there (a new `at`,
-    on the same or another picture) or becomes free.
+    end looks for a **picture** at its new point (`attachTargetAt` restricted to
+    pictures, passing through text, shapes and markers). It pins there (a new
+    `at`, on the same or another picture) or becomes free. A mark on a picture
+    never turns into a connector by being moved.
+  - **If the pin's target is hidden**, the end re-pins on that same target (a
+    new `at`, no lookup), so it stays attached to it (C11).
 - **A pin whose target moves with it keeps its attachment unchanged.** Relink
   carries it, so a group move never re-attaches it to a different picture
   underneath (C7).
@@ -229,7 +245,15 @@ picture. A line with **any edge-riding end** is a connector between things.
   translation, with the re-pin rule for pins whose target did not move.
   Edge-riding ends stay on their outlines. So a line moved with all its targets moves whole (C7), and
   a connector nudged on its own changes only its free ends.
-- **Ends handles.** An attached end's handle is drawn filled; a free one hollow,
+- **The bend handle** on a connector goes through the same solve as the body
+  drag (the handle's own `t`, solving `anchorBend`). On a free line or a mark
+  on a picture, it works as today and sets `bend`; on a mark, `anchorBend` is
+  then recomputed from the new curve over the anchor chord. The pins are the
+  ends, so that is exact.
+- **Flip** of a picture negates `anchorBend.dy` (and `bend.dy`) of lines
+  pinned at both ends to it, so a curve mirrors with its picture. **Unmerge**
+  maps `anchorBend` the way it maps `mid`.
+- **End handles.** An attached end's handle is drawn filled; a free one hollow,
   as now.
 
 ### Dragging an end, and drawing (C4, C5)
@@ -266,7 +290,8 @@ Lines are already removable; nothing changes (C13).
 - **Model:**
   - JSON round trip for borders, attachments and `anchorBend`;
   - an old file reads with defaults and re-encodes identically;
-  - malformed `border` or `start` values load as defaults or free ends.
+  - malformed `border`, `start` or `anchorBend` values load as defaults, free
+    ends or a straight anchor chord.
 - **Geometry:**
   - edge points on rotated rectangles, ellipses and markers, with and without a
     border, at oblique angles (the tip on the border's outside);
@@ -290,7 +315,11 @@ Lines are already removable; nothing changes (C13).
   - a group move with the pin's target keeps the same target even over another
     picture;
   - an end dragged off its target follows the pointer during the drag;
-  - an arrow end attaches on a picture's border band;
+  - an arrow end attaches on a picture's border band, and stays there;
+  - a mark dragged onto a label stays a mark, pinned to the picture below;
+  - a mark on a hidden picture, nudged, stays attached to it;
+  - the bend handle on a connector follows the pointer;
+  - flipping a picture mirrors a curved mark pinned to it;
   - an arrow tip on a thick-stroked rectangle touches the stroke's outside;
   - moving a target is one undo step.
 - **Controller:**
