@@ -561,3 +561,84 @@ Direction test (round 3): compared with round 2, the findings are **not** less
 severe, are in ordinary use, and **are** almost all in code written to fix the
 last round (the merge). The merge is not converging; the rest is.
 **Stakes check due**, put to Frank.
+
+### Frank's answers (stakes check), 2026-10-27
+- **K1: "Refuse and explain."** A new rule, B13: if something visible that is not
+  selected lies between the merged parts and overlaps them, the merge says so
+  and does nothing.
+- **Merge work: "Redesign merge, one more round."** A round 4, on merge only.
+
+### Merge redesign (M2), peer step (`round-3/peer-m2/`)
+Plan:
+1. **Parts** are the mergeable things, except Hide boxes.
+2. **"Between"** means everything in page order after the lowest part and
+   before the highest one that is not a part and overlaps the parts' area.
+3. **Refuse** (with a toast, and nothing changes) if anything in "between" is
+   - **visible and not a Hide box** (B13), or
+   - a **Hide box on a layer other than the highest part's**: moving it
+     across layers would change what it hides.
+4. **Covers** are the Hide boxes in "between", switched on or off. After the
+   merge they are **moved to just above the merged picture**, keeping their
+   order. Moving a Hide box up only adds to what it covers.
+5. **Painting.** Switched-on covers are also painted into the merged picture,
+   so moving the picture away still hides. The exception is a highlighter
+   (`multiply`) merge: there the covers above do the hiding and the merge stays
+   see-through. `multiply` comes from the parts only.
+6. **The merged picture** takes the highest part's place (B12).
+7. **The merge record** keeps only the parts. Unmerge puts them back in the
+   merged picture's slot, which is below the covers. No duplicates.
+8. **The context menu** offers Merge only when `canMerge` (K4).
+9. **The Align tooltips** say "page" whenever the selection aligns to the page
+   (K6).
+
+Peer reports: Codex critic, plus a Claude critic (fresh), whose report is
+summarised here.
+- **Both: HIGH leaks.**
+  - Claude: unmerge after the picture moves, is reordered or is duplicated,
+    or after its covers are deleted: the parts come back with no cover,
+    because step 7 dropped the covers from the record.
+  - Codex: a Hide box **above** the highest part is not painted in, so
+    dragging the merged picture out from under it shows the password.
+- **Both: the move-up pixelates the arrow** in the very common case
+  (screenshot, box, arrow). Claude rated it HIGH (subtle, gets shipped).
+- **Both: cross-layer merges refused needlessly** (MEDIUM).
+- Claude also raised:
+  - overlap measured against the box around all parts, not the parts
+    (MEDIUM/LOW);
+  - refusals over invisible things need a named message (MEDIUM);
+  - locked selected objects (LOW).
+
+**Direction:** M2 grew from H1 and still leaked. Per the skill, that is a
+design problem, so the design was **simplified** rather than patched.
+
+### Merge design M3 (smaller than M2; nothing moves)
+1. **Parts** are the mergeable things, except Hide boxes.
+2. **"Between"**: after the lowest part and before the highest in page order,
+   not a part, and overlapping **some part's** drawn area.
+3. **Refuse**, with a toast that names the object, if anything in "between"
+   is
+   - visible and not a Hide box (B13), or
+   - a Hide box that is switched off or on a hidden layer: it would not
+     cover the merged picture once switched on.
+4. **Covers** are every switched-on Hide box on a shown layer that comes after
+   the lowest part (between the parts or above them all) and overlaps a part.
+   - They are **painted into the merged picture, and stay where they are**.
+     The merged picture then holds what the page shows.
+   - The exception is a highlighter merge: covers are not painted in, the
+     merge stays see-through, and the boxes still hide the page beneath.
+5. **The record** keeps the parts and the covers in page order, so unmerge
+   always brings the covers back with the parts, wherever the picture has
+   gone. A duplicate box is harmless (K5 is declined for that reason).
+6. **The merged picture** takes the highest part's place (B12).
+7. **The menu** uses `canMerge` (K4). The tooltips: K6.
+
+This answers every finding above:
+- the moving-only leaks are gone (nothing moves, the record has the covers);
+- the box above the top part is painted in;
+- the arrow is never pixelated beyond what the page showed;
+- cross-layer merges are allowed;
+- overlap is measured per part;
+- refusals name the object.
+
+It is smaller than M2: no moving, no cross-layer rule. Built next; round 4
+checks it.
