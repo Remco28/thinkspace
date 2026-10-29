@@ -874,9 +874,15 @@ class EditorController extends ChangeNotifier {
     finishTextEdit();
     finishColourPick(null);
     removing.clear();
-    // Nothing is picked while removing marks: a selection box around a mark
-    // that is fading away only confuses.
-    if (t == Tool.remove) selection = [];
+    // Picking a drawing tool lets go of the selection, so the panel shows that
+    // tool's settings (and its way back to the default) before anything is
+    // drawn. Nothing is picked while removing marks either: a selection box
+    // around a mark that is fading away only confuses. Cut out keeps it, since
+    // it cuts from the selected image.
+    if (t != Tool.select && t != Tool.cutout && selection.isNotEmpty) {
+      selection = [];
+      _listSel = null;
+    }
     // Choosing the cut-out tool opens its options first, so the choices
     // (what shape, cut or copy, what to leave behind) are made before drawing.
     if (t == Tool.cutout && tool != Tool.cutout) cutoutOptionsOpen = true;

@@ -1375,6 +1375,42 @@ void main() {
     expect(enabled(), isFalse);
   });
 
+  appTest(
+    'picking a drawing tool shows its settings, not the last thing drawn',
+    (tester) async {
+      final c = await pumpApp(tester);
+      final box = ShapeObject(
+        id: 'b',
+        name: 'box',
+        ellipse: false,
+        center: const Offset(300, 300),
+        size: const Size(80, 60),
+      );
+      c.currentLayer.objects.add(box);
+      final reset = find.byKey(const ValueKey('reset-tool-style'));
+      for (final t in [
+        Tool.arrow,
+        Tool.text,
+        Tool.pen,
+        Tool.badge,
+        Tool.hide,
+      ]) {
+        c.select([box.id]);
+        c.setTool(t);
+        await tester.pump();
+        expect(c.selection, isEmpty, reason: '$t');
+        expect(reset, findsOneWidget, reason: '$t');
+      }
+      for (final t in [Tool.select, Tool.cutout]) {
+        c.select([box.id]);
+        c.setTool(t);
+        await tester.pump();
+        expect(c.selection, [box.id], reason: '$t keeps the selection');
+      }
+      expect(c.doc.allObjects, [box], reason: 'nothing on the page changes');
+    },
+  );
+
   appTest('F11 asks the window for full screen and back; Esc does not', (
     tester,
   ) async {
