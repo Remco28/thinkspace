@@ -92,8 +92,9 @@ const List<int> kHighlightPalette = [
 /// How the next thing a tool makes looks. Each tool keeps its own, so a thick
 /// red arrow does not make the next pen stroke thick and red. Not every tool
 /// uses every field: [size] is the text size, the marker size or the size of
-/// Hide details' tiles; [box], [keepText] are the highlighter's; [solid] is
-/// Hide details' choice of a plain cover.
+/// Hide details' tiles; [fill] is a shape's fill or a text box's backdrop;
+/// [box], [keepText] are the highlighter's; [solid] is Hide details' choice of
+/// a plain cover; [bold], [italic], [align] are the text tool's.
 class ToolStyle {
   ToolStyle({
     required this.color,
@@ -104,6 +105,9 @@ class ToolStyle {
     this.box = false,
     this.keepText = true,
     this.solid = false,
+    this.bold = false,
+    this.italic = false,
+    this.align = TextAlign.left,
   });
 
   int color;
@@ -114,6 +118,9 @@ class ToolStyle {
   bool box;
   bool keepText;
   bool solid;
+  bool bold;
+  bool italic;
+  TextAlign align;
 
   ToolStyle copy() => ToolStyle(
     color: color,
@@ -124,6 +131,9 @@ class ToolStyle {
     box: box,
     keepText: keepText,
     solid: solid,
+    bold: bold,
+    italic: italic,
+    align: align,
   );
 
   Map<String, dynamic> toJson() => {
@@ -135,6 +145,9 @@ class ToolStyle {
     'box': box,
     'keepText': keepText,
     'solid': solid,
+    'bold': bold,
+    'italic': italic,
+    'align': align.name,
   };
 
   /// Take what is readable from [j]; anything missing or odd stays as it is.
@@ -149,6 +162,14 @@ class ToolStyle {
     box = get<bool>('box') ?? box;
     keepText = get<bool>('keepText') ?? keepText;
     solid = get<bool>('solid') ?? solid;
+    bold = get<bool>('bold') ?? bold;
+    italic = get<bool>('italic') ?? italic;
+    align = switch (j['align']) {
+      'left' => TextAlign.left,
+      'center' => TextAlign.center,
+      'right' => TextAlign.right,
+      _ => align,
+    };
   }
 
   bool sameAs(ToolStyle o) => jsonEncode(toJson()) == jsonEncode(o.toJson());
@@ -1533,6 +1554,12 @@ class EditorController extends ChangeNotifier {
       color: textColor,
       font: textFont,
     );
+    final s = styleOf(Tool.text);
+    t
+      ..background = s.fill
+      ..bold = s.bold
+      ..italic = s.italic
+      ..align = s.align;
     t.size = Size(width, measureTextHeight(t));
     t.center = Offset(at.dx + width / 2, at.dy + t.size.height / 2);
     return t;

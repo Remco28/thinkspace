@@ -8,6 +8,7 @@ import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/editor/image_ops.dart' show HoleFill;
 import 'package:thinkspace/io/samples.dart';
 import 'package:thinkspace/model/scene.dart';
+import 'package:thinkspace/ui/kit.dart';
 import 'package:thinkspace/ui/shell.dart';
 import 'package:thinkspace/ui/widgets.dart';
 
@@ -179,6 +180,51 @@ void main() {
     c.undo();
     await tester.pump();
     expect((c.doc.allObjects.single as TextObject).font, TextFont.sans);
+  });
+
+  appTest('bold, italic, alignment and backdrop carry over to new text', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final t = c.createText(const Offset(100, 100));
+    c.currentLayer.objects.add(t);
+    c.select([t.id]);
+    await tester.pump();
+    final backdrop = find.descendant(
+      of: find.widgetWithText(PropRow, 'Backdrop'),
+      matching: find.byType(ColorRow),
+    );
+    await tester.tap(find.byTooltip('Bold'));
+    await tester.tap(find.byTooltip('Italic'));
+    await tester.tap(find.byTooltip('Centre'));
+    tester.widget<ColorRow>(backdrop).onChanged(0xFFFFF200);
+    await tester.pump();
+    expect(
+      [t.bold, t.italic, t.align, t.background],
+      [true, true, TextAlign.center, 0xFFFFF200],
+    );
+    final next = c.createText(const Offset(400, 400));
+    expect(
+      [next.bold, next.italic, next.align, next.background],
+      [true, true, TextAlign.center, 0xFFFFF200],
+    );
+
+    // The text tool's own settings show the same choices and change them.
+    c.select([]);
+    c.setTool(Tool.text);
+    await tester.pump();
+    await tester.tap(find.byTooltip('Bold'));
+    await tester.tap(find.byTooltip('Align right'));
+    tester.widget<ColorRow>(backdrop).onChanged(0);
+    await tester.pump();
+    final last = c.createText(const Offset(400, 400));
+    expect(
+      [last.bold, last.italic, last.align, last.background],
+      [false, true, TextAlign.right, 0],
+    );
+    expect(c.styleIsDefault(Tool.text), isFalse);
+    c.resetToolStyle(Tool.text);
+    expect(c.styleIsDefault(Tool.text), isTrue);
   });
 
   appTest('? opens the shortcut sheet, with keys drawn as keys', (

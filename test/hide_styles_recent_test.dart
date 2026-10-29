@@ -245,11 +245,20 @@ void main() {
     });
 
     test('the looks survive a save and a bad file', () {
-      c.styleOf(Tool.text).size = 60;
+      c.styleOf(Tool.text)
+        ..size = 60
+        ..fill = 0xFFFFF200
+        ..bold = true
+        ..align = TextAlign.center;
       c.hlBox = true;
       final fresh = EditorController();
       fresh.readToolStyles(c.toolStylesJson());
       expect(fresh.textSize, 60);
+      final t = fresh.styleOf(Tool.text);
+      expect(
+        [t.fill, t.bold, t.italic, t.align],
+        [0xFFFFF200, true, false, TextAlign.center],
+      );
       expect(fresh.hlBox, isTrue);
       fresh.readToolStyles({
         'pen': {'width': 'thick', 'color': 7},
