@@ -285,6 +285,14 @@ class PropertiesPanel extends StatelessWidget {
           onAlign: (v) => setText((s) => s.align = v),
           onBackdrop: (v) => setText((s) => s.fill = v),
         ),
+        _frameRow(
+          border: t.border,
+          width: t.borderWidth,
+          shadow: t.shadow,
+          onBorder: (v) => setText((s) => s.border = v),
+          onWidth: (v) => setText((s) => s.borderWidth = v),
+          onShadow: (v) => setText((s) => s.shadow = v),
+        ),
       ]);
     } else if (c.tool == Tool.hide) {
       rows.addAll(_hideDefaults());
@@ -961,67 +969,79 @@ class PropertiesPanel extends StatelessWidget {
   /// Border colour, width and shadow on one row, for pictures and text boxes.
   Widget _borderRow(Framed f) {
     final one = c.single;
-    return PropRow(
-      'Border',
-      Row(
-        children: [
-          SwatchButton(
-            key: const ValueKey('border-colour'),
-            value: f.border,
-            tooltip: 'Border colour',
-            onChanged: (v) =>
-                c.editFrames('border colour', (x) => x.border = v),
-          ),
-          const SizedBox(width: kSpace8),
-          Opacity(
-            opacity: f.border == 0 ? 0.4 : 1,
-            child: IgnorePointer(
-              ignoring: f.border == 0,
-              child: Tooltip(
-                message: 'Border width',
-                waitDuration: kTooltipWait,
-                child: ValueField(
-                  key: const ValueKey('border-width'),
-                  value: f.borderWidth.roundToDouble(),
-                  unit: 'px',
-                  onSubmitted: (v) => c.editFrames(
-                    'border width',
-                    (x) => x.borderWidth = v.clamp(1, 40).roundToDouble(),
-                  ),
-                ),
+    return _frameRow(
+      border: f.border,
+      width: f.borderWidth,
+      shadow: f.shadow,
+      onBorder: (v) => c.editFrames('border colour', (x) => x.border = v),
+      onWidth: (v) => c.editFrames('border width', (x) => x.borderWidth = v),
+      onShadow: (on) =>
+          c.editFrames(on ? 'shadow' : 'no shadow', (x) => x.shadow = on),
+      extra: one is ImageObject
+          ? GroupButton(
+              key: const ValueKey('match-borders'),
+              icon: Icons.photo_library_outlined,
+              tooltip:
+                  'Give all pictures this border and shadow (locked ones stay as they are)',
+              onPressed: () => c.matchPictureBorders(one),
+            )
+          : null,
+    );
+  }
+
+  /// Border colour, width and shadow: for what is selected, or for the next
+  /// text box.
+  Widget _frameRow({
+    required int border,
+    required double width,
+    required bool shadow,
+    required ValueChanged<int> onBorder,
+    required ValueChanged<double> onWidth,
+    required ValueChanged<bool> onShadow,
+    GroupButton? extra,
+  }) => PropRow(
+    'Border',
+    Row(
+      children: [
+        SwatchButton(
+          key: const ValueKey('border-colour'),
+          value: border,
+          tooltip: 'Border colour',
+          onChanged: onBorder,
+        ),
+        const SizedBox(width: kSpace8),
+        Opacity(
+          opacity: border == 0 ? 0.4 : 1,
+          child: IgnorePointer(
+            ignoring: border == 0,
+            child: Tooltip(
+              message: 'Border width',
+              waitDuration: kTooltipWait,
+              child: ValueField(
+                key: const ValueKey('border-width'),
+                value: width.roundToDouble(),
+                unit: 'px',
+                onSubmitted: (v) => onWidth(v.clamp(1, 40).roundToDouble()),
               ),
             ),
           ),
-          const SizedBox(width: kSpace8),
-          IconGroup(
-            buttons: [
-              GroupButton(
-                key: const ValueKey('border-shadow'),
-                icon: Icons.filter_none,
-                tooltip: f.shadow ? 'Remove the shadow' : 'Add a soft shadow',
-                active: f.shadow,
-                onPressed: () {
-                  final on = !f.shadow;
-                  c.editFrames(
-                    on ? 'shadow' : 'no shadow',
-                    (x) => x.shadow = on,
-                  );
-                },
-              ),
-              if (one is ImageObject)
-                GroupButton(
-                  key: const ValueKey('match-borders'),
-                  icon: Icons.photo_library_outlined,
-                  tooltip:
-                      'Give all pictures this border and shadow (locked ones stay as they are)',
-                  onPressed: () => c.matchPictureBorders(one),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(width: kSpace8),
+        IconGroup(
+          buttons: [
+            GroupButton(
+              key: const ValueKey('border-shadow'),
+              icon: Icons.filter_none,
+              tooltip: shadow ? 'Remove the shadow' : 'Add a soft shadow',
+              active: shadow,
+              onPressed: () => onShadow(!shadow),
+            ),
+            ?extra,
+          ],
+        ),
+      ],
+    ),
+  );
 
   Widget? _typeSectionMulti(List<SceneObject> objs) {
     final f = objs.first;

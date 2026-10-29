@@ -249,7 +249,10 @@ void main() {
         ..size = 60
         ..fill = 0xFFFFF200
         ..bold = true
-        ..align = TextAlign.center;
+        ..align = TextAlign.center
+        ..border = 0xFF1E88E5
+        ..borderWidth = 9
+        ..shadow = true;
       c.hlBox = true;
       final fresh = EditorController();
       fresh.readToolStyles(c.toolStylesJson());
@@ -259,6 +262,7 @@ void main() {
         [t.fill, t.bold, t.italic, t.align],
         [0xFFFFF200, true, false, TextAlign.center],
       );
+      expect([t.border, t.borderWidth, t.shadow], [0xFF1E88E5, 9, true]);
       expect(fresh.hlBox, isTrue);
       fresh.readToolStyles({
         'pen': {'width': 'thick', 'color': 7},

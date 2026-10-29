@@ -182,6 +182,60 @@ void main() {
     expect((c.doc.allObjects.single as TextObject).font, TextFont.sans);
   });
 
+  appTest('a text box border and shadow carry over to new text, not pictures', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final t = c.createText(const Offset(100, 100));
+    final pic = ImageObject(
+      id: 'p',
+      name: 'p',
+      assetId: 'a',
+      center: const Offset(600, 300),
+      size: const Size(100, 80),
+    );
+    c.currentLayer.objects.addAll([t, pic]);
+    c.select([t.id]);
+    await tester.pump();
+    tester
+        .widget<SwatchButton>(find.byKey(const ValueKey('border-colour')))
+        .onChanged(0xFF1E88E5);
+    await tester.pump();
+    tester
+        .widget<ValueField>(find.byKey(const ValueKey('border-width')))
+        .onSubmitted(9);
+    await tester.ensureVisible(find.byKey(const ValueKey('border-shadow')));
+    await tester.tap(find.byKey(const ValueKey('border-shadow')));
+    await tester.pump();
+    expect([t.border, t.borderWidth, t.shadow], [0xFF1E88E5, 9, true]);
+    final next = c.createText(const Offset(400, 400));
+    expect([next.border, next.borderWidth, next.shadow], [0xFF1E88E5, 9, true]);
+
+    // A picture's border is its own: the text tool keeps what it had.
+    c.select([pic.id]);
+    await tester.pump();
+    tester
+        .widget<SwatchButton>(find.byKey(const ValueKey('border-colour')))
+        .onChanged(0xFFE53935);
+    await tester.pump();
+    expect(pic.border, 0xFFE53935);
+    expect(c.styleOf(Tool.text).border, 0xFF1E88E5);
+
+    // The text tool's own settings show the border too, and reset it.
+    c.select([]);
+    c.setTool(Tool.text);
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('border-shadow')));
+    await tester.tap(find.byKey(const ValueKey('border-shadow')));
+    await tester.pump();
+    expect(c.styleOf(Tool.text).shadow, isFalse);
+    await tester.ensureVisible(find.byKey(const ValueKey('reset-tool-style')));
+    await tester.tap(find.byKey(const ValueKey('reset-tool-style')));
+    await tester.pump();
+    final plain = c.createText(const Offset(400, 400));
+    expect([plain.border, plain.borderWidth, plain.shadow], [0, 4, false]);
+  });
+
   appTest('bold, italic, alignment and backdrop carry over to new text', (
     tester,
   ) async {

@@ -94,7 +94,8 @@ const List<int> kHighlightPalette = [
 /// uses every field: [size] is the text size, the marker size or the size of
 /// Hide details' tiles; [fill] is a shape's fill or a text box's backdrop;
 /// [box], [keepText] are the highlighter's; [solid] is Hide details' choice of
-/// a plain cover; [bold], [italic], [align] are the text tool's.
+/// a plain cover; [bold], [italic], [align], [border], [borderWidth] and
+/// [shadow] are the text tool's.
 class ToolStyle {
   ToolStyle({
     required this.color,
@@ -108,6 +109,9 @@ class ToolStyle {
     this.bold = false,
     this.italic = false,
     this.align = TextAlign.left,
+    this.border = 0,
+    this.borderWidth = Framed.defaultWidth,
+    this.shadow = false,
   });
 
   int color;
@@ -121,6 +125,9 @@ class ToolStyle {
   bool bold;
   bool italic;
   TextAlign align;
+  int border;
+  double borderWidth;
+  bool shadow;
 
   ToolStyle copy() => ToolStyle(
     color: color,
@@ -134,6 +141,9 @@ class ToolStyle {
     bold: bold,
     italic: italic,
     align: align,
+    border: border,
+    borderWidth: borderWidth,
+    shadow: shadow,
   );
 
   Map<String, dynamic> toJson() => {
@@ -148,6 +158,9 @@ class ToolStyle {
     'bold': bold,
     'italic': italic,
     'align': align.name,
+    'border': border,
+    'borderWidth': borderWidth,
+    'shadow': shadow,
   };
 
   /// Take what is readable from [j]; anything missing or odd stays as it is.
@@ -170,6 +183,12 @@ class ToolStyle {
       'right' => TextAlign.right,
       _ => align,
     };
+    border = get<int>('border') ?? border;
+    borderWidth = (get<num>('borderWidth')?.toDouble() ?? borderWidth).clamp(
+      1,
+      40,
+    );
+    shadow = get<bool>('shadow') ?? shadow;
   }
 
   bool sameAs(ToolStyle o) => jsonEncode(toJson()) == jsonEncode(o.toJson());
@@ -1419,9 +1438,17 @@ class EditorController extends ChangeNotifier {
 
   /// Change the border or shadow of every selected picture and text box, as
   /// one undo step.
+  /// A text box's border and shadow are also what the next text box gets.
   void editFrames(String label, void Function(Framed f) f) =>
       editSelected(label, (o) {
-        if (o is Framed) f(o);
+        if (o is! Framed) return;
+        f(o);
+        if (o is TextObject) {
+          styleOf(Tool.text)
+            ..border = o.border
+            ..borderWidth = o.borderWidth
+            ..shadow = o.shadow;
+        }
       });
 
   /// Give every picture the border and shadow of [like], as one undo step.
@@ -1565,7 +1592,10 @@ class EditorController extends ChangeNotifier {
       ..background = s.fill
       ..bold = s.bold
       ..italic = s.italic
-      ..align = s.align;
+      ..align = s.align
+      ..border = s.border
+      ..borderWidth = s.borderWidth
+      ..shadow = s.shadow;
     t.size = Size(width, measureTextHeight(t));
     t.center = Offset(at.dx + width / 2, at.dy + t.size.height / 2);
     return t;
