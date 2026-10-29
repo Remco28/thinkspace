@@ -187,12 +187,72 @@ class PropertiesPanel extends StatelessWidget {
     );
   }
 
+  /// Bold, italic, alignment and backdrop: for a text box, or for the next one.
+  List<Widget> _textLook({
+    required bool bold,
+    required bool italic,
+    required TextAlign align,
+    required int backdrop,
+    required ValueChanged<bool> onBold,
+    required ValueChanged<bool> onItalic,
+    required ValueChanged<TextAlign> onAlign,
+    required ValueChanged<int> onBackdrop,
+  }) => [
+    PropRow(
+      'Style',
+      Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          IconGroup(
+            buttons: [
+              GroupButton(
+                icon: Icons.format_bold,
+                tooltip: 'Bold',
+                active: bold,
+                onPressed: () => onBold(!bold),
+              ),
+              GroupButton(
+                icon: Icons.format_italic,
+                tooltip: 'Italic',
+                active: italic,
+                onPressed: () => onItalic(!italic),
+              ),
+            ],
+          ),
+          IconGroup(
+            buttons: [
+              for (final (icon, tip, al) in [
+                (Icons.format_align_left, 'Align left', TextAlign.left),
+                (Icons.format_align_center, 'Centre', TextAlign.center),
+                (Icons.format_align_right, 'Align right', TextAlign.right),
+              ])
+                GroupButton(
+                  icon: icon,
+                  tooltip: tip,
+                  active: align == al,
+                  onPressed: () => onAlign(al),
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
+    _colour('Backdrop', backdrop, onBackdrop, allowNone: true),
+  ];
+
   /// Colour, width and so on for the next thing drawn.
   Widget _toolDefaults() {
     final rows = <Widget>[];
     if (c.tool == Tool.highlight) {
       rows.addAll(_highlightDefaults());
     } else if (c.tool == Tool.text) {
+      final t = c.styleOf(Tool.text);
+      void setText(void Function(ToolStyle s) f) {
+        f(t);
+        c.notify();
+      }
+
       rows.addAll([
         _colour('Colour', c.textColor, (v) {
           c.textColor = v;
@@ -214,6 +274,16 @@ class PropertiesPanel extends StatelessWidget {
             c.textSize = v.roundToDouble();
             c.notify();
           }),
+        ),
+        ..._textLook(
+          bold: t.bold,
+          italic: t.italic,
+          align: t.align,
+          backdrop: t.fill,
+          onBold: (v) => setText((s) => s.bold = v),
+          onItalic: (v) => setText((s) => s.italic = v),
+          onAlign: (v) => setText((s) => s.align = v),
+          onBackdrop: (v) => setText((s) => s.fill = v),
         ),
       ]);
     } else if (c.tool == Tool.hide) {
@@ -1153,65 +1223,28 @@ class PropertiesPanel extends StatelessWidget {
               ],
             ),
           ),
-          PropRow(
-            'Style',
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                IconGroup(
-                  buttons: [
-                    GroupButton(
-                      icon: Icons.format_bold,
-                      tooltip: 'Bold',
-                      active: o.bold,
-                      onPressed: () => c.editSelected(
-                        'bold',
-                        (x) => (x as TextObject).bold = !x.bold,
-                      ),
-                    ),
-                    GroupButton(
-                      icon: Icons.format_italic,
-                      tooltip: 'Italic',
-                      active: o.italic,
-                      onPressed: () => c.editSelected(
-                        'italic',
-                        (x) => (x as TextObject).italic = !x.italic,
-                      ),
-                    ),
-                  ],
-                ),
-                IconGroup(
-                  buttons: [
-                    for (final (icon, tip, al) in [
-                      (Icons.format_align_left, 'Align left', TextAlign.left),
-                      (Icons.format_align_center, 'Centre', TextAlign.center),
-                      (
-                        Icons.format_align_right,
-                        'Align right',
-                        TextAlign.right,
-                      ),
-                    ])
-                      GroupButton(
-                        icon: icon,
-                        tooltip: tip,
-                        active: o.align == al,
-                        onPressed: () => c.editSelected(
-                          'align',
-                          (x) => (x as TextObject).align = al,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+          ..._textLook(
+            bold: o.bold,
+            italic: o.italic,
+            align: o.align,
+            backdrop: o.background,
+            onBold: (v) => c.editSelected('bold', (x) {
+              (x as TextObject).bold = v;
+              c.styleOf(Tool.text).bold = v;
+            }),
+            onItalic: (v) => c.editSelected('italic', (x) {
+              (x as TextObject).italic = v;
+              c.styleOf(Tool.text).italic = v;
+            }),
+            onAlign: (v) => c.editSelected('align', (x) {
+              (x as TextObject).align = v;
+              c.styleOf(Tool.text).align = v;
+            }),
+            onBackdrop: (v) => c.editSelected('text backdrop', (x) {
+              (x as TextObject).background = v;
+              c.styleOf(Tool.text).fill = v;
+            }),
           ),
-          _colour('Backdrop', o.background, (v) {
-            c.editSelected(
-              'text backdrop',
-              (x) => (x as TextObject).background = v,
-            );
-          }, allowNone: true),
           ActionButton(
             label: 'Edit text',
             icon: Icons.text_fields,
