@@ -47,3 +47,8 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 dist/
+
+# Local agent links (point outside the repo)
+/CLAUDE.md
+/.agents/
+/.claude/
