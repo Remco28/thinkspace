@@ -1398,7 +1398,7 @@ void main() {
       expect(c2.filePath, f.path);
     });
 
-    test('launching with a picture places it on the page', () async {
+    test('launching with a picture opens it as a new document', () async {
       final a = await makeAsset(c, w: 60, h: 40);
       final dir = Directory.systemTemp.createTempSync('thinkspace_launch');
       addTearDown(() => dir.deleteSync(recursive: true));
@@ -1406,6 +1406,50 @@ void main() {
       final c2 = newEditor();
       await c2.openLaunchFiles([f.path]);
       expect(c2.doc.allObjects.single, isA<ImageObject>());
+      expect(c2.doc.layers.single.name, 'pic');
+    });
+
+    test('opened pictures get a layer each, first file on top', () async {
+      final dir = Directory.systemTemp.createTempSync('thinkspace_open');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final big = await makeAsset(c, w: 60, h: 40);
+      final small = await makeAsset(c, w: 30, h: 50);
+      final a = File('${dir.path}/before.png')..writeAsBytesSync(big.bytes);
+      final b = File('${dir.path}/after.png')..writeAsBytesSync(small.bytes);
+      final c2 = newEditor();
+      expect(await c2.openImages([a.path, b.path]), 2);
+      expect([for (final l in c2.doc.layers) l.name], ['after', 'before']);
+      expect(c2.doc.layers.every((l) => l.visible && !l.locked), isTrue);
+      expect(c2.currentLayerId, c2.doc.layers.last.id);
+      expect(c2.doc.canvasSize, const Size(60, 50));
+      final top = c2.doc.layers.last.objects.single as BoxObject;
+      expect(top.bounds.topLeft, Offset.zero);
+      expect(c2.suggestedName, 'before');
+      expect(c2.filePath, isNull);
+      expect(c2.dirty, isFalse);
+      expect(c2.canUndo, isFalse);
+    });
+
+    test('opening more than ten pictures opens the first ten', () async {
+      final dir = Directory.systemTemp.createTempSync('thinkspace_open');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final a = await makeAsset(c, w: 20, h: 20);
+      final paths = [
+        for (var i = 0; i < 12; i++)
+          (File('${dir.path}/p$i.png')..writeAsBytesSync(a.bytes)).path,
+      ];
+      final c2 = newEditor();
+      expect(await c2.openImages(paths), 10);
+      expect(c2.doc.layers.length, 10);
+      expect(c2.toastMessage, contains('Opened 10 of 12'));
+    });
+
+    test('pictures that cannot be read leave the document alone', () async {
+      await addImage();
+      final before = c.doc.allObjects.length;
+      expect(await c.openImages(['/nowhere/missing.png']), 0);
+      expect(c.doc.allObjects.length, before);
+      expect(c.toastMessage, contains('Could not open'));
     });
 
     test(

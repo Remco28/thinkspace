@@ -567,11 +567,15 @@ class _EditorShellState extends State<EditorShell> {
     if (await _confirmDiscard()) c.newDocument();
   }
 
+  /// Open… takes a project, or up to ten pictures as a new document with a
+  /// layer each. Given both, the project wins, as a drop does.
   Future<void> _open() async {
     if (!await _confirmDiscard()) return;
-    final p = await pickProject();
-    if (p == null) return;
-    await _openProject(p);
+    final paths = await pickOpenable();
+    final project = paths.where((p) => p.endsWith('.thinkspace'));
+    if (project.isNotEmpty) return _openProject(project.first);
+    final images = paths.where(isImagePath).toList();
+    if (images.isNotEmpty) await c.openImages(images);
   }
 
   Future<void> _openProject(String path) async {
@@ -623,14 +627,14 @@ class _EditorShellState extends State<EditorShell> {
 
   Future<void> _saveAs() async {
     final p = await chooseProjectPath(
-      c.filePath == null
-          ? 'untitled.thinkspace'
-          : '${baseName(c.filePath!)}.thinkspace',
+      '${c.filePath == null ? c.suggestedName ?? 'untitled' : baseName(c.filePath!)}.thinkspace',
     );
     if (p != null) await c.saveTo(p);
   }
 
   Future<void> _export(double scale) async {
+    // Not the picture's own name when there is no project: exporting over
+    // the original screenshot is too easy a mistake.
     final name = c.filePath == null ? 'thinkspace' : baseName(c.filePath!);
     final p = await choosePngPath(
       '$name${scale == 1 ? '' : '@${scale.round()}x'}.png',

@@ -376,6 +376,10 @@ class EditorController extends ChangeNotifier {
 
   // --- file ----------------------------------------------------------------
   String? filePath;
+
+  /// The name Save as… offers for an untitled document opened from pictures
+  /// (the first picture's name); null for a blank one.
+  String? suggestedName;
   bool dirty = false;
 
   // --- messages ------------------------------------------------------------
@@ -2683,6 +2687,7 @@ class EditorController extends ChangeNotifier {
     _redo.clear();
     editingTextId = null;
     filePath = path;
+    suggestedName = null;
     if (path != null) noteRecent(path);
     markSaved();
     fitToView(notify: false);
@@ -2754,8 +2759,83 @@ class EditorController extends ChangeNotifier {
     if (bad == 0) showToast('Opened ${fileNameOf(path)}');
   }
 
+  /// The most pictures [openImages] opens at once. Each is held fully
+  /// decoded (a 4K screenshot is about 33 MB), and past this a stack of
+  /// layers is clutter rather than something to flip through.
+  static const maxOpenImages = 10;
+
+  /// Open pictures as a new, untitled document: each on a layer of its own,
+  /// named after its file, in the top-left corner. The first file is the top
+  /// layer, so the Layers list reads like the file list, and the page fits
+  /// the largest picture. Returns how many opened; if none could be read,
+  /// the current document stays as it was.
+  Future<int> openImages(List<String> paths) async {
+    final chosen = paths.take(maxOpenImages).toList();
+    // Decode into a scratch store first, as a project load does, so files
+    // that cannot be read leave the current document untouched.
+    final fresh = AssetStore();
+    final opened = <(String, Asset)>[];
+    for (final path in chosen) {
+      try {
+        final a = await fresh.addEncoded(await File(path).readAsBytes());
+        opened.add((baseNameOf(path), a));
+      } catch (_) {
+        showToast('Could not open ${fileNameOf(path)}');
+      }
+    }
+    if (opened.isEmpty) return 0;
+    final d = Document();
+    var w = 0.0, h = 0.0;
+    for (final (name, a) in opened.reversed) {
+      final size = Size(
+        math.min(a.width.toDouble(), 12000),
+        math.min(a.height.toDouble(), 12000),
+      );
+      w = math.max(w, size.width);
+      h = math.max(h, size.height);
+      d.layers.add(
+        Layer(
+          id: d.newId('l'),
+          name: name,
+          objects: [
+            ImageObject(
+              id: d.newId('o'),
+              name: '$name 1',
+              assetId: a.id,
+              center: Offset(size.width / 2, size.height / 2),
+              size: size,
+            ),
+          ],
+        ),
+      );
+    }
+    d.canvasSize = Size(w, h);
+    assets.replaceWith(fresh);
+    doc = d;
+    currentLayerId = doc.layers.last.id;
+    selection = [];
+    _undo.clear();
+    _redo.clear();
+    editingTextId = null;
+    filePath = null;
+    suggestedName = opened.first.$1;
+    markSaved();
+    pendingPaste = null;
+    clearRecovery();
+    fitToView(notify: false);
+    notifyListeners();
+    if (paths.length > chosen.length) {
+      showToast(
+        'Opened ${chosen.length} of ${paths.length} images. Add the rest with Add image…',
+      );
+    } else if (opened.length == 1 && chosen.length == 1) {
+      showToast('Opened ${fileNameOf(chosen.first)}');
+    }
+    return opened.length;
+  }
+
   /// Files the app was started with (double-click in a file manager, or
-  /// `thinkspace picture.png`): a project opens, pictures go on the page.
+  /// `thinkspace picture.png`): a project opens, pictures open as layers.
   Future<void> openLaunchFiles(List<String> args) async {
     String? toPath(String a) {
       if (!a.startsWith('file://')) return a;
@@ -2782,7 +2862,7 @@ class EditorController extends ChangeNotifier {
       final pics = paths
           .where((p) => exts.any((e) => p.toLowerCase().endsWith(e)))
           .toList();
-      if (pics.isNotEmpty) await importFiles(pics);
+      if (pics.isNotEmpty) await openImages(pics);
     } catch (_) {
       showToast('Could not open that file');
     }
@@ -2797,6 +2877,7 @@ class EditorController extends ChangeNotifier {
     _redo.clear();
     editingTextId = null;
     filePath = null;
+    suggestedName = null;
     markSaved();
     pendingPaste = null;
     clearRecovery();
@@ -2813,6 +2894,7 @@ class EditorController extends ChangeNotifier {
     _redo.clear();
     editingTextId = null;
     filePath = null;
+    suggestedName = null;
     markSaved();
     fitToView(notify: false);
     notifyListeners();

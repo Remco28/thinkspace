@@ -30,7 +30,7 @@ A few rules follow from that, and every feature is weighed against them:
 
 ## What it does
 
-- **Images stay separate things.** Paste, drop or import images. Each is its own object you can move, resize, rotate, fade and rename. Nothing is painted into the page until you export.
+- **Images stay separate things.** Paste, drop or import images, or open up to ten with **Open…** (`Ctrl+O`): they become a new document with one layer per picture, named after its file, so you can flip between them with the eye buttons. Each is its own object you can move, resize, rotate, fade and rename. Nothing is painted into the page until you export.
 - **Fast lines and arrows.** Straight lines and arrows that you resize by dragging their ends. `Shift` snaps them to clean angles. Drag the small diamond in the middle to bend one into a curve (it snaps back straight, or to an even arc, as you get close). Also rectangles, ellipses, numbered markers, text in four typefaces (sans, serif, mono, handwriting) and a smoothed pen; hold `Shift` with the pen for a straight line.
 - **Tools remember how you set them.** Each tool keeps its own colour, width and size, even after a restart, and changing something on the page changes its tool too. Each tool's settings end in a **Reset to default** link, which comes alive once they have been changed.
 - **Layers that do the simple things.** Show/hide, reorder, lock, and *move everything on a layer together* — click a layer to select its contents, then drag. Drag any object onto another layer without it changing. A new layer goes just above the current one, lights up and opens its name for typing.

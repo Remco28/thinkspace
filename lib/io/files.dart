@@ -17,8 +17,20 @@ Future<List<String>> pickImages() async {
   return [for (final f in files) f.path];
 }
 
-Future<String?> pickProject() async =>
-    (await openFile(acceptedTypeGroups: [_project]))?.path;
+/// What Open… offers: projects and pictures together, or either alone.
+Future<List<String>> pickOpenable() async {
+  final files = await openFiles(
+    acceptedTypeGroups: [
+      XTypeGroup(
+        label: 'Projects and images',
+        extensions: [..._project.extensions!, ..._images.extensions!],
+      ),
+      _project,
+      _images,
+    ],
+  );
+  return [for (final f in files) f.path];
+}
 
 Future<String?> chooseProjectPath(String suggested) async {
   final loc = await getSaveLocation(

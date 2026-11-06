@@ -7,7 +7,7 @@ Exec=thinkspace %F
 Icon=thinkspace
 Terminal=false
 Categories=Graphics;
-MimeType=application/x-thinkspace;image/png;image/jpeg;
+MimeType=application/x-thinkspace;image/png;image/jpeg;image/webp;image/gif;image/bmp;
 StartupWMClass=io.github.remco28.thinkspace
 Actions=new-window;
 
