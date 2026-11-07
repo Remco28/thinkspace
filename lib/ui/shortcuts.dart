@@ -233,7 +233,7 @@ class KeyCombo extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: kSpace8),
             child: Text(
               '+',
-              style: TextStyle(fontSize: kTextCaption, color: kInkFaint),
+              style: TextStyle(fontSize: kTextCaption, color: kInkSoft),
             ),
           ),
         if (_mouseWords.contains(keys[i]))
@@ -344,10 +344,7 @@ class _ShortcutLine extends StatelessWidget {
                     padding: EdgeInsets.only(top: kSpace4),
                     child: Text(
                       'or',
-                      style: TextStyle(
-                        fontSize: kTextCaption,
-                        color: kInkFaint,
-                      ),
+                      style: TextStyle(fontSize: kTextCaption, color: kInkSoft),
                     ),
                   ),
                 KeyCombo(row.$1[i]),

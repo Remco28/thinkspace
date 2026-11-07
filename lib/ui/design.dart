@@ -9,10 +9,12 @@ import 'package:flutter/painting.dart';
 /// Main text and the darkest marks drawn over the page.
 const Color kInk = Color(0xFF222733);
 
-/// Labels, hints and secondary text.
+/// Labels, hints and every secondary text: counts, units, shortcuts.
 const Color kInkSoft = Color(0xFF5B6272);
 
-/// Captions, counts, shortcuts and quiet icons.
+/// Quiet marks that are not read: drag grips, a key's shadow, the names of
+/// hidden layers and objects. Never for text that must be read: 3:1 on the
+/// panels, under the 4.5:1 text needs (secondary text is [kInkSoft]).
 const Color kInkFaint = Color(0xFF8A90A0);
 
 /// Anything that cannot be used right now.
@@ -99,13 +101,13 @@ const double kLabelWidth = 64;
 // ---- type ------------------------------------------------------------------
 
 /// Section labels, captions, counts, shortcut keys, the name tag.
-const double kTextCaption = 11;
+const double kTextCaption = 12;
 
 /// Labels, fields, menus, list rows, tooltips.
-const double kTextBody = 12.5;
+const double kTextBody = 13.5;
 
 /// The app name, card titles, the empty-page hint.
-const double kTextTitle = 14.5;
+const double kTextTitle = 15.5;
 
 /// The interface font (bundled), and its three weights: ordinary text,
 /// emphasis (names, buttons) and headings (section labels, titles).

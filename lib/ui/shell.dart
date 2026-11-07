@@ -1029,7 +1029,7 @@ class _EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) => const Text(
     'Paste an image (Ctrl+V), drop a file here,\nor press A to draw an arrow',
     textAlign: TextAlign.center,
-    style: TextStyle(fontSize: kTextTitle, height: 1.5, color: kInkFaint),
+    style: TextStyle(fontSize: kTextTitle, height: 1.5, color: kInkSoft),
   );
 }
 
@@ -1459,7 +1459,7 @@ class _RecentRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: kTextCaption,
-                    color: kInkFaint,
+                    color: kInkSoft,
                   ),
                 ),
               ],

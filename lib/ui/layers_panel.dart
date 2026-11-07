@@ -309,13 +309,13 @@ class _LayerTile extends StatelessWidget {
                     const Icon(
                       Icons.lock_outline,
                       size: kIconSmall,
-                      color: kInkFaint,
+                      color: kInkSoft,
                     ),
                   Text(
                     '${layer.objects.length}',
                     style: const TextStyle(
                       fontSize: kTextCaption,
-                      color: kInkFaint,
+                      color: kInkSoft,
                     ),
                   ),
                 ],
@@ -446,7 +446,7 @@ class _ObjectRow extends StatelessWidget {
               icon: Icons.lock_outline,
               tooltip: 'Locked — click to unlock',
               size: 14,
-              color: kInkFaint,
+              color: kInkSoft,
               onPressed: () {
                 c.select([object.id]);
                 c.editSelected('unlock', (o) => o.locked = false);

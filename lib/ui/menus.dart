@@ -67,10 +67,7 @@ PopupMenuEntry<T> menuItem<T>({
               padding: const EdgeInsets.only(left: kSpace12),
               child: Text(
                 shortcut,
-                style: const TextStyle(
-                  fontSize: kTextCaption,
-                  color: kInkFaint,
-                ),
+                style: const TextStyle(fontSize: kTextCaption, color: kInkSoft),
               ),
             ),
         ],
@@ -93,7 +90,7 @@ PopupMenuEntry<T> menuLabel<T>(String text, {double width = 210}) =>
             fontSize: kTextCaption,
             fontWeight: kWeightHeading,
             letterSpacing: 0.7,
-            color: kInkFaint,
+            color: kInkSoft,
           ),
         ),
       ),

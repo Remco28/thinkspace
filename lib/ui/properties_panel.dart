@@ -86,7 +86,15 @@ class PropertiesPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (drawing) _toolDefaults(),
+        if (drawing) ...[
+          _toolDefaults(),
+          // With a tool's settings above, the page's own settings get a
+          // heading of their own, so the two don't read as one list.
+          const SizedBox(height: kSectionGap),
+          const Divider(height: 1, color: kBorder),
+          const SizedBox(height: kSpace12),
+          const Text('PAGE', style: panelHeadingStyle),
+        ],
         Section(
           first: !drawing,
           title: 'Page size',
@@ -654,7 +662,13 @@ class PropertiesPanel extends StatelessWidget {
                   child: DropdownButton<String>(
                     isExpanded: true,
                     isDense: true,
-                    style: const TextStyle(fontSize: kTextBody, color: kInk),
+                    // A dropdown's style replaces the theme's rather than
+                    // adding to it, so it names the font itself.
+                    style: const TextStyle(
+                      fontFamily: kUiFont,
+                      fontSize: kTextBody,
+                      color: kInk,
+                    ),
                     value: layerIds.length == 1 ? layerIds.first : null,
                     hint: const Text('Several layers'),
                     items: [

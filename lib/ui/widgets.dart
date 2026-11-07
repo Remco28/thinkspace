@@ -5,6 +5,14 @@ import '../editor/controller.dart';
 import 'color_picker.dart';
 import 'design.dart';
 
+/// A panel's name: LAYERS, IMAGE, PAGE.
+const panelHeadingStyle = TextStyle(
+  fontSize: kTextCaption,
+  fontWeight: kWeightHeading,
+  letterSpacing: 0.6,
+  color: kInk,
+);
+
 class PanelHeader extends StatelessWidget {
   const PanelHeader(this.title, {super.key, this.actions = const []});
   final String title;
@@ -19,15 +27,7 @@ class PanelHeader extends StatelessWidget {
     ),
     child: Row(
       children: [
-        Text(
-          title.toUpperCase(),
-          style: const TextStyle(
-            fontSize: kTextCaption,
-            fontWeight: kWeightHeading,
-            letterSpacing: 0.8,
-            color: kInkSoft,
-          ),
-        ),
+        Text(title.toUpperCase(), style: panelHeadingStyle),
         const Spacer(),
         ...actions,
       ],
@@ -234,10 +234,15 @@ class ColorRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: argb == 0 ? Colors.white : Color(argb),
             borderRadius: BorderRadius.circular(kRadius),
+            // The chosen one gets a white gap and a dark ring, which shows
+            // on every colour (an accent ring vanished on the blue one).
             border: Border.all(
-              color: selected ? kAccent : kOutline,
+              color: selected ? Colors.white : kOutline,
               width: selected ? 2 : 1,
             ),
+            boxShadow: selected
+                ? const [BoxShadow(color: kInk, spreadRadius: 2)]
+                : null,
           ),
           child: argb == 0
               ? const Icon(Icons.block, size: kIconSmall, color: kDanger)
@@ -490,7 +495,7 @@ class _NumberFieldState extends State<NumberField> {
       decoration: InputDecoration(
         isDense: true,
         suffixText: widget.suffix,
-        suffixStyle: const TextStyle(fontSize: kTextBody, color: kInkFaint),
+        suffixStyle: const TextStyle(fontSize: kTextBody, color: kInkSoft),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: kSpace8,
           vertical: kSpace8,
@@ -631,7 +636,7 @@ class KeyCap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = compact ? 12.0 : 19.0;
+    final h = compact ? 13.0 : 20.0;
     // No alignment on the Container: it would stretch to fill whatever room
     // the parent offers, which is what made the toolbar key look so roomy.
     return Container(
@@ -652,7 +657,7 @@ class KeyCap extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: compact ? 8.5 : 11.5,
+            fontSize: compact ? 9.5 : 12.5,
             height: 1.1,
             fontWeight: kWeightHeading,
             color: kInk,

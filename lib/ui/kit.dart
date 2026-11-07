@@ -38,11 +38,12 @@ class Section extends StatelessWidget {
               Expanded(
                 child: Text(
                   title!,
+                  // The anchor of its group: as big as the rows, but darker
+                  // and bolder than their labels.
                   style: const TextStyle(
-                    fontSize: kTextCaption,
-                    fontWeight: kWeightHeading,
-                    letterSpacing: 0.2,
-                    color: kInkSoft,
+                    fontSize: kTextBody,
+                    fontWeight: kWeightStrong,
+                    color: kInk,
                   ),
                 ),
               ),
