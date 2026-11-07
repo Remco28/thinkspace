@@ -44,3 +44,30 @@ Cast:
 - B, legibility specialist: codex gpt-6-luna, with the images attached.
 - C, visual hierarchy and focus: claude-sonnet-5-5.
 - The disposition auditor runs after sorting: claude-opus-5-5.
+
+A's tasks 1 to 6 were written only in its thinking. The final reply holds tasks 7 to 11; I recovered 1 to 6 from the thinking in the log:
+- Task 1: opacity 85%, size 640×190. "Size and rotation" is faint.
+- Task 2: "Navy awnings", and Notes holds 2. The count is tiny and far right, and layer and object names look alike.
+- Task 4: the width reads at a glance. Which swatch is chosen is hard to pick out.
+- Task 5: the shortcuts are faint; Ctrl+Shift+S is hard to tell from Ctrl+Shift+N.
+- Task 6: Lock in place is last of 15 rows, and Ctrl+Shift+] and [ are hard to tell apart.
+
+| # | Finding | Readers | Ours | From | How checked | Reaches | Done |
+|---|---|---|---|---|---|---|---|
+| 1 | A whole tier of secondary text is faint: counts, units (wide/high/px/%), menu shortcuts, the panel and menu headings, "Reset to default", collection captions | A, B (estimated 2.6–3.5:1), C | Tier 1, MEDIUM | untraced (the design tokens) | step 0: kInkFaint is 3.0:1 on the panel and 2.6:1 on the workspace | how it is used now: every screen | Propose kInkFaint 8A90A0 → 666D7E (4.9:1 on the panel) and menu headings kInkFaint → kInkSoft |
+| 2 | Text is small: body ≈12.5 px and captions 11 px, worse on the 14" ThinkPad | A, B, C | Tier 1, MEDIUM | untraced | design.dart: kTextBody 12.5, kTextCaption 11 | how it is used now: both screens, the laptop most | Propose body 12.5 → 13.5, caption 11 → 12, title 14.5 → 15.5 |
+| 3 | Flat hierarchy: section headings are the weakest text; sub-heads ("Size and rotation", "Page size") are about as heavy as row labels; values look like labels. Nothing anchors the eye — "the can't-lock-in feeling" | A, C (B: "one small size… harder to settle on a priority") | Tier 1, MEDIUM (the main cause, per A and C) | untraced | kit.dart: Section titles are 11 px, 700, kInkSoft; PropRow labels are 12.5 px kInkSoft | how it is used now | Propose: sub-heads at body size, semibold, kInk. Panel headers (LAYERS, IMAGE) in kInk. Row labels stay kInkSoft and values stay kInk |
+| 4 | Layer rows and object rows look alike; the eye icons sit on different sides | C, A (task 2) | Tier 1, LOW | untraced | seen in shot 02 | how it is used now | For Frank: layer rows semibold kInk with a faint band. Not in the first proposal, to keep it to type and colour tokens |
+| 5 | The selected swatch is hard to pick out | A (task 4) | Tier 2, LOW | untraced | to check against shot 06 | how it is used now | Check; if real, a thicker ring |
+| 6 | Background tones too close (panel F7F8FA, workspace E4E6EB); fields are hairline outlines on near-white | C | Tier 3 | — | step 0: the two greys are 1.17:1 apart | — | For Frank |
+| 7 | The shortcuts window is dense; bare "Click"/"Scroll"/"drag" are styled unlike the key caps | B (dense), C | Tier 3. A found this window the easiest to read | — | — | — | For Frank; no change proposed |
+| 8 | The laptop's display scaling: at 100%, 13 px is about 2 mm tall | A | Tier 3 (a setting, not the app) | — | — | the ThinkPad | Tell Frank: check the scaling there; 125% would help everything |
+
+What happened against the predictions:
+- faint secondary text named by 2 or more readers: yes, all 3.
+- body called small: yes, all 3.
+- flat hierarchy: yes, A and C call it the main cause.
+- icons called faint or small: no. B found no serious icon problem, and none of the others raised one.
+- 4 to 7 verified findings, mostly MEDIUM: 4 verified (3 MEDIUM, 1 LOW), plus 1 to check.
+
+Believed, and wrong: "the font sizes were chosen for this app and are fine; it's colour." Size and hierarchy came up as much as colour did.
