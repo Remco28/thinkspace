@@ -71,3 +71,28 @@ What happened against the predictions:
 - 4 to 7 verified findings, mostly MEDIUM: 4 verified (3 MEDIUM, 1 LOW), plus 1 to check.
 
 Believed, and wrong: "the font sizes were chosen for this app and are fine; it's colour." Size and hierarchy came up as much as colour did.
+| 9 | The Layer dropdown in the properties panel draws in the system font, not Inter: a dropdown's style replaces the theme's, and this one did not name the font | found by me while building the proposal | Tier 1, LOW | untraced | seen in the before/after crops; read in properties_panel.dart | how it is used now | Fixed in the proposal branch |
+
+### After the disposition audit (claude-opus-5-5, reports/D-disposition-opus.md)
+Accepted:
+- **Ratings.** #1 and #3 → HIGH: this review is about readability, and that is exactly the complaint. #4 → MEDIUM: it is where glance task 2 slowed. #4 goes into the proposal, not to "for Frank" alone.
+- **The two greys collapsing.** Darkening kInkFaint would have merged it with kInkSoft and dimmed the hidden-name cue. Redone: kInkFaint is unchanged and kept for marks that are not read (grips, the key-cap shadow, hidden names). Every secondary *text* now uses kInkSoft, and the step below labels comes from size and weight.
+- **Wrong token claims.** PanelHeader and Hint are kInkSoft, not kInkFaint; only the size and heading changes reach them. Corrected.
+- **KeyCap hard-codes 8.5/11.5 px.** Raised to 9.5/12.5, and their heights to 13/20.
+- **C §2, pen and page settings read as one list.** A PAGE heading and a divider now separate them when a tool is picked.
+- **#5 on the blue swatch.** The after shot shows the dark ring on blue.
+- **Fixed heights.** The after shot of a focused Name field shows no clipping. The layer rename field was not captured: F2 did not open it from the harness. Not checked.
+- **"]" and "["** are distinct in the after shot of the right-click menu.
+- **Corrections to the predictions.** Icons: B and C raised minor icon points, so "none raised one" overstated it. The tally is 5 tier-1 findings (3 MEDIUM, 2 LOW); "plus 1 to check" was wrong.
+- **#7** goes to Frank as a split: B and C say the shortcuts window is dense, A found it the easiest screen.
+- **#8, scaling:** asked as a question, not given as an FYI.
+- **#6, field borders.** kControlBorder is 1.4:1 on the panel, under the 3:1 non-text guideline. That part is tier 2 by computation and goes to Frank as an option. The workspace tone stays taste.
+
+Declined, with reason:
+- **"Sub-heads now look like layer names."** They sit in different panels (the properties panel vs the Layers list), and the new band also sets layer names apart. Kept, and shown in the before/after.
+- **C §1.4, weak grouping.** The code has an 8 px row gap against 12+1+12 between sections; C overstated it. Not acted on.
+- **C §1.5, the swatches are loudest.** Colour swatches are meant to be seen; no change.
+- **C §3, the active-layer bar.** It is already 3 px, as C asked.
+- **"Reset to default" pale.** It is a disabled button (the width is already the default), and disabled controls are exempt from the contrast guideline.
+
+From the review, separately: the page is fixed so it stays centred when the window grows after opening. Frank reported this mid-review; it is on its own commit, outside the proposal.
