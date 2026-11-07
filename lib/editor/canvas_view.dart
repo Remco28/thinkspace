@@ -552,12 +552,28 @@ class _TagLock extends StatelessWidget {
               c.toggleLockSelection();
               refocus();
             },
+            // Locked shows as a white square with a blue lock, so the state
+            // is plain at a glance, not only on hover.
             child: Center(
-              child: Icon(
-                locked ? Icons.lock : Icons.lock_open_outlined,
-                size: kIcon,
-                color: Colors.white,
-              ),
+              child: locked
+                  ? Container(
+                      width: 20,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Icon(
+                        Icons.lock,
+                        size: kIconSmall,
+                        color: kAccent,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.lock_open_outlined,
+                      size: kIcon,
+                      color: Colors.white,
+                    ),
             ),
           ),
         ),

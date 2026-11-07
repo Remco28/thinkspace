@@ -1799,7 +1799,7 @@ class EditorController extends ChangeNotifier {
   /// Shown once, ever, when the first picture goes on the page: that is when
   /// a screenshot sliding about while you mark it up starts to annoy.
   static const lockTip =
-      'Tip: Ctrl+L locks it in place, so you can draw over it without moving it';
+      'Lock it in place with Ctrl+L or the padlock on its label, so you can draw over it without moving it';
 
   /// Whether [lockTip] has been shown; kept in the preferences.
   bool lockTipShown = false;
