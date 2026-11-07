@@ -555,7 +555,7 @@ class _TagLock extends StatelessWidget {
             child: Center(
               child: Icon(
                 locked ? Icons.lock : Icons.lock_open_outlined,
-                size: kIconSmall,
+                size: kIcon,
                 color: Colors.white,
               ),
             ),

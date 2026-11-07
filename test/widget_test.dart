@@ -1294,6 +1294,9 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     expect(c.doc.allObjects.whereType<ImageObject>().length, 1);
+    // The first picture on the page brings the one-time Ctrl+L tip.
+    expect(c.toastMessage, EditorController.lockTip);
+    await tester.pump(const Duration(seconds: 7));
   });
 
   appTest(

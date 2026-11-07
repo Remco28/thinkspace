@@ -264,6 +264,8 @@ class Inspector {
         await File(cmd['path'] as String).writeAsBytes(
           await c.exportPng(scale: (cmd['scale'] as num?)?.toDouble() ?? 1),
         );
+      case 'openImages':
+        await c.openImages([for (final p in cmd['paths'] as List) p as String]);
       case 'importFile':
         await c.importFiles([
           cmd['path'] as String,

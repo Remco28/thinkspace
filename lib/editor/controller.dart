@@ -518,10 +518,10 @@ class EditorController extends ChangeNotifier {
     super.notifyListeners();
   }
 
-  void showToast(String msg) {
+  void showToast(String msg, {int seconds = 3}) {
     toastMessage = msg;
     _toastTimer?.cancel();
-    _toastTimer = Timer(const Duration(seconds: 3), () {
+    _toastTimer = Timer(Duration(seconds: seconds), () {
       toastMessage = null;
       notifyListeners();
     });
@@ -1788,9 +1788,21 @@ class EditorController extends ChangeNotifier {
     if (select) selection = [o.id];
     endEdit(t);
     if (_fitPending) fitToView(notify: false);
+    if (select && !lockTipShown) {
+      lockTipShown = true;
+      showToast(lockTip, seconds: 6);
+    }
     notifyListeners();
     return o;
   }
+
+  /// Shown once, ever, when the first picture goes on the page: that is when
+  /// a screenshot sliding about while you mark it up starts to annoy.
+  static const lockTip =
+      'Tip: Ctrl+L locks it in place, so you can draw over it without moving it';
+
+  /// Whether [lockTip] has been shown; kept in the preferences.
+  bool lockTipShown = false;
 
   /// A name no other collection item has. A taken name gets the next free
   /// number ("image 2" → "image 3"); [except] is the item being renamed.

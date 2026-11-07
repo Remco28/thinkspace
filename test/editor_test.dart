@@ -1444,6 +1444,15 @@ void main() {
       expect(c2.doc.layers.single.name, 'pic');
     });
 
+    test('the Ctrl+L tip comes with the first picture, once', () async {
+      c.placeAsset(await makeAsset(c, w: 60, h: 40));
+      expect(c.toastMessage, EditorController.lockTip);
+      expect(c.lockTipShown, isTrue);
+      c.toastMessage = null;
+      c.placeAsset(await makeAsset(c, w: 60, h: 40));
+      expect(c.toastMessage, isNull);
+    });
+
     test('opened pictures get a layer each, first file on top', () async {
       final dir = Directory.systemTemp.createTempSync('thinkspace_open');
       addTearDown(() => dir.deleteSync(recursive: true));

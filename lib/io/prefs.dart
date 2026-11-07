@@ -16,6 +16,7 @@ class Prefs {
       if (v != null && v >= 0.1 && v <= 0.8) layersFraction = v;
       if (j['toolStyles'] is Map) toolStyles = j['toolStyles'];
       if (j['autoGrow'] is bool) autoGrow = j['autoGrow'];
+      lockTipShown = j['lockTipShown'] == true;
       if (j['recentFiles'] is List) {
         recentFiles = [
           for (final p in j['recentFiles'])
@@ -36,6 +37,9 @@ class Prefs {
   /// Whether the page grows to fit what is added; null means the default.
   bool? autoGrow;
 
+  /// Whether the one-time Ctrl+L tip has been shown.
+  bool lockTipShown = false;
+
   /// Projects opened or saved lately, newest first.
   List<String> recentFiles = [];
 
@@ -50,6 +54,7 @@ class Prefs {
           'toolStyles': toolStyles,
           'recentFiles': recentFiles,
           'autoGrow': autoGrow,
+          'lockTipShown': lockTipShown,
         }),
       );
     } catch (_) {}

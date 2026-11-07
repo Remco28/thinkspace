@@ -395,12 +395,12 @@ class CanvasPainter extends CustomPainter {
   void _paintLabel(Canvas canvas, List<SceneObject> sel, Size size) {
     final tag = selectionTag(c, size);
     if (tag == null) return;
-    final tp = _tagText(tag.text)..layout(maxWidth: _tagTextMax);
+    final tp = _tagText(tag.name, tag.layer)..layout(maxWidth: _tagTextMax);
     canvas.drawRRect(
       RRect.fromRectAndRadius(tag.tag, const Radius.circular(kRadius)),
       Paint()..color = kAccent,
     );
-    tp.paint(canvas, tag.tag.topLeft + const Offset(7, 3));
+    tp.paint(canvas, tag.tag.topLeft + const Offset(_tagPadX, _tagPadY));
     tp.dispose();
     // A hairline between the name and the padlock, which is a button laid
     // over the tag by the canvas view.
@@ -430,40 +430,71 @@ class CanvasPainter extends CustomPainter {
   bool shouldRepaint(covariant CanvasPainter old) => true;
 }
 
-const double _tagTextMax = 260;
-const double kTagLockWidth = 22;
+const double _tagTextMax = 300;
+const double _tagPadX = 8, _tagPadY = 4;
+const double kTagLockWidth = 28;
 
-TextPainter _tagText(String text) => TextPainter(
+/// The object's name in bold, then the layer it is on: a layers icon (the
+/// one "Move to layer" uses) and the layer's name, lighter, so the two
+/// names can't be mistaken for each other even when a layer is named after
+/// a file.
+TextPainter _tagText(String name, String? layer) => TextPainter(
   text: TextSpan(
-    text: text,
     style: const TextStyle(
       fontFamily: kUiFont,
       color: Colors.white,
-      fontSize: kTextCaption,
+      fontSize: kTextBody,
       fontWeight: kWeightStrong,
     ),
+    children: [
+      TextSpan(text: name),
+      if (layer != null) ...[
+        const TextSpan(text: '   '),
+        TextSpan(
+          text: String.fromCharCode(Icons.layers_outlined.codePoint),
+          style: TextStyle(
+            fontFamily: Icons.layers_outlined.fontFamily,
+            package: Icons.layers_outlined.fontPackage,
+            fontSize: kTextBody + 1,
+            fontWeight: kWeightRegular,
+            color: kOnAccentSoft,
+          ),
+        ),
+        TextSpan(
+          text: ' $layer',
+          style: const TextStyle(
+            fontWeight: kWeightRegular,
+            color: kOnAccentSoft,
+          ),
+        ),
+      ],
+    ],
   ),
   textDirection: TextDirection.ltr,
+  maxLines: 1,
+  ellipsis: '…',
 );
 
 /// Where the selection's name tag sits on screen (in a view of [size]), and
 /// the padlock button at its end. Null when nothing is selected or a text is
 /// being typed.
-({Rect tag, Rect lock, String text})? selectionTag(
+({Rect tag, Rect lock, String name, String? layer})? selectionTag(
   EditorController c,
   Size size,
 ) {
   final sel = c.selectedObjects;
   if (sel.isEmpty || c.editingTextId != null) return null;
-  final String text;
+  final String name;
+  String? layer;
   if (sel.length == 1) {
-    final l = c.doc.layerOf(sel.first.id);
-    text = '${sel.first.name} · ${l?.name ?? ''}';
+    name = sel.first.name;
+    layer = c.doc.layerOf(sel.first.id)?.name;
   } else {
-    text = '${sel.length} objects';
+    name = '${sel.length} objects';
   }
-  final tp = _tagText(text)..layout(maxWidth: _tagTextMax);
-  final w = tp.width + 14 + kTagLockWidth, h = tp.height + 6;
+  final tp = _tagText(name, layer)..layout(maxWidth: _tagTextMax);
+  final w = tp.width + _tagPadX * 2 + kTagLockWidth,
+      h = tp.height + _tagPadY * 2;
   tp.dispose();
   final b = c.selectionBounds;
   var anchor = c.toScreen(b.topLeft);
@@ -492,6 +523,7 @@ TextPainter _tagText(String text) => TextPainter(
       tag.right,
       tag.bottom,
     ),
-    text: text,
+    name: name,
+    layer: layer,
   );
 }

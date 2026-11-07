@@ -322,6 +322,8 @@ void main() {
       final f = File('${dir.path}/prefs.json');
       final p = Prefs(f)
         ..recentFiles = ['/x/a.thinkspace']
+        ..autoGrow = false
+        ..lockTipShown = true
         ..toolStyles = {
           'pen': {'width': 9},
         };
@@ -329,12 +331,16 @@ void main() {
       final back = Prefs(f);
       expect(back.recentFiles, ['/x/a.thinkspace']);
       expect(back.toolStyles?['pen']['width'], 9);
+      expect(back.autoGrow, isFalse);
+      expect(back.lockTipShown, isTrue);
       f.writeAsStringSync(
         '{"recentFiles": [1, "/y.thinkspace"], "toolStyles": 4}',
       );
       final odd = Prefs(f);
       expect(odd.recentFiles, ['/y.thinkspace']);
       expect(odd.toolStyles, isNull);
+      expect(odd.autoGrow, isNull);
+      expect(odd.lockTipShown, isFalse);
     });
   });
 }
