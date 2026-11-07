@@ -35,6 +35,9 @@ const Color kOutline = Color(0xFFC3C8D3);
 /// The side panels.
 const Color kPanel = Color(0xFFF7F8FA);
 
+/// The band behind a layer's row in the Layers list.
+const Color kLayerBand = Color(0xFFECEEF2);
+
 /// The backdrop around the page.
 const Color kWorkspace = Color(0xFFE4E6EB);
 

@@ -220,11 +220,13 @@ class _LayerTile extends StatelessWidget {
                 // marked by the bar at its left instead, so one thing at a
                 // time looks selected. A new layer still glows briefly.
                 decoration: BoxDecoration(
+                  // A faint band sets each layer apart from the objects
+                  // listed under it.
                   color: cand.isNotEmpty
                       ? kAccent.withValues(alpha: 0.18)
                       : glow > 0
                       ? kAccent.withValues(alpha: 0.26 * glow)
-                      : null,
+                      : kLayerBand,
                   borderRadius: BorderRadius.circular(kRadius),
                   border: cand.isNotEmpty || glow > 0
                       ? Border.all(
