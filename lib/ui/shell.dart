@@ -972,10 +972,9 @@ class _EditorShellState extends State<EditorShell> {
               c.tool == Tool.select)
             _emptyHint(),
           Positioned(left: 8, bottom: 8, child: _ZoomBar(c: c)),
-          // Above the zoom bar's row, so a long message never runs into it.
           if (c.toastMessage != null)
             Positioned(
-              bottom: 52, // the zoom bar is 8 from the bottom and about 34 tall
+              bottom: 14,
               left: 0,
               right: 0,
               child: IgnorePointer(
