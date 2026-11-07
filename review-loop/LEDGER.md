@@ -71,3 +71,4 @@ What happened against the predictions:
 - 4 to 7 verified findings, mostly MEDIUM: 4 verified (3 MEDIUM, 1 LOW), plus 1 to check.
 
 Believed, and wrong: "the font sizes were chosen for this app and are fine; it's colour." Size and hierarchy came up as much as colour did.
+| 9 | The Layer dropdown in the properties panel draws in the system font, not Inter: a dropdown's style replaces the theme's, and this one did not name the font | found by me while building the proposal | Tier 1, LOW | untraced | seen in the before/after crops; read in properties_panel.dart | how it is used now | Fixed in the proposal branch |
