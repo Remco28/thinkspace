@@ -670,6 +670,27 @@ void main() {
       expect(c.doc.canvasSize.height, greaterThanOrEqualTo(360 + 15));
     });
 
+    test('a window that grows after opening keeps the page centred', () {
+      c.setViewport(const Size(800, 600));
+      c.fitToView();
+      c.setViewport(const Size(1800, 1100));
+      final mid = c.toScreen(
+        Offset(c.doc.canvasSize.width / 2, c.doc.canvasSize.height / 2),
+      );
+      expect(mid.dx, closeTo(900, 0.5));
+      expect(mid.dy, closeTo(550, 0.5));
+    });
+
+    test('after a pan, resizing keeps the middle of the view', () {
+      c.setViewport(const Size(800, 600));
+      c.fitToView();
+      c.panBy(const Offset(40, 0));
+      final before = c.toScene(const Offset(400, 300));
+      c.setViewport(const Size(1000, 800));
+      final after = c.toScene(const Offset(500, 400));
+      expect((after - before).distance, lessThan(0.01));
+    });
+
     test('zoom keeps the point under the pointer still', () {
       const p = Offset(400, 300);
       final scene = c.toScene(p);

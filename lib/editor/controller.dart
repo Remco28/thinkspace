@@ -1108,15 +1108,28 @@ class EditorController extends ChangeNotifier {
   Offset get viewCenterScene =>
       toScene(Offset(viewport.width / 2, viewport.height / 2));
 
+  /// True while the view is as [fitToView] left it: nobody has zoomed or
+  /// panned since. The window often grows just after the app opens (it is
+  /// maximised, or the desktop sizes it), so a view still fitted is fitted
+  /// again to the new size rather than left in the old one's corner.
+  bool _viewFitted = false;
+
   void setViewport(Size s) {
     if (s == viewport) return;
+    final old = viewport;
     viewport = s;
-    if (_fitPending && s.width > 50 && s.height > 50) {
+    if (s.width <= 50 || s.height <= 50) return;
+    if (_fitPending || _viewFitted) {
       _fitPending = false;
       fitToView(notify: false);
-      // We're inside a build; tell the zoom label once the frame is done.
-      WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
+    } else if (!old.isEmpty) {
+      // Keep what was in the middle of the view in the middle.
+      pan += Offset(s.width - old.width, s.height - old.height) / 2;
+    } else {
+      return;
     }
+    // We're inside a build; tell the zoom label once the frame is done.
+    WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
   }
 
   void fitToView({bool notify = true}) {
@@ -1136,6 +1149,7 @@ class EditorController extends ChangeNotifier {
       (viewport.width - cw * zoom) / 2,
       (viewport.height - ch * zoom) / 2,
     );
+    _viewFitted = true;
     if (notify) notifyListeners();
   }
 
@@ -1144,11 +1158,13 @@ class EditorController extends ChangeNotifier {
     final sceneAnchor = toScene(a);
     zoom = z.clamp(0.02, 16.0);
     pan = a - sceneAnchor * zoom;
+    _viewFitted = false;
     notifyListeners();
   }
 
   void panBy(Offset d) {
     pan += d;
+    _viewFitted = false;
     notifyListeners();
   }
 
@@ -1736,6 +1752,7 @@ class EditorController extends ChangeNotifier {
         o.translate(d);
       }
       pan -= d * zoom;
+      _viewFitted = false;
     }
     doc.canvasSize = size;
   }
