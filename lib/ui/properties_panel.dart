@@ -127,7 +127,7 @@ class PropertiesPanel extends StatelessWidget {
               key: const ValueKey('grow-page'),
               label: 'Grow the page as I add things',
               hint:
-                  'The page gets bigger when you place something past its edge.',
+                  'The page gets bigger, on any side, when you place or move something past its edge.',
               value: c.autoGrow,
               onChanged: (v) {
                 c.autoGrow = v;

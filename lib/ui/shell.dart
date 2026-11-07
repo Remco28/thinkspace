@@ -113,6 +113,7 @@ class _EditorShellState extends State<EditorShell> {
         layersFraction = _prefs.layersFraction ?? layersFraction;
         c.readToolStyles(_prefs.toolStyles);
         c.recentFiles = List.of(_prefs.recentFiles);
+        c.autoGrow = _prefs.autoGrow ?? c.autoGrow;
         _keptSig = _keptPrefsSig();
         c.addListener(_keepPrefs);
       }
@@ -849,6 +850,7 @@ class _EditorShellState extends State<EditorShell> {
   void _savePrefs() {
     _prefs.layersFraction = layersFraction;
     _prefs.toolStyles = c.toolStylesJson();
+    _prefs.autoGrow = c.autoGrow;
     // Another window may have opened or saved projects since: keep those
     // too, after this window's own.
     final theirs = _prefs.file == null
@@ -867,7 +869,8 @@ class _EditorShellState extends State<EditorShell> {
   String _keptSig = '';
   Timer? _prefsTimer;
 
-  String _keptPrefsSig() => jsonEncode([c.toolStylesJson(), c.recentFiles]);
+  String _keptPrefsSig() =>
+      jsonEncode([c.toolStylesJson(), c.recentFiles, c.autoGrow]);
 
   void _keepPrefs() {
     final sig = _keptPrefsSig();

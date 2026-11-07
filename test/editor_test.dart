@@ -635,6 +635,41 @@ void main() {
       expect(c.doc.canvasSize.height, greaterThanOrEqualTo(1300));
     });
 
+    test('the page grows by default', () {
+      expect(newEditor().autoGrow, isTrue);
+    });
+
+    test('drawing past the top-left grows the page there, one undo', () {
+      c.doc.gridSize = 40;
+      c.setTool(Tool.rect);
+      final before = c.toScreen(const Offset(100, 100));
+      drag(ix, const Offset(-30, -10), const Offset(100, 100));
+      final r = c.doc.allObjects.single.paintBounds;
+      // Everything moved right and down by whole grid steps, with room to
+      // spare, and the view moved with it so nothing jumped on screen.
+      expect(r.left, greaterThanOrEqualTo(EditorController.growMargin - 1));
+      expect(r.top, greaterThanOrEqualTo(EditorController.growMargin - 1));
+      // 30 px over plus the margin is two 40 px steps across, one down.
+      expect(c.doc.canvasSize, const Size(1680, 1040));
+      expect((c.toScreen(r.bottomRight) - before).distance, lessThan(6));
+      c.undo();
+      expect(c.doc.canvasSize, const Size(1600, 1000));
+      expect(c.doc.allObjects, isEmpty);
+    });
+
+    test('a picture already hanging off the page keeps its crop', () async {
+      final img = await addImage(at: const Offset(300, 300), w: 400, h: 200);
+      c.setCanvasSize(const Size(400, 300)); // crop off its right side
+      c.select([img.id]);
+      c.nudge(const Offset(5, 0));
+      expect(c.doc.canvasSize, const Size(400, 300));
+      // Something new past the edge still makes room for itself.
+      c.setTool(Tool.rect);
+      drag(ix, const Offset(50, 320), const Offset(120, 360));
+      expect(c.doc.canvasSize.width, 400);
+      expect(c.doc.canvasSize.height, greaterThanOrEqualTo(360 + 15));
+    });
+
     test('zoom keeps the point under the pointer still', () {
       const p = Offset(400, 300);
       final scene = c.toScene(p);

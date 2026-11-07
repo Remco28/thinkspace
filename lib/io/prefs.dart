@@ -15,6 +15,7 @@ class Prefs {
       final v = (j['layersFraction'] as num?)?.toDouble();
       if (v != null && v >= 0.1 && v <= 0.8) layersFraction = v;
       if (j['toolStyles'] is Map) toolStyles = j['toolStyles'];
+      if (j['autoGrow'] is bool) autoGrow = j['autoGrow'];
       if (j['recentFiles'] is List) {
         recentFiles = [
           for (final p in j['recentFiles'])
@@ -32,6 +33,9 @@ class Prefs {
   /// Each tool's last look, as the editor writes it.
   Map<dynamic, dynamic>? toolStyles;
 
+  /// Whether the page grows to fit what is added; null means the default.
+  bool? autoGrow;
+
   /// Projects opened or saved lately, newest first.
   List<String> recentFiles = [];
 
@@ -45,6 +49,7 @@ class Prefs {
           'layersFraction': layersFraction,
           'toolStyles': toolStyles,
           'recentFiles': recentFiles,
+          'autoGrow': autoGrow,
         }),
       );
     } catch (_) {}

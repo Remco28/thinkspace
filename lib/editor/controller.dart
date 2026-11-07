@@ -64,8 +64,12 @@ class _Snap {
 
 /// Opaque token for an in-progress gesture or edit.
 class EditToken {
-  EditToken._(this._snap);
+  EditToken._(this._snap, this._inside, this._known);
   final _Snap _snap;
+
+  /// Objects that sat wholly on the page when the edit began, and every
+  /// object there was then: the page grows only for these and for new ones.
+  final Set<String> _inside, _known;
 }
 
 const List<int> kPalette = [
@@ -272,7 +276,7 @@ class EditorController extends ChangeNotifier {
   Size viewport = Size.zero;
   bool showGrid = false;
   bool snapOn = false;
-  bool autoGrow = false;
+  bool autoGrow = true;
   bool _fitPending = true;
 
   // --- defaults for new things --------------------------------------------
@@ -536,7 +540,15 @@ class EditorController extends ChangeNotifier {
 
   EditToken beginEdit(String label) {
     _editsBegun++;
-    return EditToken._(_capture(label));
+    final page = Offset.zero & doc.canvasSize;
+    final inside = <String>{}, known = <String>{};
+    if (autoGrow) {
+      for (final o in doc.allObjects) {
+        known.add(o.id);
+        if (_within(page, o.paintBounds)) inside.add(o.id);
+      }
+    }
+    return EditToken._(_capture(label), inside, known);
   }
 
   /// How many edits have begun, ever: a merge that takes a while checks it
@@ -548,7 +560,7 @@ class EditorController extends ChangeNotifier {
     // The moved ends of connectors belong to the same undo step.
     relinkConnectors(doc);
     // Resizing the page by hand is a deliberate choice; never undo it.
-    if (autoGrow && token._snap.label != 'resize canvas') _growToFit();
+    if (autoGrow && !_pageEdits.contains(token._snap.label)) _growToFit(token);
     if (token._snap.signature == doc.signature()) {
       notifyListeners();
       return;
@@ -1676,14 +1688,56 @@ class EditorController extends ChangeNotifier {
       doc.canvasSize.width * zoom > viewport.width + 1 ||
       doc.canvasSize.height * zoom > viewport.height + 1;
 
-  void _growToFit() {
-    final b = contentBounds(doc);
-    if (b.isEmpty) return;
-    final w = math.max(doc.canvasSize.width, b.right.ceilToDouble());
-    final h = math.max(doc.canvasSize.height, b.bottom.ceilToDouble());
-    if (w != doc.canvasSize.width || h != doc.canvasSize.height) {
-      doc.canvasSize = Size(w, h);
+  /// Edits that set the page's size on purpose; growing after them would
+  /// undo the choice.
+  static const _pageEdits = {'resize canvas', 'fit canvas to content'};
+
+  /// The room left past something that made the page grow.
+  static const growMargin = 16.0;
+
+  static bool _within(Rect page, Rect r) =>
+      r.left >= page.left - 0.5 &&
+      r.top >= page.top - 0.5 &&
+      r.right <= page.right + 0.5 &&
+      r.bottom <= page.bottom + 0.5;
+
+  /// After an edit, make the page big enough for what was added or moved,
+  /// on any side, with a little room to spare. Something that already hung
+  /// off the page (a picture cropped by shrinking the page) is left as it
+  /// was, and the page never shrinks. Growing left or up moves everything
+  /// right or down instead, and the view with it, so nothing jumps.
+  void _growToFit(EditToken token) {
+    final rects = [
+      for (final l in doc.layers)
+        if (l.visible)
+          for (final o in l.objects)
+            if (o.visible &&
+                (!token._known.contains(o.id) || token._inside.contains(o.id)))
+              o.paintBounds,
+    ];
+    if (rects.isEmpty) return;
+    final b = unionRects(rects);
+    final page = Offset.zero & doc.canvasSize;
+    if (_within(page, b)) return;
+    // Moving everything by whole grid steps keeps things on the grid.
+    final g = doc.gridSize;
+    double shift(double over) =>
+        over <= 0 ? 0 : ((over + growMargin) / g).ceil() * g;
+    final dx = shift(-b.left), dy = shift(-b.top);
+    final right = b.right > page.right ? b.right + growMargin : page.right;
+    final bottom = b.bottom > page.bottom ? b.bottom + growMargin : page.bottom;
+    final size = Size(
+      math.min(12000, (right + dx).ceilToDouble()),
+      math.min(12000, (bottom + dy).ceilToDouble()),
+    );
+    if (dx > 0 || dy > 0) {
+      final d = Offset(dx, dy);
+      for (final o in doc.allObjects) {
+        o.translate(d);
+      }
+      pan -= d * zoom;
     }
+    doc.canvasSize = size;
   }
 
   // ===== images ==============================================================
