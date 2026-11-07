@@ -56,7 +56,8 @@ const Color kOverlay = Color(0xE6222733);
 const Color kOnAccentLine = Color(0x55FFFFFF);
 const Color kOnAccentHover = Color(0x33FFFFFF);
 
-/// Secondary text on the accent colour (the layer in a selection's tag).
+/// A secondary mark on the accent colour (the layers icon in a selection's
+/// tag). Too faint for text: 3.7:1 against the accent.
 const Color kOnAccentSoft = Color(0xD9FFFFFF);
 
 /// The see-through middle of a ring drawn over the page.

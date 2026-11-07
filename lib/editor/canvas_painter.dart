@@ -435,7 +435,7 @@ const double _tagPadX = 8, _tagPadY = 4;
 const double kTagLockWidth = 28;
 
 /// The object's name in bold, then the layer it is on: a layers icon (the
-/// one "Move to layer" uses) and the layer's name, lighter, so the two
+/// one "Move to layer" uses) and the layer's name in regular weight, so the two
 /// names can't be mistaken for each other even when a layer is named after
 /// a file.
 TextPainter _tagText(String name, String? layer) => TextPainter(
@@ -460,12 +460,11 @@ TextPainter _tagText(String name, String? layer) => TextPainter(
             color: kOnAccentSoft,
           ),
         ),
+        // Full white: on the accent blue even white is only 4.5:1, so the
+        // layer name is told apart by weight and the icon, not by fading.
         TextSpan(
           text: ' $layer',
-          style: const TextStyle(
-            fontWeight: kWeightRegular,
-            color: kOnAccentSoft,
-          ),
+          style: const TextStyle(fontWeight: kWeightRegular),
         ),
       ],
     ],
