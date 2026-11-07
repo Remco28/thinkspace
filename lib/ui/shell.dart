@@ -971,35 +971,50 @@ class _EditorShellState extends State<EditorShell> {
               c.pendingPaste == null &&
               c.tool == Tool.select)
             _emptyHint(),
-          Positioned(left: 8, bottom: 8, child: _ZoomBar(c: c)),
-          if (c.toastMessage != null)
-            Positioned(
-              bottom: 14,
-              left: 0,
-              right: 0,
-              child: IgnorePointer(
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: kSpace16,
-                      vertical: kSpace8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: kOverlay,
-                      borderRadius: BorderRadius.circular(kRadiusLarge),
-                    ),
-                    child: Text(
-                      c.toastMessage!,
-                      key: const ValueKey('toast'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: kTextBody,
-                      ),
-                    ),
-                  ),
+          // The zoom bar and messages share the bottom row: a message is
+          // centred in the room to the zoom bar's right, so a long one never
+          // runs into it, and stays clear of the paste chooser above.
+          Positioned(
+            left: 8,
+            right: 8,
+            bottom: 8,
+            child: Row(
+              children: [
+                _ZoomBar(c: c),
+                Expanded(
+                  child: c.toastMessage == null
+                      ? const SizedBox.shrink()
+                      : IgnorePointer(
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: kSpace8),
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: kSpace16,
+                                  vertical: kSpace8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: kOverlay,
+                                  borderRadius: BorderRadius.circular(
+                                    kRadiusLarge,
+                                  ),
+                                ),
+                                child: Text(
+                                  c.toastMessage!,
+                                  key: const ValueKey('toast'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: kTextBody,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                 ),
-              ),
+              ],
             ),
+          ),
         ],
       ),
     );
