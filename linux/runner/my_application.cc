@@ -95,6 +95,12 @@ static void my_application_activate(GApplication* application) {
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
+  // Draw with Skia, not Impeller. On desktop OpenGL, Impeller smooths only
+  // circles, rectangles and straight lines; any other filled or stroked path
+  // (arrowheads, curves, pen strokes, rotated pictures) comes out with jagged
+  // edges unless the driver offers multisampling, which most do not. Skia
+  // smooths every edge itself.
+  fl_dart_project_set_enable_impeller(project, FALSE);
 
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;
