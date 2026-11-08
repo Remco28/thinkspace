@@ -491,8 +491,8 @@ void _arrowHead(
   final base = tip - dir * len;
   final path = Path()
     ..moveTo(tip.dx, tip.dy)
-    ..lineTo(base.dx + n.dx * len * 0.42, base.dy + n.dy * len * 0.42)
-    ..lineTo(base.dx - n.dx * len * 0.42, base.dy - n.dy * len * 0.42)
+    ..lineTo(base.dx + n.dx * len * 0.45, base.dy + n.dy * len * 0.45)
+    ..lineTo(base.dx - n.dx * len * 0.45, base.dy - n.dy * len * 0.45)
     ..close();
   canvas.drawPath(path, paint);
 }

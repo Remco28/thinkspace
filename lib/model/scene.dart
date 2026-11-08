@@ -860,7 +860,7 @@ class LineObject extends SceneObject {
   @override
   ObjectKind get kind => ObjectKind.line;
 
-  double get headSize => math.max(14, width * 3.6);
+  double get headSize => math.max(20, width * 5);
   double get length => (p2 - p1).distance;
   bool get curved => bend != Offset.zero;
 
