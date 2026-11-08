@@ -864,6 +864,13 @@ class LineObject extends SceneObject {
   double get length => (p2 - p1).distance;
   bool get curved => bend != Offset.zero;
 
+  /// Make the line straight. A connector's curve is also kept as
+  /// [anchorBend], which would bring the bend straight back.
+  void straighten() {
+    bend = Offset.zero;
+    anchorBend = null;
+  }
+
   /// The point halfway along the curve (the bend handle).
   Offset get mid {
     final d = p2 - p1;

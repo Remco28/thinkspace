@@ -1210,7 +1210,7 @@ class PropertiesPanel extends StatelessWidget {
                   active: !o.curved,
                   onPressed: () => c.editSelected(
                     'straighten',
-                    (x) => (x as LineObject).bend = Offset.zero,
+                    (x) => (x as LineObject).straighten(),
                   ),
                 ),
                 GroupButton(

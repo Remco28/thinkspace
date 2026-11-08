@@ -264,6 +264,21 @@ void main() {
       expect(offOutline(label, l.p1), lessThan(l.width / 2 + 1e-3));
     });
 
+    test('a curved connector can be made straight again', () {
+      final l = arrow(const Offset(250, 150), const Offset(650, 380));
+      c.select([l.id]);
+      final m = l.pointAt(0.5);
+      drag(ix, m, m + const Offset(-60, 80));
+      expect(l.curved, isTrue);
+      // What the Straight button does.
+      c.editSelected('straighten', (x) => (x as LineObject).straighten());
+      expect(l.curved, isFalse);
+      // It stays straight when what it connects moves.
+      drag(ix, const Offset(200, 140), const Offset(100, 110));
+      expect(l.curved, isFalse);
+      expect(offOutline(label, l.p1), lessThan(l.width / 2 + 1e-3));
+    });
+
     test('a mark on a picture moves by drag, keys and align, and re-pins', () {
       final l = arrow(const Offset(600, 350), const Offset(700, 420));
       expect(l.start!.pinned && l.end!.pinned, isTrue);
