@@ -775,15 +775,25 @@ class HideObject extends BoxObject {
 /// fractions of its size, measured before flipping (so the pin flips with
 /// it). Without it the end rides the object's outline.
 class Attachment {
-  const Attachment(this.to, [this.at]);
+  const Attachment(this.to, [this.at, this.snap]);
   final String to;
+
+  /// A pin: a spot of a picture, in its own unflipped frame.
   final Offset? at;
 
+  /// A snap point: which of the target's side middles or corners the end is
+  /// fixed to, as -1, 0 or 1 across and down (0, 0 is not one).
+  final Offset? snap;
+
   bool get pinned => at != null;
+
+  /// The end rides the outline, aimed at the target's centre.
+  bool get rides => at == null && snap == null;
 
   Map<String, dynamic> toJson() => {
     'to': to,
     if (at != null) 'at': _offJson(at!),
+    if (snap != null) 'snap': _offJson(snap!),
   };
 
   /// A damaged note leaves a free end rather than a file that won't open.
@@ -792,7 +802,14 @@ class Attachment {
       if (j is! Map || j['to'] is! String) return null;
       final at = j['at'] == null ? null : _off(j['at']);
       if (at != null && !(at.dx.isFinite && at.dy.isFinite)) return null;
-      return Attachment(j['to'] as String, at);
+      var snap = j['snap'] == null ? null : _off(j['snap']);
+      if (snap != null) {
+        bool unit(double v) => v == -1 || v == 0 || v == 1;
+        if (!unit(snap.dx) || !unit(snap.dy) || snap == Offset.zero) {
+          snap = null; // rides the outline instead
+        }
+      }
+      return Attachment(j['to'] as String, at, at == null ? snap : null);
     } catch (_) {
       return null;
     }
@@ -800,10 +817,13 @@ class Attachment {
 
   @override
   bool operator ==(Object other) =>
-      other is Attachment && other.to == to && other.at == at;
+      other is Attachment &&
+      other.to == to &&
+      other.at == at &&
+      other.snap == snap;
 
   @override
-  int get hashCode => Object.hash(to, at);
+  int get hashCode => Object.hash(to, at, snap);
 }
 
 /// A line or arrow between two points. Dragging the ends resizes it; dragging

@@ -404,6 +404,24 @@ class CanvasInteractor {
     return t;
   }
 
+  /// How [l]'s end at [p] attaches to [t]: to a snap point when one is in
+  /// reach, otherwise as [attachmentFor] says. Notes the snap point, which is
+  /// drawn filled while the end is dragged.
+  Attachment _attachTo(BoxObject t, Offset p) {
+    final reach = (c.touchInput ? 20 : 12) / c.zoom;
+    Offset? best;
+    var bestD = reach;
+    for (final s in snapsOf(t)) {
+      final d = (snapPoint(t, s) - p).distance;
+      if (d <= bestD) {
+        best = s;
+        bestD = d;
+      }
+    }
+    c.attachSnap = best;
+    return best != null ? Attachment(t.id, null, best) : attachmentFor(t, p);
+  }
+
   void _downLine(Offset p, Modifiers m) {
     _token = c.beginEdit(c.tool == Tool.arrow ? 'draw arrow' : 'draw line');
     final a = _snapPoint(p, m);
@@ -419,7 +437,7 @@ class CanvasInteractor {
     );
     final t = _attachAt(l, p, m, true);
     if (t != null) {
-      l.start = attachmentFor(t, p);
+      l.start = _attachTo(t, p);
       l.p1 = l.p2 = p;
     }
     c.currentLayer.objects.add(l);
@@ -699,7 +717,8 @@ class CanvasInteractor {
     }
     final t = _attachAt(live, p, m, isStart);
     c.attachHover = t?.id;
-    final a = t == null ? null : attachmentFor(t, p);
+    if (t == null) c.attachSnap = null;
+    final a = t == null ? null : _attachTo(t, p);
     if (isStart) {
       live.start = a;
     } else {
@@ -777,7 +796,8 @@ class CanvasInteractor {
     if (o is LineObject) {
       final t = _attachAt(o, p, m, false);
       c.attachHover = t?.id;
-      o.end = t == null ? null : attachmentFor(t, p);
+      if (t == null) c.attachSnap = null;
+      o.end = t == null ? null : _attachTo(t, p);
       o.p2 = t != null ? p : _constrain(o.p1, _snapPoint(p, m), m);
     } else if (o is ShapeObject || o is HideObject) {
       o as BoxObject;
@@ -945,6 +965,7 @@ class CanvasInteractor {
     _mode = _Mode.none;
     c.draggingGrip = null;
     c.attachHover = null;
+    c.attachSnap = null;
     final token = _token;
     _token = null;
 
@@ -1104,6 +1125,7 @@ class CanvasInteractor {
     _mode = _Mode.none;
     c.draggingGrip = null;
     c.attachHover = null;
+    c.attachSnap = null;
     _heldPins = null;
     _token = null;
     c.marquee = null;

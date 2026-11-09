@@ -1003,6 +1003,9 @@ class EditorController extends ChangeNotifier {
   /// The object a line end is about to attach to, outlined while dragging.
   String? attachHover;
 
+  /// The snap point of [attachHover] the end is on, if any.
+  Offset? attachSnap;
+
   /// Before moving [moving] (lines among it) without the pictures their pins
   /// are on: take those pins off, so the ends can move. [repin] puts them
   /// back where the ends end up. A pin whose picture moves too keeps it.

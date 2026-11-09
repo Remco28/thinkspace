@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../model/connect.dart';
 import '../model/scene.dart';
 import 'controller.dart';
 import 'render.dart';
@@ -116,6 +117,24 @@ class CanvasPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.5,
       );
+      // Its snap points; the one the end is on is filled.
+      for (final snap in snapsOf(hover)) {
+        final at = _s(snapPoint(hover, snap));
+        final on = snap == c.attachSnap;
+        canvas.drawCircle(
+          at,
+          on ? 6 : 4.5,
+          Paint()..color = on ? kAccent : const Color(0xFFFFFFFF),
+        );
+        canvas.drawCircle(
+          at,
+          on ? 6 : 4.5,
+          Paint()
+            ..color = on ? const Color(0xFFFFFFFF) : kAccent
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = on ? 2 : 1.5,
+        );
+      }
     }
     final one = c.single;
     if (one != null && !one.locked && c.editingTextId == null) {
@@ -483,6 +502,8 @@ TextPainter _tagText(String name, String? layer) => TextPainter(
 ) {
   final sel = c.selectedObjects;
   if (sel.isEmpty || c.editingTextId != null) return null;
+  // Not while a line's end is over something: it could cover the snap points.
+  if (c.attachHover != null) return null;
   final String name;
   String? layer;
   if (sel.length == 1) {

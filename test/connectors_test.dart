@@ -429,7 +429,7 @@ void main() {
       c.notify();
       final inside = arrow(const Offset(100, 600), const Offset(700, 400));
       expect(inside.end!.to, 'pic');
-      final edge = arrow(const Offset(100, 700), const Offset(601, 400));
+      final edge = arrow(const Offset(100, 700), const Offset(601, 360));
       expect(edge.end, const Attachment('frame'));
     });
 
@@ -672,10 +672,100 @@ void main() {
       pic
         ..border = 0xFF000000
         ..borderWidth = 20;
-      const at = Offset(700, 290); // 10 px out, on the border
+      const at = Offset(660, 290); // 10 px out, on the border
       final l = arrow(const Offset(100, 100), at, m: noMods);
       expect(l.end!.to, 'pic');
       expect(l.p2, at);
+    });
+    test('an end dropped by a corner snaps to it and keeps it', () {
+      // The label's right-bottom corner is (350, 180), rounded by 6.
+      final l = arrow(const Offset(600, 100), const Offset(355, 184));
+      expect(l.end, const Attachment('label', null, Offset(1, 1)));
+      expect(l.p2, snapPoint(label, const Offset(1, 1)));
+      expect(l.connects, isTrue);
+      // Moved, resized and turned, the tip stays on that corner.
+      label
+        ..center = const Offset(300, 600)
+        ..size = const Size(300, 90)
+        ..rotation = 0.5;
+      c.notify();
+      expect(l.p2, snapPoint(label, const Offset(1, 1)));
+      final corner = label.toScene(const Offset(150, 45));
+      expect((l.p2 - corner).distance, lessThan(2.5)); // the round corner
+    });
+
+    test('a side middle snaps; elsewhere an end rides as before', () {
+      final l = arrow(const Offset(250, 400), const Offset(252, 186));
+      expect(l.end!.snap, const Offset(0, 1));
+      expect(l.p2, const Offset(250, 180));
+      final m = arrow(const Offset(500, 100), const Offset(330, 150));
+      expect(m.end, const Attachment('label'));
+    });
+
+    test('an ellipse snaps only at its side middles', () {
+      final e = ShapeObject(
+        id: 'e',
+        name: 'e',
+        ellipse: true,
+        center: const Offset(300, 700),
+        size: const Size(200, 100),
+        strokeWidth: 4,
+      );
+      c.currentLayer.objects.add(e);
+      c.notify();
+      expect(snapsOf(e), hasLength(4));
+      // The right middle, on the outside of the stroke.
+      final l = arrow(const Offset(700, 700), const Offset(405, 703));
+      expect(l.end!.snap, const Offset(1, 0));
+      expect(l.p2, const Offset(402, 700));
+      // On the curve between them there is no snap point: it rides.
+      final k = arrow(const Offset(700, 900), const Offset(372, 737));
+      expect(k.end!.to, 'e');
+      expect(k.end!.snap, isNull);
+    });
+
+    test('a picture snaps at a dot and is pinned anywhere else', () {
+      // The picture's top-left corner is (550, 300).
+      final l = arrow(const Offset(100, 600), const Offset(553, 304));
+      expect(l.end!.snap, const Offset(-1, -1));
+      expect(l.end!.pinned, isFalse);
+      expect(l.p2, const Offset(550, 300));
+      // Flipped, the point turns over with the picture, like a pin.
+      c.select(['pic']);
+      c.flipSelected();
+      expect(l.p2, const Offset(850, 300));
+      final k = arrow(const Offset(100, 700), const Offset(640, 420));
+      expect(k.end!.pinned, isTrue);
+    });
+
+    test('a plain end on a snap point stops short by its cap', () {
+      c.setTool(Tool.line);
+      drag(ix, const Offset(600, 180), const Offset(352, 151));
+      final l = c.doc.allObjects.whereType<LineObject>().last;
+      expect(l.end!.snap, const Offset(1, 0));
+      final on = snapPoint(label, const Offset(1, 0));
+      expect(on, const Offset(350, 150));
+      expect((l.p2 - on).distance, closeTo(l.width / 2, 1e-9));
+    });
+
+    test('a snap point is kept by a copy and in the file', () {
+      final l = arrow(const Offset(250, 400), const Offset(252, 186));
+      c.select([l.id, 'label']);
+      c.duplicateSelection();
+      final copy = c.doc.allObjects.whereType<LineObject>().last;
+      expect(copy.id, isNot(l.id));
+      expect(copy.end!.snap, const Offset(0, 1));
+      expect(copy.end!.to, isNot('label'));
+      final back = Attachment.tryRead(l.end!.toJson());
+      expect(back, l.end);
+      // A damaged snap point rides the outline instead.
+      expect(
+        Attachment.tryRead({
+          'to': 'label',
+          'snap': [0.5, 1],
+        }),
+        const Attachment('label'),
+      );
     });
   });
 }

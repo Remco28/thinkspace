@@ -18,6 +18,46 @@ Attachment attachmentFor(BoxObject target, Offset p) => target is ImageObject
     ? Attachment(target.id, pinAt(target, p))
     : Attachment(target.id);
 
+/// The snap points of [t]: the middle of each side, and on anything with
+/// corners the corners too. An ellipse's or a marker's box corners are not on
+/// its outline, so it has only the four side middles.
+List<Offset> snapsOf(BoxObject t) => [
+  const Offset(0, -1),
+  const Offset(1, 0),
+  const Offset(0, 1),
+  const Offset(-1, 0),
+  if (!outlineOf(t).round) ...const [
+    Offset(-1, -1),
+    Offset(1, -1),
+    Offset(1, 1),
+    Offset(-1, 1),
+  ],
+];
+
+/// Where the snap point [snap] of [t] is on the page: on what is drawn, so
+/// an arrow's tip touches the stroke or the border. A picture's points turn
+/// over with it when it is flipped, like its pins.
+Offset snapPoint(BoxObject t, Offset snap) {
+  final o = outlineOf(t);
+  final sx = t is ImageObject && t.flipX ? -snap.dx : snap.dx;
+  final sy = snap.dy;
+  var l = Offset(sx * o.hw, sy * o.hh);
+  if (sx != 0 && sy != 0 && o.corner > 0) {
+    // A round corner: the middle of its arc.
+    final r = o.corner, k = r - r / math.sqrt2;
+    l = Offset(sx * (o.hw - k), sy * (o.hh - k));
+  }
+  return t.toScene(l);
+}
+
+/// The anchor of an end attached by [a] to [t]: a pin's or a snap point's
+/// spot, or the centre of the outline it rides.
+Offset anchorPoint(BoxObject t, Attachment a) => a.pinned
+    ? pinPoint(t, a.at!)
+    : a.snap != null
+    ? snapPoint(t, a.snap!)
+    : t.center;
+
 /// Where the pin [at] of [t] is on the page.
 Offset pinPoint(BoxObject t, Offset at) {
   final x = at.dx * t.size.width * (t.flipX ? -1 : 1);
@@ -161,7 +201,7 @@ Offset bendFor(Offset a, Offset b, Offset c) {
     if (a == null) return own;
     final t = doc.objectById(a.to);
     if (t is! BoxObject) return own;
-    return a.pinned ? pinPoint(t, a.at!) : t.center;
+    return anchorPoint(t, a);
   }
 
   return (anchor(l.start, l.p1), anchor(l.end, l.p2));
@@ -215,12 +255,8 @@ bool _relink(LineObject l, Map<String, SceneObject> byId, Set<String> hidden) {
   final s = l.start, e = l.end;
   // An end that has just gone free keeps the curve exactly where it was drawn.
   if (dropped && l.connects && l.anchorBend != null) {
-    final b1 = s == null
-        ? l.p1
-        : (s.pinned ? pinPoint(ts!, s.at!) : ts!.center);
-    final b2 = e == null
-        ? l.p2
-        : (e.pinned ? pinPoint(te!, e.at!) : te!.center);
+    final b1 = s == null ? l.p1 : anchorPoint(ts!, s);
+    final b2 = e == null ? l.p2 : anchorPoint(te!, e);
     l.anchorBend = refitBend(l, b1, b2) ?? l.anchorBend;
   }
 
@@ -235,11 +271,11 @@ bool _relink(LineObject l, Map<String, SceneObject> byId, Set<String> hidden) {
     return _set(l, n1, n2, l.bend) || changed;
   }
 
-  final a1 = s == null ? l.p1 : (s.pinned ? pinPoint(ts!, s.at!) : ts!.center);
-  final a2 = e == null ? l.p2 : (e.pinned ? pinPoint(te!, e.at!) : te!.center);
+  final a1 = s == null ? l.p1 : anchorPoint(ts!, s);
+  final a2 = e == null ? l.p2 : anchorPoint(te!, e);
   final frozen1 = s != null && hidden.contains(s.to);
   final frozen2 = e != null && hidden.contains(e.to);
-  final edge1 = s != null && !s.pinned, edge2 = e != null && !e.pinned;
+  final edge1 = s != null && s.rides, edge2 = e != null && e.rides;
 
   // A curved line that has just started riding an outline keeps its control
   // point: its bend is re-measured over the anchors once.
@@ -276,15 +312,26 @@ bool _relink(LineObject l, Map<String, SceneObject> byId, Set<String> hidden) {
     return len < 1e-9 ? p : p + d / len * math.min(l.width / 2, len);
   }
 
+  // A plain end on a snap point stops short by its round cap, as on an edge.
+  Offset onSnap(Offset at, Offset aim, bool head) {
+    final d = aim - at;
+    final len = d.distance;
+    return head || len < 1e-9 ? at : at + d / len * math.min(l.width / 2, len);
+  }
+
   final n1 = s == null || frozen1
       ? l.p1
       : edge1
       ? edgeEnd(ts!, a2, l.headStart)
+      : s.snap != null
+      ? onSnap(a1, a2, l.headStart)
       : a1;
   final n2 = e == null || frozen2
       ? l.p2
       : edge2
       ? edgeEnd(te!, a1, l.headEnd)
+      : e.snap != null
+      ? onSnap(a2, a1, l.headEnd)
       : a2;
   return _set(l, n1, n2, Offset.zero) || changed;
 }
@@ -342,13 +389,13 @@ void remapAttachments(Iterable<SceneObject> copies, Map<String, String> ids) {
   Attachment? remap(Attachment? a) {
     if (a == null) return null;
     final to = ids[a.to];
-    return to == null ? null : Attachment(to, a.at);
+    return to == null ? null : Attachment(to, a.at, a.snap);
   }
 
   Offset anchor(Attachment? a, Offset own) {
     final t = a == null ? null : byId[a.to];
     if (t is! BoxObject) return own;
-    return a!.pinned ? pinPoint(t, a.at!) : t.center;
+    return anchorPoint(t, a!);
   }
 
   for (final o in copies) {
