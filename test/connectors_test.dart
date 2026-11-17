@@ -187,6 +187,8 @@ void main() {
         text: 'Look',
         center: const Offset(250, 150),
         size: const Size(200, 60),
+        // The size whose one line is that high, as a text box's always is.
+        fontSize: 40,
         background: 0xFFFFF200,
       );
       c.currentLayer.objects.addAll([pic, label]);

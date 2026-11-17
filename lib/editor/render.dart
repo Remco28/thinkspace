@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart' show StringCharacters;
 
 import '../model/assets.dart';
 import '../model/geometry.dart';
@@ -9,7 +10,7 @@ import '../model/scene.dart';
 
 TextPainter textPainterFor(TextObject t, {double? width}) {
   final tp = TextPainter(
-    text: TextSpan(text: t.text.isEmpty ? ' ' : t.text, style: textStyleFor(t)),
+    text: textSpanFor(t.text.isEmpty ? ' ' : t.text, textStyleFor(t)),
     textAlign: t.align,
     textDirection: TextDirection.ltr,
   );
@@ -20,12 +21,17 @@ TextPainter textPainterFor(TextObject t, {double? width}) {
   return tp;
 }
 
+/// Colour emoji fonts, tried before any other font on the computer. Without
+/// them a symbol such as ❤ or ✔ is drawn from the first plain font that has
+/// it, in one colour, and the colour version is never reached.
+const kEmojiFonts = ['Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji'];
+
 TextStyle textStyleFor(TextObject t) => TextStyle(
   fontFamily: t.font.family,
-  // The bundled fonts are variable fonts: the weight is an axis.
-  fontVariations: t.font.family == null
-      ? null
-      : [FontVariation('wght', t.bold ? 700 : 400)],
+  fontFamilyFallback: kEmojiFonts,
+  fontVariations: t.font.variable
+      ? [FontVariation('wght', t.bold ? 700 : 400)]
+      : null,
   fontSize: t.fontSize * t.font.scale,
   color: Color(t.color),
   fontWeight: t.bold ? FontWeight.w700 : FontWeight.w400,
@@ -33,9 +39,107 @@ TextStyle textStyleFor(TextObject t) => TextStyle(
   height: 1.2,
 );
 
+/// [text] in [style], with its emoji drawn from a colour emoji font first.
+/// The fallback in [textStyleFor] is not enough: a font such as Inter has
+/// its own plain ❤ ☀ ⚠, which would win even when the text asks for the
+/// colour emoji (by a following U+FE0F, as emoji pickers send them).
+TextSpan textSpanFor(String text, TextStyle style) {
+  final emoji = style.copyWith(
+    fontFamily: kEmojiFonts.first,
+    fontFamilyFallback: kEmojiFonts.skip(1).toList(),
+    fontVariations: const [],
+  );
+  final runs = <TextSpan>[];
+  final buf = StringBuffer();
+  bool? inEmoji;
+  void flush() {
+    if (buf.isEmpty) return;
+    runs.add(TextSpan(text: buf.toString(), style: inEmoji! ? emoji : null));
+    buf.clear();
+  }
+
+  for (final g in text.characters) {
+    final e = isEmoji(g);
+    if (e != inEmoji) flush();
+    inEmoji = e;
+    buf.write(g);
+  }
+  flush();
+  if (runs.length == 1 && runs.single.style == null) {
+    return TextSpan(text: text, style: style);
+  }
+  return TextSpan(style: style, children: runs);
+}
+
+/// Whether the grapheme [g] is shown as an emoji: it asks to be (U+FE0F), is
+/// built from emoji parts (a skin tone, a joiner, a flag, a keycap), or is a
+/// character that is an emoji unless it asks otherwise.
+bool isEmoji(String g) {
+  final cps = g.runes.toList();
+  if (cps.isEmpty || cps.contains(0xFE0E)) return false;
+  for (final c in cps) {
+    if (c == 0xFE0F || c == 0x200D || c == 0x20E3) return true;
+    if (c >= 0x1F3FB && c <= 0x1F3FF) return true; // skin tones
+    if (c >= 0x1F1E6 && c <= 0x1F1FF) return true; // flags
+  }
+  final c = cps.first;
+  if (c >= 0x1F300 && c <= 0x1FAFF) return true;
+  if (c == 0x1F004 || c == 0x1F0CF || c == 0x1F18E) return true;
+  if (c >= 0x1F191 && c <= 0x1F19A) return true;
+  return _emojiByDefault.contains(c);
+}
+
+/// Characters below U+1F000 that are emoji unless they ask to be text
+/// (Unicode's Emoji_Presentation).
+const _emojiByDefault = {
+  0x231A, 0x231B, 0x23E9, 0x23EA, 0x23EB, 0x23EC, 0x23F0, 0x23F3, //
+  0x25FD, 0x25FE, 0x2614, 0x2615, 0x2648, 0x2649, 0x264A, 0x264B,
+  0x264C, 0x264D, 0x264E, 0x264F, 0x2650, 0x2651, 0x2652, 0x2653,
+  0x267F, 0x2693, 0x26A1, 0x26AA, 0x26AB, 0x26BD, 0x26BE, 0x26C4,
+  0x26C5, 0x26CE, 0x26D4, 0x26EA, 0x26F2, 0x26F3, 0x26F5, 0x26FA,
+  0x26FD, 0x2705, 0x270A, 0x270B, 0x2728, 0x274C, 0x274E, 0x2753,
+  0x2754, 0x2755, 0x2757, 0x2795, 0x2796, 0x2797, 0x27B0, 0x27BF,
+  0x2B1B, 0x2B1C, 0x2B50, 0x2B55,
+};
+
 /// Height a text object needs at its current width.
 double measureTextHeight(TextObject t) =>
     textPainterFor(t).height + TextObject.pad * 2;
+
+/// Room left at the end of a line for the text cursor, which the editor keeps
+/// free: without it the last letter would wrap while typing.
+const double _caretRoom = 4;
+
+/// The width an auto-width text box needs: its longest line.
+double autoTextWidth(TextObject t) {
+  final tp = TextPainter(
+    text: textSpanFor(t.text.isEmpty ? ' ' : t.text, textStyleFor(t)),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  final w = tp.width;
+  tp.dispose();
+  return (w + TextObject.pad * 2 + _caretRoom).ceilToDouble();
+}
+
+/// Size [t] to its text: an auto-width box to its longest line, any box to
+/// the height its lines need. The top edge stays where it is, and an
+/// auto-width box keeps the side its text is aligned to (its middle when
+/// centred), so typing grows it away from where it was put.
+void fitText(TextObject t) {
+  final old = t.size;
+  final w = t.autoWidth ? autoTextWidth(t) : old.width;
+  t.size = Size(w, old.height);
+  final h = measureTextHeight(t);
+  t.size = Size(w, h);
+  final dw = w - old.width;
+  final dx = switch (t.align) {
+    TextAlign.center => 0.0,
+    TextAlign.right || TextAlign.end => -dw / 2,
+    _ => dw / 2,
+  };
+  final shift = Offset(dx, (h - old.height) / 2);
+  if (shift != Offset.zero) t.center += rotateOffset(shift, t.rotation);
+}
 
 void paintDocumentObjects(
   ui.Canvas canvas,

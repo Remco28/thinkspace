@@ -647,12 +647,16 @@ class CanvasInteractor {
     final corner = h.hx != 0 && h.hy != 0;
 
     if (live is TextObject && start is TextObject) {
+      // Setting the width by a side makes it fixed, and the text wraps.
+      if (!corner) live.autoWidth = false;
       nw = math.max(nw, 40.0);
       if (corner) {
         final k = math.max(nw / w0, 0.1);
         live.fontSize = (start.fontSize * k).clamp(6, 600).toDouble();
         nw = w0 * k;
       }
+      // The padding does not scale with the font: measure instead.
+      if (live.autoWidth) nw = autoTextWidth(live);
       live.size = Size(nw, h0);
       live.size = Size(nw, measureTextHeight(live));
       // A top handle moves the top edge, so the bottom stays put.
@@ -1095,12 +1099,16 @@ class CanvasInteractor {
   void _finishTextBox(EditToken? token, Offset p, Modifiers m) {
     c.marquee = null;
     final a = _snapPoint(_startScene, m);
-    final w = _moved ? math.max(80.0, (p.dx - a.dx).abs()) : 320.0;
+    // A click makes a box that grows as you type; a drag one as wide as the
+    // drag, which wraps. Either starts empty, and goes if left empty.
+    final w = math.max(80.0, (p.dx - a.dx).abs());
     final left = _moved ? math.min(a.dx, p.dx) : a.dx;
-    final t = c.createText(Offset(left, a.dy), width: w, text: '');
-    t.text = 'Text';
-    t.size = Size(w, measureTextHeight(t));
-    t.center = Offset(left + w / 2, a.dy + t.size.height / 2);
+    final t = c.createText(
+      Offset(left, a.dy),
+      width: w,
+      text: '',
+      autoWidth: !_moved,
+    );
     c.currentLayer.objects.add(t);
     c.toolDone();
     c.beginTextEdit(t.id, token: token);

@@ -50,7 +50,7 @@ The eyedropper renders the page once into raw pixels when it starts, so hovering
 
 ### Painting (`lib/editor`)
 
-The page is painted from the document by `paintDocumentObjects` (`render.dart`) — the **same function** draws the editor view and the export, so what you see is what you export. Overlays (selection outlines, handles, name chip, grips, marquee, lasso) are painted in screen space by `CanvasPainter` so they stay crisp at any zoom. Text objects are painted by `TextPainter`; while editing, a real `TextField` is laid over the object in the same transformed space.
+The page is painted from the document by `paintDocumentObjects` (`render.dart`) — the **same function** draws the editor view and the export, so what you see is what you export. Overlays (selection outlines, handles, name chip, grips, marquee, lasso) are painted in screen space by `CanvasPainter` so they stay crisp at any zoom. Text objects are painted by `TextPainter`; while editing, a real `TextField` is laid over the object in the same transformed space. A text box is either fixed-width (it wraps) or `autoWidth` (as wide as its longest line); `fitText` sizes it after every change, keeping the top edge and the side its text is aligned to. `textSpanFor` gives emoji their own runs in a colour emoji font, because a page font such as Inter has plain ❤ ☀ ⚠ of its own that would win over a mere fallback; the editor's controller builds the same spans.
 
 Objects with opacity are drawn into a `saveLayer`, so a rotated, semi-transparent image fades as one thing.
 

@@ -1457,7 +1457,7 @@ class EditorController extends ChangeNotifier {
     transact(label, () {
       for (final o in objs) {
         f(o);
-        if (o is TextObject) o.size = Size(o.size.width, measureTextHeight(o));
+        if (o is TextObject) fitText(o);
       }
     });
   }
@@ -1466,7 +1466,7 @@ class EditorController extends ChangeNotifier {
   void liveEditSelected(void Function(SceneObject o) f) {
     for (final o in selectedObjects) {
       f(o);
-      if (o is TextObject) o.size = Size(o.size.width, measureTextHeight(o));
+      if (o is TextObject) fitText(o);
     }
     notifyListeners();
   }
@@ -1611,7 +1611,17 @@ class EditorController extends ChangeNotifier {
 
   // ===== text ================================================================
 
-  TextObject createText(Offset at, {double width = 320, String text = 'Text'}) {
+  /// Pasted text wider than this wraps at this width instead.
+  static const double maxPastedTextWidth = 640;
+
+  /// A text box with its top left at [at]: [width] wide, or as wide as its
+  /// longest line with [autoWidth].
+  TextObject createText(
+    Offset at, {
+    double width = 320,
+    String text = 'Text',
+    bool autoWidth = false,
+  }) {
     final t = TextObject(
       id: doc.newId('o'),
       name: uniqueName('text'),
@@ -1621,6 +1631,7 @@ class EditorController extends ChangeNotifier {
       fontSize: textSize,
       color: textColor,
       font: textFont,
+      autoWidth: autoWidth,
     );
     final s = styleOf(Tool.text);
     t
@@ -1631,8 +1642,9 @@ class EditorController extends ChangeNotifier {
       ..border = s.border
       ..borderWidth = s.borderWidth
       ..shadow = s.shadow;
-    t.size = Size(width, measureTextHeight(t));
-    t.center = Offset(at.dx + width / 2, at.dy + t.size.height / 2);
+    if (autoWidth) t.size = Size(autoTextWidth(t), 10);
+    t.size = Size(t.size.width, measureTextHeight(t));
+    t.center = at + Offset(t.size.width / 2, t.size.height / 2);
     return t;
   }
 
@@ -1650,7 +1662,7 @@ class EditorController extends ChangeNotifier {
     final o = editingTextId == null ? null : doc.objectById(editingTextId!);
     if (o is! TextObject) return;
     o.text = text;
-    o.size = Size(o.size.width, measureTextHeight(o));
+    fitText(o);
     notifyListeners();
   }
 
@@ -2003,7 +2015,15 @@ class EditorController extends ChangeNotifier {
         text.trim().isNotEmpty &&
         (_clip.isEmpty || bytes == null)) {
       finishTextEdit();
-      final t = createText(viewCenterScene - const Offset(160, 20), text: text);
+      // As wide as its lines, unless they are long: then it wraps.
+      final t = createText(Offset.zero, text: text, autoWidth: true);
+      if (t.size.width > maxPastedTextWidth) {
+        t
+          ..autoWidth = false
+          ..size = Size(maxPastedTextWidth, t.size.height);
+        fitText(t);
+      }
+      t.center = viewCenterScene;
       addObject(t, label: 'paste text');
       return;
     }
@@ -2775,6 +2795,11 @@ class EditorController extends ChangeNotifier {
     filePath = path;
     suggestedName = null;
     if (path != null) noteRecent(path);
+    // Text is measured again: the file may come from a computer whose fonts
+    // differ, or from before Sans was the bundled Inter.
+    for (final o in doc.allObjects) {
+      if (o is TextObject) fitText(o);
+    }
     markSaved();
     fitToView(notify: false);
     notifyListeners();

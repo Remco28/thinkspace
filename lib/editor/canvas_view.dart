@@ -359,7 +359,7 @@ class _TextEditorOverlayState extends State<_TextEditorOverlay> {
   void initState() {
     super.initState();
     final t = c.doc.objectById(c.editingTextId!) as TextObject;
-    _text = TextEditingController(text: t.text);
+    _text = _EmojiTextController(text: t.text);
     _text.selection = TextSelection(baseOffset: 0, extentOffset: t.text.length);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focus.requestFocus();
@@ -579,5 +579,28 @@ class _TagLock extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// The text editor's text, split like the page draws it: emoji from a colour
+/// emoji font (see [textSpanFor]), so they look the same while typing.
+class _EmojiTextController extends TextEditingController {
+  _EmojiTextController({super.text});
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    // While an input method is composing, keep its underline.
+    if (withComposing && value.isComposingRangeValid) {
+      return super.buildTextSpan(
+        context: context,
+        style: style,
+        withComposing: withComposing,
+      );
+    }
+    return textSpanFor(text, style ?? const TextStyle());
   }
 }

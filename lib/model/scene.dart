@@ -405,14 +405,23 @@ class ImageObject extends BoxObject with Framed {
 /// The few typefaces text can use. Sans is the system's own font; the others
 /// are bundled with the app so a project looks the same on any machine.
 enum TextFont {
-  sans('Sans', null),
+  // Bundled, like the others, so a page looks the same on every computer.
+  sans('Sans', 'Inter', variable: false),
   serif('Serif', 'Lora'),
   mono('Mono', 'JetBrains Mono'),
-  hand('Hand', 'Caveat', 1.3);
+  hand('Hand', 'Caveat', scale: 1.3);
 
-  const TextFont(this.label, this.family, [this.scale = 1]);
+  const TextFont(
+    this.label,
+    this.family, {
+    this.scale = 1,
+    this.variable = true,
+  });
   final String label;
-  final String? family;
+  final String family;
+
+  /// The weight is an axis of the font file, rather than a file of its own.
+  final bool variable;
 
   /// Handwriting is small for its point size; this evens out the sizes so
   /// "28" looks about as big in every font.
@@ -436,6 +445,7 @@ class TextObject extends BoxObject with Framed {
     this.font = TextFont.sans,
     this.background = 0,
     this.align = TextAlign.left,
+    this.autoWidth = false,
     super.rotation,
     super.opacity,
     super.visible,
@@ -443,6 +453,10 @@ class TextObject extends BoxObject with Framed {
   });
 
   String text;
+
+  /// The box is as wide as its longest line, which ends only where Enter was
+  /// pressed. Otherwise its width is fixed and the text wraps inside it.
+  bool autoWidth;
   double fontSize;
   int color;
   bool bold;
@@ -472,6 +486,7 @@ class TextObject extends BoxObject with Framed {
     font: font,
     background: background,
     align: align,
+    autoWidth: autoWidth,
     rotation: rotation,
     opacity: opacity,
     visible: visible,
@@ -489,6 +504,7 @@ class TextObject extends BoxObject with Framed {
     if (font != TextFont.sans) 'font': font.name,
     'background': background,
     'align': align.index,
+    if (autoWidth) 'autoWidth': true,
     ...frameJson(),
   };
 
@@ -510,6 +526,7 @@ class TextObject extends BoxObject with Framed {
             0,
             TextAlign.values.length - 1,
           )],
+      autoWidth: j['autoWidth'] == true,
       opacity: ((j['opacity'] ?? 1) as num).toDouble(),
       visible: j['visible'] ?? true,
       locked: j['locked'] ?? false,
