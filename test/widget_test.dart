@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/editor/image_ops.dart' show HoleFill;
+import 'package:thinkspace/editor/render.dart' show textPainterFor;
 import 'package:thinkspace/io/samples.dart';
 import 'package:thinkspace/model/scene.dart';
 import 'package:thinkspace/ui/kit.dart';
@@ -1627,6 +1628,40 @@ void main() {
     c.setTool(Tool.select);
     await tester.pump();
     expect(lock, findsNothing);
+  });
+
+  appTest('typed text is the size of the page text, whatever the computer\'s '
+      'text size', (tester) async {
+    // A larger text size in the computer's settings scales the interface,
+    // but text on the page is part of the picture: the box being typed in
+    // must match what the page draws, or the end of the text wraps out of
+    // sight.
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final c = await pumpApp(tester);
+    final t = c.createText(const Offset(100, 100), text: '', autoWidth: true);
+    c.currentLayer.objects.add(t);
+    c.beginTextEdit(t.id);
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('text-editor')),
+      'Hello! Hello!',
+    );
+    await tester.pump();
+    // Drawn at the page's size, so it still fits on one line.
+    final shown = tester
+        .state<EditableTextState>(
+          find.descendant(
+            of: find.byKey(const ValueKey('text-editor')),
+            matching: find.byType(EditableText),
+          ),
+        )
+        .renderEditable;
+    final page = textPainterFor(t);
+    expect(shown.preferredLineHeight, closeTo(page.preferredLineHeight, 0.01));
+    final inner = t.size.width - TextObject.pad * 2;
+    expect(shown.getMaxIntrinsicHeight(inner), page.preferredLineHeight);
+    c.finishTextEdit();
   });
 }
 

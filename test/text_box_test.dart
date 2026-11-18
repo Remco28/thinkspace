@@ -33,20 +33,31 @@ void main() {
 
   test('a click makes an empty box that grows as you type', () {
     c.setTool(Tool.text);
+    expect(ix.cursorAt(const Offset(200, 100)), SystemMouseCursors.text);
     click(ix, const Offset(200, 100));
     final t = c.doc.objectById(c.editingTextId!) as TextObject;
     expect(t.text, isEmpty);
     expect(t.autoWidth, isTrue);
+    // The writing starts at the pointer: the text's left end, and the
+    // middle of its first line.
+    final line = textPainterFor(t).preferredLineHeight;
+    expect(t.bounds.left + TextObject.pad, closeTo(200, 1e-9));
+    expect(t.bounds.top + TextObject.pad + line / 2, closeTo(100, 1e-9));
+    final top = t.bounds.top;
     c.updateEditingText('Hello');
     expect(t.size.width, 5 * 28 + _hug);
-    expect(t.bounds.left, closeTo(200, 1e-9), reason: 'left edge stays');
-    expect(t.bounds.top, closeTo(100, 1e-9), reason: 'top edge stays');
+    expect(
+      t.bounds.left + TextObject.pad,
+      closeTo(200, 1e-9),
+      reason: 'left edge stays',
+    );
+    expect(t.bounds.top, closeTo(top, 1e-9), reason: 'top edge stays');
     final oneLine = t.size.height;
     // Only Enter starts a new line; the box is as wide as the longest.
     c.updateEditingText('Hello\nHi');
     expect(t.size.width, 5 * 28 + _hug);
     expect(t.size.height, greaterThan(oneLine));
-    expect(t.bounds.top, closeTo(100, 1e-9));
+    expect(t.bounds.top, closeTo(top, 1e-9));
     c.finishTextEdit();
     expect(c.doc.allObjects.single, same(t));
   });
@@ -74,12 +85,14 @@ void main() {
     c.styleOf(Tool.text).align = TextAlign.center;
     final t = typeAt(const Offset(200, 100), 'A');
     final mid = t.center.dx;
+    expect(mid, closeTo(200, 1e-9), reason: 'centred on the click');
     c.updateEditingText('ABCDE');
     expect(t.center.dx, closeTo(mid, 1e-9));
     c.finishTextEdit();
     c.styleOf(Tool.text).align = TextAlign.right;
     final r = typeAt(const Offset(200, 300), 'A');
     final right = r.bounds.right;
+    expect(right - TextObject.pad, closeTo(200, 1e-9), reason: 'ends there');
     c.updateEditingText('ABCDE');
     expect(r.bounds.right, closeTo(right, 1e-9));
   });
@@ -87,10 +100,11 @@ void main() {
   test('a bigger font widens the box; dragging a side fixes its width', () {
     final t = typeAt(const Offset(200, 100), 'Hello');
     c.finishTextEdit();
+    final left = t.bounds.left;
     c.select([t.id]);
     c.editSelected('size', (o) => (o as TextObject).fontSize = 40);
     expect(t.size.width, 5 * 40 + _hug);
-    expect(t.bounds.left, closeTo(200, 1e-9));
+    expect(t.bounds.left, closeTo(left, 1e-9));
     // Drag the right side's handle in: the box keeps that width and wraps.
     final side = Offset(t.bounds.right, t.center.dy);
     drag(ix, side, side - const Offset(120, 0));
@@ -129,6 +143,7 @@ void main() {
     final t = typeAt(const Offset(200, 100), 'Hello');
     c.finishTextEdit();
     final right = t.size.height;
+    final top = t.bounds.top;
     // As if measured on a computer with another font: too tall.
     t
       ..size = Size(t.size.width, right + 30)
@@ -136,7 +151,7 @@ void main() {
     await c.loadProjectJson(c.projectJson());
     final back = c.doc.allObjects.single as TextObject;
     expect(back.size.height, right);
-    expect(back.bounds.top, closeTo(100, 1e-9));
+    expect(back.bounds.top, closeTo(top, 1e-9));
     expect(c.dirty, isFalse);
   });
 

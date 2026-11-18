@@ -157,6 +157,7 @@ class CanvasInteractor {
     if (c.pickingColour || c.tool == Tool.remove) {
       return SystemMouseCursors.none;
     }
+    if (c.tool == Tool.text) return SystemMouseCursors.text;
     if (c.tool != Tool.select) return SystemMouseCursors.precise;
     final p = c.toScene(screen);
     final h = _hitHandle(p);
@@ -1109,6 +1110,22 @@ class CanvasInteractor {
       text: '',
       autoWidth: !_moved,
     );
+    if (!_moved) {
+      // A click is where the writing starts: the first line's middle sits on
+      // the pointer and its text begins there (or, centred or right-aligned,
+      // is centred on it or ends there), not below and to the right of it.
+      final line = textPainterFor(t).preferredLineHeight;
+      final hw = t.size.width / 2;
+      final dx = switch (t.align) {
+        TextAlign.center => 0.0,
+        TextAlign.right || TextAlign.end => -hw + TextObject.pad,
+        _ => hw - TextObject.pad,
+      };
+      t.center = Offset(
+        a.dx + dx,
+        a.dy - TextObject.pad - line / 2 + t.size.height / 2,
+      );
+    }
     c.currentLayer.objects.add(t);
     c.toolDone();
     c.beginTextEdit(t.id, token: token);

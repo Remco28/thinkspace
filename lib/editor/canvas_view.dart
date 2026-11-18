@@ -401,22 +401,28 @@ class _TextEditorOverlayState extends State<_TextEditorOverlay> {
               }
               return KeyEventResult.ignored;
             },
-            child: TextField(
-              controller: _text,
-              focusNode: _focus,
-              key: const ValueKey('text-editor'),
-              maxLines: null,
-              style: textStyleFor(t),
-              textAlign: t.align,
-              cursorColor: kAccent,
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                filled: t.background != 0,
-                fillColor: Color(t.background),
-                contentPadding: const EdgeInsets.all(TextObject.pad),
+            // Page text is part of the picture, not the interface: a larger
+            // text size in the computer's settings must not enlarge it here,
+            // or the field would show it bigger than the page draws it and
+            // wrap its end out of sight.
+            child: MediaQuery.withNoTextScaling(
+              child: TextField(
+                controller: _text,
+                focusNode: _focus,
+                key: const ValueKey('text-editor'),
+                maxLines: null,
+                style: textStyleFor(t),
+                textAlign: t.align,
+                cursorColor: kAccent,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  filled: t.background != 0,
+                  fillColor: Color(t.background),
+                  contentPadding: const EdgeInsets.all(TextObject.pad),
+                ),
+                onChanged: c.updateEditingText,
               ),
-              onChanged: c.updateEditingText,
             ),
           ),
         ),

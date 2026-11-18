@@ -37,6 +37,12 @@ TextStyle textStyleFor(TextObject t) => TextStyle(
   fontWeight: t.bold ? FontWeight.w700 : FontWeight.w400,
   fontStyle: t.italic ? FontStyle.italic : FontStyle.normal,
   height: 1.2,
+  // Stated, not left to defaults: the text field that edits this text merges
+  // the interface theme in, which would otherwise space it differently.
+  letterSpacing: 0,
+  wordSpacing: 0,
+  leadingDistribution: TextLeadingDistribution.proportional,
+  decoration: TextDecoration.none,
 );
 
 /// [text] in [style], with its emoji drawn from a colour emoji font first.
