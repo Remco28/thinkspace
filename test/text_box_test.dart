@@ -4,6 +4,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thinkspace/editor/controller.dart';
+import 'package:thinkspace/io/clipboard.dart';
 import 'package:thinkspace/editor/interactor.dart';
 import 'package:thinkspace/editor/render.dart';
 import 'package:thinkspace/model/scene.dart';
@@ -113,6 +114,9 @@ void main() {
   });
 
   test('pasted text hugs short lines and wraps long ones', () async {
+    // No picture on the clipboard, whatever the computer running this holds.
+    SystemClipboard.readOverride = (image: null, files: const []);
+    addTearDown(() => SystemClipboard.readOverride = null);
     String? clip;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {

@@ -14,7 +14,13 @@ class SystemClipboard {
   static bool get _wayland =>
       (Platform.environment['WAYLAND_DISPLAY'] ?? '').isNotEmpty;
 
+  /// For tests: what reading the clipboard's pictures returns, instead of
+  /// asking the real clipboard, which on Windows or a desktop holds whatever
+  /// the person copied last.
+  static ({Uint8List? image, List<String> files})? readOverride;
+
   static Future<Uint8List?> readImage() async {
+    if (readOverride case final o?) return o.image;
     if (Platform.isWindows) return WinClipboard.readImage();
     final attempts = <List<String>>[
       if (_wayland) ['wl-paste', '--no-newline', '--type', 'image/png'],
@@ -120,6 +126,7 @@ class SystemClipboard {
   /// Picture files that were copied in a file manager (Ctrl+C on files), as
   /// paths. Empty when the clipboard holds something else.
   static Future<List<String>> readPictureFiles() async {
+    if (readOverride case final o?) return o.files;
     final all = Platform.isWindows
         ? await WinClipboard.readFiles()
         : await _linuxFiles();
