@@ -58,6 +58,8 @@ The canvas listens to the controller itself and has its own `RepaintBoundary`. T
 
 `paintObjects` draws a list bottom to top and hands each Hide details box everything drawn before it. Pixelating draws that, in the box's own rotated frame, into a small image with four samples per tile (`Image.toImageSync`), shrinks it to one pixel per tile with mipmapped sampling (an average), and draws that back over the box with `FilterQuality.none`. Only objects that overlap the box are redrawn. Copying and merging go through `paintObjects` too, so nothing leaves the app un-hidden.
 
+Painting runs on every frame of a drag, pan or zoom, so `render.dart` keeps three things between frames, each in an `Expando` on its object so it goes when the object does: a text object's laid-out letters (remade when its words, font, size, style, colour, alignment or width change), a pixelating box's averaged tiles (remade when the box, the page colour or anything under it changes; a pen mark counts by its points list, which is only ever replaced, never edited in place), and a pen mark's smoothed path. A new cached look needs every field that changes it in its key, and a test in `test/render_cache_test.dart`. A picture drawn smaller than its own size uses mipmapped sampling (`FilterQuality.medium`), and the sharper cubic filter only at its own size or larger.
+
 ### Tool looks
 
 Each tool has a `ToolStyle` (colour, width, fill, size, font and a few tool-specific switches) in `EditorController.toolStyles`; `defaultToolStyles()` is what "Reset to default" returns to. Editing something on the page updates the style of the tool that makes it (`toolFor`, `rememberStyle`).

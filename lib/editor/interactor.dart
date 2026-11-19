@@ -178,7 +178,7 @@ class CanvasInteractor {
           ? SystemMouseCursors.resizeUpDown
           : SystemMouseCursors.resizeUpLeftDownRight;
     }
-    if (c.objectsAt(p).isNotEmpty) return SystemMouseCursors.move;
+    if (c.anyObjectAt(p)) return SystemMouseCursors.move;
     return SystemMouseCursors.basic;
   }
 

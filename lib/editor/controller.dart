@@ -969,19 +969,23 @@ class EditorController extends ChangeNotifier {
   // ===== hit testing =======================================================
 
   /// Everything under [p], topmost first.
-  List<SceneObject> objectsAt(Offset p) {
+  List<SceneObject> objectsAt(Offset p) => _hitsAt(p).toList();
+
+  /// Whether anything can be picked at [p]: stops at the first hit, for the
+  /// pointer's shape, which is asked on every mouse move.
+  bool anyObjectAt(Offset p) => _hitsAt(p).isNotEmpty;
+
+  Iterable<SceneObject> _hitsAt(Offset p) sync* {
     final tol = (touchInput ? 12 : 4) / zoom;
-    final out = <SceneObject>[];
     for (final layer in doc.layers.reversed) {
       if (!layer.visible || layer.locked) continue;
       for (final o in layer.objects.reversed) {
         if (!o.visible || o.locked) continue;
         if (o.hitTest(p, tol, assets) || (o is Framed && o.onBorder(p, tol))) {
-          out.add(o);
+          yield o;
         }
       }
     }
-    return out;
   }
 
   /// The object a line's end dropped at [p] attaches to: the topmost one it
