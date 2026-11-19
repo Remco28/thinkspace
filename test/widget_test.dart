@@ -1548,7 +1548,7 @@ void main() {
       await tester.pump();
       expect(c.toastMessage, contains('screenshot service'));
     });
-  });
+  }, skip: Platform.isLinux ? false : 'Screenshots are Linux only');
 
   appTest('F11 asks the window for full screen and back; Esc does not', (
     tester,
