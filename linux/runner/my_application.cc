@@ -1,6 +1,9 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <gio/gunixsocketaddress.h>
+#include <glib/gstdio.h>
+#include <unistd.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -10,6 +13,11 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  // Started by `--capture` with no window to hand it to: stay hidden until
+  // the screenshot is in (or quit if it was cancelled).
+  gboolean start_hidden;
+  GSocketService* link;
+  FlMethodChannel* channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -31,6 +39,7 @@ typedef struct {
   guint signal_id;
   gchar* token;
   gint x, y;  // where the window was, for X11; Wayland places it itself
+  gboolean was_shown;  // false for a window started by --capture
 } ShotRequest;
 
 static void shot_done(ShotRequest* r, FlValue* result, const gchar* error) {
@@ -38,9 +47,13 @@ static void shot_done(ShotRequest* r, FlValue* result, const gchar* error) {
     g_dbus_connection_signal_unsubscribe(r->bus, r->signal_id);
   }
   // GTK keeps a maximised or full-screen window so when it is shown again.
-  gtk_window_move(r->window, r->x, r->y);
-  gtk_widget_show(GTK_WIDGET(r->window));
-  gtk_window_present(r->window);
+  // A window that was never shown is left to the Dart side, which shows it
+  // with the picture or quits.
+  if (r->was_shown) {
+    gtk_window_move(r->window, r->x, r->y);
+    gtk_widget_show(GTK_WIDGET(r->window));
+    gtk_window_present(r->window);
+  }
   if (error != nullptr) {
     fl_method_call_respond_error(r->call, "unavailable", error, nullptr,
                                  nullptr);
@@ -124,9 +137,154 @@ static void take_screenshot(GtkWindow* window, FlMethodCall* call) {
       "Response", path, nullptr, G_DBUS_SIGNAL_FLAGS_NONE, shot_response_cb, r,
       nullptr);
   // Out of the way first, so the picture shows what is behind the window.
-  gtk_window_get_position(window, &r->x, &r->y);
-  gtk_widget_hide(GTK_WIDGET(window));
+  r->was_shown = gtk_widget_get_visible(GTK_WIDGET(window));
+  if (r->was_shown) {
+    gtk_window_get_position(window, &r->x, &r->y);
+    gtk_widget_hide(GTK_WIDGET(window));
+  }
   g_timeout_add(400, shot_ask, r);
+}
+
+// ---- one shortcut, many windows -------------------------------------------
+// Every window is its own process. Each listens on a socket of its own in
+// $XDG_RUNTIME_DIR/thinkspace (private to the user) and notes in a file
+// beside it when it last had the focus. `thinkspace --capture`, which a
+// keyboard shortcut runs, hands the screenshot to the window used last and
+// exits before Flutter starts; if no window answers, it carries on as a new
+// window that takes the screenshot itself.
+
+static gchar* link_dir() {
+  return g_build_filename(g_get_user_runtime_dir(), "thinkspace", nullptr);
+}
+
+static gchar* link_file(gint pid, const gchar* ext) {
+  g_autofree gchar* dir = link_dir();
+  g_autofree gchar* name = g_strdup_printf("%d.%s", pid, ext);
+  return g_build_filename(dir, name, nullptr);
+}
+
+static void note_used() {
+  g_autofree gchar* path = link_file(getpid(), "used");
+  g_autofree gchar* now = g_strdup_printf("%" G_GINT64_FORMAT, g_get_real_time());
+  g_file_set_contents(path, now, -1, nullptr);
+}
+
+static gboolean focus_in_cb(GtkWidget* widget, GdkEvent* event,
+                            gpointer user_data) {
+  note_used();
+  return FALSE;
+}
+
+static gboolean link_incoming_cb(GSocketService* service,
+                                 GSocketConnection* connection, GObject* source,
+                                 gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  // A request is one short line, sent at once; never wait long for it.
+  g_socket_set_timeout(g_socket_connection_get_socket(connection), 2);
+  gchar buf[32] = {0};
+  GInputStream* in = g_io_stream_get_input_stream(G_IO_STREAM(connection));
+  gssize n = g_input_stream_read(in, buf, sizeof(buf) - 1, nullptr, nullptr);
+  if (n > 0 && g_str_has_prefix(buf, "capture") && self->channel != nullptr) {
+    fl_method_channel_invoke_method(self->channel, "capture", nullptr, nullptr,
+                                    nullptr, nullptr);
+    GOutputStream* out = g_io_stream_get_output_stream(G_IO_STREAM(connection));
+    g_output_stream_write_all(out, "ok\n", 3, nullptr, nullptr, nullptr);
+  }
+  return TRUE;
+}
+
+static void link_start(MyApplication* self) {
+  g_autofree gchar* dir = link_dir();
+  if (g_mkdir_with_parents(dir, 0700) != 0) {
+    g_warning("Screenshot shortcut link not started: no %s", dir);
+    return;
+  }
+  g_autofree gchar* path = link_file(getpid(), "sock");
+  g_unlink(path);
+  g_autoptr(GSocketAddress) address = g_unix_socket_address_new(path);
+  self->link = g_socket_service_new();
+  g_autoptr(GError) error = nullptr;
+  if (!g_socket_listener_add_address(G_SOCKET_LISTENER(self->link), address,
+                                     G_SOCKET_TYPE_STREAM,
+                                     G_SOCKET_PROTOCOL_DEFAULT, nullptr,
+                                     nullptr, &error)) {
+    g_warning("Screenshot shortcut link not started: %s", error->message);
+    g_clear_object(&self->link);
+    return;
+  }
+  g_signal_connect(self->link, "incoming", G_CALLBACK(link_incoming_cb), self);
+  g_socket_service_start(self->link);
+  note_used();
+}
+
+static void link_stop(MyApplication* self) {
+  if (self->link == nullptr) return;
+  g_socket_service_stop(self->link);
+  g_clear_object(&self->link);
+  g_autofree gchar* sock = link_file(getpid(), "sock");
+  g_autofree gchar* used = link_file(getpid(), "used");
+  g_unlink(sock);
+  g_unlink(used);
+}
+
+typedef struct {
+  gint64 used;
+  gint pid;
+} LinkEntry;
+
+static gint newest_first(gconstpointer a, gconstpointer b) {
+  const LinkEntry* x = static_cast<const LinkEntry*>(a);
+  const LinkEntry* y = static_cast<const LinkEntry*>(b);
+  return x->used < y->used ? 1 : x->used > y->used ? -1 : 0;
+}
+
+// Asks the window used last to take a screenshot. True if one agreed.
+// Sockets nobody answers on are left over from a crash and are removed.
+static gboolean forward_capture() {
+  g_autofree gchar* dir = link_dir();
+  GDir* d = g_dir_open(dir, 0, nullptr);
+  if (d == nullptr) return FALSE;
+  g_autoptr(GArray) entries = g_array_new(FALSE, FALSE, sizeof(LinkEntry));
+  const gchar* name;
+  while ((name = g_dir_read_name(d)) != nullptr) {
+    if (!g_str_has_suffix(name, ".sock")) continue;
+    LinkEntry e = {0, static_cast<gint>(g_ascii_strtoll(name, nullptr, 10))};
+    if (e.pid <= 0) continue;
+    g_autofree gchar* used = link_file(e.pid, "used");
+    g_autofree gchar* text = nullptr;
+    if (g_file_get_contents(used, &text, nullptr, nullptr)) {
+      e.used = g_ascii_strtoll(text, nullptr, 10);
+    }
+    g_array_append_val(entries, e);
+  }
+  g_dir_close(d);
+  g_array_sort(entries, newest_first);
+  for (guint i = 0; i < entries->len; i++) {
+    LinkEntry e = g_array_index(entries, LinkEntry, i);
+    g_autofree gchar* path = link_file(e.pid, "sock");
+    g_autoptr(GSocketAddress) address = g_unix_socket_address_new(path);
+    g_autoptr(GSocketClient) client = g_socket_client_new();
+    g_socket_client_set_timeout(client, 3);
+    g_autoptr(GSocketConnection) connection = g_socket_client_connect(
+        client, G_SOCKET_CONNECTABLE(address), nullptr, nullptr);
+    if (connection == nullptr) {
+      g_autofree gchar* used = link_file(e.pid, "used");
+      g_unlink(path);
+      g_unlink(used);
+      continue;
+    }
+    GOutputStream* out = g_io_stream_get_output_stream(G_IO_STREAM(connection));
+    GInputStream* in = g_io_stream_get_input_stream(G_IO_STREAM(connection));
+    gchar reply[8] = {0};
+    if (g_output_stream_write_all(out, "capture\n", 8, nullptr, nullptr,
+                                  nullptr) &&
+        g_input_stream_read(in, reply, sizeof(reply) - 1, nullptr, nullptr) >
+            0 &&
+        g_str_has_prefix(reply, "ok")) {
+      return TRUE;
+    }
+  }
+  return FALSE;
 }
 
 // Lets the Dart side put the project name in the window title, switch full
@@ -159,6 +317,13 @@ static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
     fl_method_call_respond_success(call, state, nullptr);
   } else if (g_strcmp0(fl_method_call_get_name(call), "takeScreenshot") == 0) {
     take_screenshot(window, call);
+  } else if (g_strcmp0(fl_method_call_get_name(call), "showWindow") == 0) {
+    gtk_widget_show(GTK_WIDGET(window));
+    gtk_window_present(window);
+    fl_method_call_respond_success(call, nullptr, nullptr);
+  } else if (g_strcmp0(fl_method_call_get_name(call), "quit") == 0) {
+    fl_method_call_respond_success(call, nullptr, nullptr);
+    g_application_quit(g_application_get_default());
   } else {
     fl_method_call_respond_not_implemented(call, nullptr);
   }
@@ -166,6 +331,7 @@ static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
+  if (self->start_hidden) return;  // shown once the screenshot is in
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
@@ -244,6 +410,10 @@ static void my_application_activate(GApplication* application) {
       FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel, window_method_cb, window,
                                             nullptr);
+  self->channel = channel;
+
+  g_signal_connect(window, "focus-in-event", G_CALLBACK(focus_in_cb), nullptr);
+  link_start(self);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
@@ -255,6 +425,15 @@ static gboolean my_application_local_command_line(GApplication* application,
   MyApplication* self = MY_APPLICATION(application);
   // Strip out the first argument as it is the binary name.
   self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
+
+  // A screenshot shortcut: give it to an open window if there is one.
+  if (g_strv_contains(self->dart_entrypoint_arguments, "--capture")) {
+    if (forward_capture()) {
+      *exit_status = 0;
+      return TRUE;
+    }
+    self->start_hidden = TRUE;
+  }
 
   g_autoptr(GError) error = nullptr;
   if (!g_application_register(application, nullptr, &error)) {
@@ -280,9 +459,7 @@ static void my_application_startup(GApplication* application) {
 
 // Implements GApplication::shutdown.
 static void my_application_shutdown(GApplication* application) {
-  // MyApplication* self = MY_APPLICATION(object);
-
-  // Perform any actions required at application shutdown.
+  link_stop(MY_APPLICATION(application));
 
   G_APPLICATION_CLASS(my_application_parent_class)->shutdown(application);
 }

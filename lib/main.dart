@@ -5,13 +5,29 @@ import 'ui/menus.dart';
 import 'ui/shell.dart';
 import 'ui/design.dart';
 
-void main(List<String> args) => runApp(ThinkspaceApp(launchFiles: args));
+/// `--capture` is what a screenshot shortcut runs. The Linux runner hands it
+/// to an open window if there is one; if this window got it, it starts hidden
+/// and takes the screenshot first.
+void main(List<String> args) => runApp(
+  ThinkspaceApp(
+    launchFiles: [
+      for (final a in args)
+        if (a != '--capture') a,
+    ],
+    captureOnStart: args.contains('--capture'),
+  ),
+);
 
 const TextStyle _flat = TextStyle(letterSpacing: 0);
 
 class ThinkspaceApp extends StatelessWidget {
-  const ThinkspaceApp({super.key, this.launchFiles = const []});
+  const ThinkspaceApp({
+    super.key,
+    this.launchFiles = const [],
+    this.captureOnStart = false,
+  });
   final List<String> launchFiles;
+  final bool captureOnStart;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +80,11 @@ class ThinkspaceApp extends StatelessWidget {
             ),
           ),
         ),
-        home: EditorShell(enableRecovery: true, launchFiles: launchFiles),
+        home: EditorShell(
+          enableRecovery: true,
+          launchFiles: launchFiles,
+          captureOnStart: captureOnStart,
+        ),
       ),
     );
   }

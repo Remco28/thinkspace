@@ -35,8 +35,13 @@ class EditorShell extends StatefulWidget {
     this.enableRecovery = false,
     this.recoveryFile,
     this.launchFiles = const [],
+    this.captureOnStart = false,
   });
   final EditorController? controller;
+
+  /// Started by a screenshot shortcut with no window to hand it to: the
+  /// window is still hidden, and shows once the screenshot is in.
+  final bool captureOnStart;
 
   /// Paths the app was started with (a project to open, pictures to place).
   final List<String> launchFiles;
@@ -102,6 +107,11 @@ class _EditorShellState extends State<EditorShell> {
   void initState() {
     super.initState();
     pickFromPage = c.pickColourFromPage;
+    // A screenshot shortcut pressed while this was the window used last.
+    _windowChannel.setMethodCallHandler((call) async {
+      if (call.method == 'capture') unawaited(_takeScreenshot());
+      return null;
+    });
     if (widget.enableRecovery) c.panels.addListener(_syncTitle);
     if (widget.enableRecovery) {
       final data = appDataDir(
@@ -130,6 +140,12 @@ class _EditorShellState extends State<EditorShell> {
           (data == null ? null : File(_legacyRecovery(data)));
       if (c.recoveryFile != null) c.startAutosave(c.recoveryFile!);
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // A window started for a screenshot opens with just that; unsaved
+        // work left by a crash is offered at the next ordinary start.
+        if (widget.captureOnStart) {
+          await _captureOnStart();
+          return;
+        }
         await _offerRecovery();
         if (widget.launchFiles.isNotEmpty &&
             mounted &&
@@ -300,6 +316,7 @@ class _EditorShellState extends State<EditorShell> {
     c.panels.removeListener(_syncTitle);
     c.panels.removeListener(_keepPrefs);
     _prefsTimer?.cancel();
+    _windowChannel.setMethodCallHandler(null);
     _lifecycle?.dispose();
     _inspector?.stop();
     _focus.dispose();
@@ -671,17 +688,28 @@ class _EditorShellState extends State<EditorShell> {
 
   bool _capturing = false;
 
+  /// The first thing a window started by a screenshot shortcut does: show
+  /// itself with the picture, or, with no picture, quit, since there is
+  /// nothing to show.
+  Future<void> _captureOnStart() async {
+    final got = await _takeScreenshot();
+    await _windowChannel.invokeMethod<void>(got ? 'showWindow' : 'quit');
+  }
+
   /// Step aside, let the desktop's own picker take a screenshot, and bring
   /// the picture in as a paste does. The native side moves the window out of
   /// the way and back (`linux/runner/my_application.cc`).
-  Future<void> _takeScreenshot() async {
-    if (_capturing) return;
+  ///
+  /// True if a picture came in.
+  Future<bool> _takeScreenshot() async {
+    if (_capturing) return false;
     _capturing = true;
     c.finishTextEdit();
     try {
       final path = await _windowChannel.invokeMethod<String>('takeScreenshot');
-      if (path == null) return; // cancelled in the picker
+      if (path == null) return false; // cancelled in the picker
       await c.receiveScreenshot(await File(path).readAsBytes());
+      return true;
     } on MissingPluginException {
       c.showToast('Screenshots are not available here');
     } on PlatformException {
@@ -694,6 +722,7 @@ class _EditorShellState extends State<EditorShell> {
       _capturing = false;
       if (mounted) _focus.requestFocus();
     }
+    return false;
   }
 
   Future<void> _importImages() async {
@@ -1273,7 +1302,7 @@ class _PasteChooserState extends State<_PasteChooser> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Pasted an image${a == null ? '' : ' (${a.width} × ${a.height})'}',
+                          '${c.pendingPaste?.name == 'screenshot' ? 'Took a screenshot' : 'Pasted an image'}${a == null ? '' : ' (${a.width} × ${a.height})'}',
                           style: const TextStyle(
                             fontWeight: kWeightHeading,
                             fontSize: kTextBody,
