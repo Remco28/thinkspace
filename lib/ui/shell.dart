@@ -20,6 +20,7 @@ import 'collection_panel.dart';
 import 'color_picker.dart' show pickFromPage;
 import 'cutout_card.dart';
 import 'layers_panel.dart';
+import 'shortcut_dialog.dart';
 import 'menus.dart' show menuLabel;
 import 'properties_panel.dart';
 import 'shortcuts.dart';
@@ -748,6 +749,8 @@ class _EditorShellState extends State<EditorShell> {
         _importImages();
       case MenuAction.screenshot:
         _takeScreenshot();
+      case MenuAction.screenshotShortcut:
+        showScreenshotShortcut(context, c);
       case MenuAction.exportPng:
         _export(1);
       case MenuAction.exportPng2x:

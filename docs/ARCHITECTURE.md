@@ -76,6 +76,12 @@ A `.thinkspace` project is one JSON file: `{format, version, document, assets: {
 
 Clipboard images go through `xclip` or `wl-clipboard`, because Flutter's clipboard carries only text. A copy counts only once the clipboard is read back and holds exactly the new image; otherwise the next tool is tried and then the copy is reported as failed, because a silent failure leaves the previous image there to be pasted. A selection copied as an image takes along any Hide details boxes over it (`withCovers`). When Thinkspace copies, it puts a rendered PNG on the system clipboard *and* remembers a signature of it, so a later paste can tell "my own copy" from "something new" and paste full-fidelity objects.
 
+### Screenshots (Linux)
+
+The GTK runner (`linux/runner/my_application.cc`) does the work Dart cannot do alone. `takeScreenshot` on the `thinkspace/window` channel hides the window, asks the desktop's screenshot service (xdg-desktop-portal, over GDBus) for a picture with the desktop's own area picker, and shows the window again. It hides rather than minimises: on GNOME under Wayland a window coming back from minimised stays unfocused, while one shown again gets the focus. The picture then comes in as a paste does.
+
+Every window is its own process. Each listens on a socket of its own in `$XDG_RUNTIME_DIR/thinkspace` and notes when it last had the focus in a file beside it. `thinkspace --capture`, which the screenshot shortcut runs, sends the window used last a `capture` line, before Flutter even starts, and exits. If no window answers, it starts a window that stays hidden until the picture is in, or quits if it was cancelled. The shortcut itself is a GNOME custom keyboard shortcut, set and removed through `gsettings` by `lib/io/screenshot_shortcut.dart`, which only ever touches its own entry.
+
 ### Inspector (`lib/dev/inspector.dart`)
 
 With `THINKSPACE_DEBUG_PORT` set, the app serves `/state` (the controller's own account of the document and selection), `/screenshot` (the whole app, dialogs included), `/export` (the page) and `/do` (drive the controller and interactor). `tool/run_headless.sh` runs the real window on Xvfb; `tool/xinput.py` injects genuine X input so the real hit-testing, focus and text-input paths can be exercised.

@@ -17,6 +17,7 @@ enum MenuAction {
   saveAs,
   importImage,
   screenshot,
+  screenshotShortcut,
   exportPng,
   exportPng2x,
   copyPage,
@@ -184,6 +185,13 @@ class TopBar extends StatelessWidget {
                             'Take screenshot…',
                             'S',
                             icon: Icons.screenshot_monitor_outlined,
+                          ),
+                        if (Platform.isLinux)
+                          _item(
+                            MenuAction.screenshotShortcut,
+                            'Screenshot shortcut…',
+                            '',
+                            icon: Icons.keyboard_alt_outlined,
                           ),
                         menuDivider(),
                         _item(
