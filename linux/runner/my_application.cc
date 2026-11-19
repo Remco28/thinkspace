@@ -18,8 +18,11 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 // "takeScreenshot" steps the window aside and asks the desktop's screenshot
 // service (xdg-desktop-portal) for a picture, with the desktop's own area
 // picker. It answers with the picture's file path, or null if the person
-// cancelled, and brings the window back either way. GNOME may not give it
-// the keyboard focus back: on Wayland a window may not take focus by itself.
+// cancelled, and brings the window back either way.
+//
+// The window is hidden rather than minimised: tried on GNOME under Wayland,
+// a window coming back from minimised stays unfocused (Wayland does not let
+// a window take focus by itself), while one shown again gets the focus.
 
 typedef struct {
   GtkWindow* window;
@@ -27,13 +30,16 @@ typedef struct {
   GDBusConnection* bus;
   guint signal_id;
   gchar* token;
+  gint x, y;  // where the window was, for X11; Wayland places it itself
 } ShotRequest;
 
 static void shot_done(ShotRequest* r, FlValue* result, const gchar* error) {
   if (r->signal_id != 0) {
     g_dbus_connection_signal_unsubscribe(r->bus, r->signal_id);
   }
-  gtk_window_deiconify(r->window);
+  // GTK keeps a maximised or full-screen window so when it is shown again.
+  gtk_window_move(r->window, r->x, r->y);
+  gtk_widget_show(GTK_WIDGET(r->window));
   gtk_window_present(r->window);
   if (error != nullptr) {
     fl_method_call_respond_error(r->call, "unavailable", error, nullptr,
@@ -118,7 +124,8 @@ static void take_screenshot(GtkWindow* window, FlMethodCall* call) {
       "Response", path, nullptr, G_DBUS_SIGNAL_FLAGS_NONE, shot_response_cb, r,
       nullptr);
   // Out of the way first, so the picture shows what is behind the window.
-  gtk_window_iconify(window);
+  gtk_window_get_position(window, &r->x, &r->y);
+  gtk_widget_hide(GTK_WIDGET(window));
   g_timeout_add(400, shot_ask, r);
 }
 
