@@ -488,6 +488,8 @@ class _EditorShellState extends State<EditorShell> {
         shift ? c.toggleSnap() : c.toggleGrid();
       case LogicalKeyboardKey.keyF:
         c.fitToView();
+      case LogicalKeyboardKey.keyS when Platform.isLinux:
+        _takeScreenshot();
       case LogicalKeyboardKey.keyM:
         if (c.canMerge) {
           c.flattenSelection();
@@ -667,6 +669,33 @@ class _EditorShellState extends State<EditorShell> {
     await c.importFiles(images, at: at, toCollection: toCollection);
   }
 
+  bool _capturing = false;
+
+  /// Step aside, let the desktop's own picker take a screenshot, and bring
+  /// the picture in as a paste does. The native side moves the window out of
+  /// the way and back (`linux/runner/my_application.cc`).
+  Future<void> _takeScreenshot() async {
+    if (_capturing) return;
+    _capturing = true;
+    c.finishTextEdit();
+    try {
+      final path = await _windowChannel.invokeMethod<String>('takeScreenshot');
+      if (path == null) return; // cancelled in the picker
+      await c.receiveScreenshot(await File(path).readAsBytes());
+    } on MissingPluginException {
+      c.showToast('Screenshots are not available here');
+    } on PlatformException {
+      c.showToast(
+        "Couldn't reach the desktop's screenshot service (xdg-desktop-portal)",
+      );
+    } on FileSystemException {
+      c.showToast("That screenshot couldn't be read");
+    } finally {
+      _capturing = false;
+      if (mounted) _focus.requestFocus();
+    }
+  }
+
   Future<void> _importImages() async {
     final paths = await pickImages();
     if (paths.isNotEmpty) await c.importFiles(paths);
@@ -688,6 +717,8 @@ class _EditorShellState extends State<EditorShell> {
         _saveAs();
       case MenuAction.importImage:
         _importImages();
+      case MenuAction.screenshot:
+        _takeScreenshot();
       case MenuAction.exportPng:
         _export(1);
       case MenuAction.exportPng2x:

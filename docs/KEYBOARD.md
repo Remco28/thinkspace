@@ -49,6 +49,7 @@ Hide details has a toolbar button and no key. Double-click a tool to keep it act
 | `Ctrl+C`, `Ctrl+X`, `Ctrl+D` | Copy, cut, duplicate |
 | `Ctrl+V` | Paste. Asks where it should go |
 | `Ctrl+Shift+V` | Paste into the collection |
+| `S` | Take a screenshot: Thinkspace steps aside, you pick part of the screen, and it comes in like a paste. Linux |
 | `Ctrl+L` | Lock the selection in place, or unlock it |
 | `F2` | Rename the selection, or the layer you just clicked. On text, edit its words |
 | `M` | Merge the selection into one image |

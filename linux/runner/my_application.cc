@@ -14,8 +14,117 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
-// Lets the Dart side put the project name in the window title, and switch
-// full screen on and off (it answers with whether it is now full screen).
+// ---- screenshots ---------------------------------------------------------
+// "takeScreenshot" steps the window aside and asks the desktop's screenshot
+// service (xdg-desktop-portal) for a picture, with the desktop's own area
+// picker. It answers with the picture's file path, or null if the person
+// cancelled, and brings the window back either way. GNOME may not give it
+// the keyboard focus back: on Wayland a window may not take focus by itself.
+
+typedef struct {
+  GtkWindow* window;
+  FlMethodCall* call;
+  GDBusConnection* bus;
+  guint signal_id;
+  gchar* token;
+} ShotRequest;
+
+static void shot_done(ShotRequest* r, FlValue* result, const gchar* error) {
+  if (r->signal_id != 0) {
+    g_dbus_connection_signal_unsubscribe(r->bus, r->signal_id);
+  }
+  gtk_window_deiconify(r->window);
+  gtk_window_present(r->window);
+  if (error != nullptr) {
+    fl_method_call_respond_error(r->call, "unavailable", error, nullptr,
+                                 nullptr);
+  } else {
+    fl_method_call_respond_success(r->call, result, nullptr);
+  }
+  g_object_unref(r->call);
+  g_object_unref(r->bus);
+  g_free(r->token);
+  g_free(r);
+}
+
+static void shot_response_cb(GDBusConnection* bus, const gchar* sender,
+                             const gchar* path, const gchar* iface,
+                             const gchar* signal, GVariant* params,
+                             gpointer user_data) {
+  ShotRequest* r = static_cast<ShotRequest*>(user_data);
+  guint32 code = 2;
+  g_autoptr(GVariant) results = nullptr;
+  g_variant_get(params, "(u@a{sv})", &code, &results);
+  const gchar* uri = nullptr;
+  g_autoptr(FlValue) value = fl_value_new_null();
+  if (code == 0 && g_variant_lookup(results, "uri", "&s", &uri)) {
+    g_autofree gchar* file = g_filename_from_uri(uri, nullptr, nullptr);
+    if (file != nullptr) {
+      g_clear_pointer(&value, fl_value_unref);
+      value = fl_value_new_string(file);
+    }
+  }
+  shot_done(r, value, nullptr);
+}
+
+static void shot_called_cb(GObject* source, GAsyncResult* res,
+                           gpointer user_data) {
+  ShotRequest* r = static_cast<ShotRequest*>(user_data);
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(GVariant) reply = g_dbus_connection_call_finish(
+      G_DBUS_CONNECTION(source), res, &error);
+  // On success the answer comes later, as the Response signal.
+  if (reply == nullptr) shot_done(r, nullptr, error->message);
+}
+
+static gboolean shot_ask(gpointer user_data) {
+  ShotRequest* r = static_cast<ShotRequest*>(user_data);
+  GVariantBuilder options;
+  g_variant_builder_init(&options, G_VARIANT_TYPE_VARDICT);
+  g_variant_builder_add(&options, "{sv}", "handle_token",
+                        g_variant_new_string(r->token));
+  g_variant_builder_add(&options, "{sv}", "interactive",
+                        g_variant_new_boolean(TRUE));
+  g_dbus_connection_call(
+      r->bus, "org.freedesktop.portal.Desktop",
+      "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Screenshot",
+      "Screenshot", g_variant_new("(sa{sv})", "", &options), nullptr,
+      G_DBUS_CALL_FLAGS_NONE, -1, nullptr, shot_called_cb, r);
+  return G_SOURCE_REMOVE;
+}
+
+static void take_screenshot(GtkWindow* window, FlMethodCall* call) {
+  g_autoptr(GError) error = nullptr;
+  GDBusConnection* bus = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
+  if (bus == nullptr) {
+    fl_method_call_respond_error(call, "unavailable", error->message, nullptr,
+                                 nullptr);
+    return;
+  }
+  ShotRequest* r = g_new0(ShotRequest, 1);
+  r->window = window;
+  r->call = FL_METHOD_CALL(g_object_ref(call));
+  r->bus = bus;
+  r->token = g_strdup_printf("thinkspace%u", g_random_int());
+  // The answer arrives on a request object whose path the portal derives
+  // from our bus name and the token, so listen there before asking.
+  g_autofree gchar* sender =
+      g_strdup(g_dbus_connection_get_unique_name(bus) + 1);
+  g_strdelimit(sender, ".", '_');
+  g_autofree gchar* path = g_strdup_printf(
+      "/org/freedesktop/portal/desktop/request/%s/%s", sender, r->token);
+  r->signal_id = g_dbus_connection_signal_subscribe(
+      bus, "org.freedesktop.portal.Desktop", "org.freedesktop.portal.Request",
+      "Response", path, nullptr, G_DBUS_SIGNAL_FLAGS_NONE, shot_response_cb, r,
+      nullptr);
+  // Out of the way first, so the picture shows what is behind the window.
+  gtk_window_iconify(window);
+  g_timeout_add(400, shot_ask, r);
+}
+
+// Lets the Dart side put the project name in the window title, switch full
+// screen on and off (it answers with whether it is now full screen), and
+// take a screenshot (see above).
 static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
                              gpointer user_data) {
   GtkWindow* window = GTK_WINDOW(user_data);
@@ -41,6 +150,8 @@ static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
     }
     g_autoptr(FlValue) state = fl_value_new_bool(on);
     fl_method_call_respond_success(call, state, nullptr);
+  } else if (g_strcmp0(fl_method_call_get_name(call), "takeScreenshot") == 0) {
+    take_screenshot(window, call);
   } else {
     fl_method_call_respond_not_implemented(call, nullptr);
   }

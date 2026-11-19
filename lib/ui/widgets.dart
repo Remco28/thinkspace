@@ -856,7 +856,7 @@ class _HideDetailsPainter extends CustomPainter {
 
 /// The toolbar's own icons, drawn on the same 18-unit grid and in the same
 /// line as Material's outline icons beside them.
-enum GlyphKind { text, marker, scissors, grid, magnet }
+enum GlyphKind { text, marker, scissors, grid, magnet, screenshot }
 
 class OutlineGlyph extends StatelessWidget {
   const OutlineGlyph(this.kind, this.size, this.color, {super.key});
@@ -951,6 +951,39 @@ class _OutlinePainter extends CustomPainter {
         // The poles.
         canvas.drawLine(at(3, 6.1), at(6.6, 6.1), p);
         canvas.drawLine(at(11.4, 6.1), at(15, 6.1), p);
+      case GlyphKind.screenshot:
+        // Corner marks around a small camera: the usual sign for a shot of
+        // part of the screen.
+        for (final (x, y, dx, dy) in [
+          (2.5, 2.5, 1.0, 1.0),
+          (15.5, 2.5, -1.0, 1.0),
+          (15.5, 15.5, -1.0, -1.0),
+          (2.5, 15.5, 1.0, -1.0),
+        ]) {
+          canvas.drawPath(
+            Path()
+              ..moveTo(x * u, (y + 3.5 * dy) * u)
+              ..lineTo(x * u, y * u)
+              ..lineTo((x + 3.5 * dx) * u, y * u),
+            p,
+          );
+        }
+        final thin = _glyphStroke(color, u, width: 1.4);
+        canvas.drawPath(
+          Path()
+            ..moveTo(5.4 * u, 7.2 * u)
+            ..lineTo(7.2 * u, 7.2 * u)
+            ..lineTo(8 * u, 6 * u)
+            ..lineTo(10 * u, 6 * u)
+            ..lineTo(10.8 * u, 7.2 * u)
+            ..lineTo(12.6 * u, 7.2 * u)
+            ..lineTo(12.6 * u, 12 * u)
+            ..lineTo(5.4 * u, 12 * u)
+            ..close(),
+          thin,
+        );
+        // Camera from 6 to 12: centred on the grid's middle, as the corners are.
+        canvas.drawCircle(at(9, 9.6), 1.5 * u, thin);
     }
   }
 

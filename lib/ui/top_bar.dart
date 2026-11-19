@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 
 import '../editor/controller.dart';
@@ -14,6 +16,7 @@ enum MenuAction {
   save,
   saveAs,
   importImage,
+  screenshot,
   exportPng,
   exportPng2x,
   copyPage,
@@ -173,6 +176,15 @@ class TopBar extends StatelessWidget {
                           'Ctrl+I',
                           icon: Icons.add_photo_alternate_outlined,
                         ),
+                        // The desktop's screenshot service is a Linux thing;
+                        // Windows has none of it yet.
+                        if (Platform.isLinux)
+                          _item(
+                            MenuAction.screenshot,
+                            'Take screenshot…',
+                            'S',
+                            icon: Icons.screenshot_monitor_outlined,
+                          ),
                         menuDivider(),
                         _item(
                           MenuAction.exportPng,
@@ -295,6 +307,16 @@ class TopBar extends StatelessWidget {
                 onPressed: c.toggleSnap,
               ),
               const Spacer(),
+              // Pictures in and out of the page: a screenshot, a copy, an
+              // export.
+              if (Platform.isLinux)
+                SmallIconButton(
+                  key: const ValueKey('screenshot'),
+                  icon: Icons.screenshot_monitor_outlined,
+                  glyph: (s, c) => OutlineGlyph(GlyphKind.screenshot, s, c),
+                  tooltip: 'Take a screenshot  (S)',
+                  onPressed: () => onMenu(MenuAction.screenshot),
+                ),
               SmallIconButton(
                 icon: Icons.content_copy,
                 tooltip: 'Copy the page as an image',
@@ -384,9 +406,10 @@ class TopBar extends StatelessWidget {
   /// Everything right of the name: every button is a control's width, every
   /// divider 1 px plus its margins, and the padding at both ends.
   double get _toolsWidth {
-    final buttons =
-        _toolGroups.fold<int>(0, (n, g) => n + g.length) + 6; // + undo, redo,
-    // grid, snap, copy and export
+    // The tools, then undo, redo, grid, snap, copy and export, and on Linux
+    // the screenshot button.
+    final shot = Platform.isLinux ? 1 : 0;
+    final buttons = _toolGroups.fold<int>(0, (n, g) => n + g.length) + 6 + shot;
     final dividers = _toolGroups.length - 1 + 2;
     return buttons * kControlHeight +
         dividers * (1 + 2 * kSpace8) +

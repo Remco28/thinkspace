@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 
 import 'widgets.dart';
@@ -21,7 +23,8 @@ const _tools = <(String, String)>[
   ('C', 'Cut out'),
 ];
 
-const _sections = <(String, List<_Row>)>[
+// A getter, not a constant: some rows depend on the system.
+List<(String, List<_Row>)> get _sections => [
   (
     'Drawing and moving',
     [
@@ -180,6 +183,13 @@ const _sections = <(String, List<_Row>)>[
         ],
         'Paste an image into the collection',
       ),
+      if (Platform.isLinux)
+        (
+          [
+            ['S'],
+          ],
+          'Take a screenshot of part of the screen',
+        ),
       (
         [
           ['Ctrl', 'Shift', 'C'],

@@ -2106,6 +2106,18 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Offer to place a new image on the page or in the collection.
+  /// A screenshot the desktop just took goes where a pasted image goes:
+  /// asking first, unless the paste setting says where.
+  Future<void> receiveScreenshot(Uint8List bytes) async {
+    finishTextEdit();
+    try {
+      final a = await assets.addEncoded(bytes);
+      _receiveImage(a, 'screenshot');
+    } catch (_) {
+      showToast("That screenshot couldn't be read");
+    }
+  }
+
   void _receiveImage(Asset a, String name) {
     switch (pasteMode) {
       case PasteMode.layer:

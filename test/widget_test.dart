@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
@@ -1468,6 +1469,86 @@ void main() {
       expect(c.doc.allObjects, [box], reason: 'nothing on the page changes');
     },
   );
+
+  group('taking a screenshot', () {
+    // The native side steps aside, runs the desktop's picker and answers with
+    // the picture's path (null if cancelled). Here a stand-in answers.
+    Future<List<String>> answerWith(
+      WidgetTester tester,
+      Future<Object?> Function() answer,
+    ) async {
+      final asked = <String>[];
+      const channel = MethodChannel('thinkspace/window');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        if (call.method != 'takeScreenshot') return null;
+        asked.add(call.method);
+        return answer();
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      return asked;
+    }
+
+    // A 1x1 red PNG.
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
+    );
+
+    appTest('S brings the picture in as a paste does', (tester) async {
+      final dir = Directory.systemTemp.createTempSync('thinkspace_shot');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final file = File('${dir.path}/shot.png')..writeAsBytesSync(png);
+      final asked = await answerWith(tester, () async => file.path);
+      final c = await pumpApp(tester);
+      await tester.runAsync(() async {
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      expect(asked, ['takeScreenshot']);
+      expect(c.pendingPaste?.name, 'screenshot', reason: 'it asks where');
+      c.resolvePaste(toCollection: false);
+      expect(c.doc.allObjects.whereType<ImageObject>(), hasLength(1));
+      expect(file.existsSync(), isTrue, reason: "the desktop's copy is kept");
+      await tester.pump(const Duration(seconds: 7)); // the first-picture tip
+    });
+
+    appTest('the toolbar button does the same; cancelling adds nothing', (
+      tester,
+    ) async {
+      final asked = await answerWith(tester, () async => null);
+      final c = await pumpApp(tester);
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('screenshot')));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+      expect(asked, ['takeScreenshot']);
+      expect(c.pendingPaste, isNull);
+      expect(c.doc.allObjects, isEmpty);
+      expect(c.toastMessage, isNull);
+    });
+
+    appTest('without a screenshot service it says so', (tester) async {
+      await answerWith(
+        tester,
+        () async => throw PlatformException(code: 'unavailable'),
+      );
+      final c = await pumpApp(tester);
+      await tester.runAsync(() async {
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+      expect(c.toastMessage, contains('screenshot service'));
+    });
+  });
 
   appTest('F11 asks the window for full screen and back; Esc does not', (
     tester,
