@@ -14,6 +14,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.7   # the SDK the app is built and tested with; raise on purpose
           cache: true
       - name: Linux build dependencies
         run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev xvfb desktop-file-utils
@@ -32,6 +33,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.7   # the SDK the app is built and tested with; raise on purpose
           cache: true
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test

@@ -20,7 +20,7 @@ Pasting images from the clipboard on Linux uses `xclip` or `wl-clipboard`, so in
 dart format lib test && flutter analyze && flutter test
 ```
 
-All three must be clean. The test suite runs without a display. CI runs the same checks on every push and pull request.
+All three must be clean. The test suite runs without a display. CI runs the same checks on every push and pull request, on the Flutter version pinned in `.github/workflows/`. A newer Flutter can deprecate things and fail `flutter analyze`, so raise the pin on purpose, together with any code changes it asks for.
 
 ## Package
 
@@ -57,7 +57,7 @@ Set `THINKSPACE_DEBUG_PORT` and the app listens on `127.0.0.1` only. `tool/run_h
 
 ```bash
 tool/run_headless.sh &                     # real window on a virtual display
-tool/ts do '{"cmd":"sample"}'              # load the storefront sample
+tool/ts do '{"cmd":"openImages","paths":["/path/a.png","/path/b.png"]}'   # one layer per image
 tool/ts do '{"cmd":"drag","from":[100,500],"to":[300,380]}'
 tool/ts state                              # layers, objects, selection and history as JSON
 tool/ts shot window.png                    # what the window looks like
@@ -71,4 +71,6 @@ The headless app runs the built bundle, not hot reload. Run `flutter build linux
 
 ## Refreshing the README images
 
-The pictures in the README come from the running app. Load the storefront sample in the headless app, make the marks with `tool/ts do`, then take `tool/ts shot` for the whole window and `tool/ts export` for the page. The images in `docs/images/` are those captures on a soft background with rounded corners.
+The pictures in the README are screenshots of the real app (`tool/ts shot`), cropped. `layers.png` and `collection.png` are animated PNGs made from two or three such shots. The furniture and room images in them were generated for the README and are not part of the repository.
+
+To retake them, start the headless app with its own data folder, open a few images with `openImages`, put more in the collection with `importFile` and `"collection": true`, and drive the rest with `tool/ts do` and `tool/xinput.py`. Typing with `tool/xinput.py` only reaches the app when the page has keyboard focus, so click an empty part of the canvas first. Renaming many objects is easier in the saved `.thinkspace` file, which is plain JSON, than through the interface.
