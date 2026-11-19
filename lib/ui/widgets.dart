@@ -856,7 +856,7 @@ class _HideDetailsPainter extends CustomPainter {
 
 /// The toolbar's own icons, drawn on the same 18-unit grid and in the same
 /// line as Material's outline icons beside them.
-enum GlyphKind { text, marker, scissors, grid }
+enum GlyphKind { text, marker, scissors, grid, magnet }
 
 class OutlineGlyph extends StatelessWidget {
   const OutlineGlyph(this.kind, this.size, this.color, {super.key});
@@ -927,6 +927,30 @@ class _OutlinePainter extends CustomPainter {
           canvas.drawLine(at(t, 2.5), at(t, 15.5), thin);
           canvas.drawLine(at(2.5, t), at(15.5, t), thin);
         }
+      case GlyphKind.magnet:
+        // A horseshoe magnet, poles up, the usual sign for snapping. Its
+        // middle is the grid's middle (9, 9), so the two sit level.
+        const top = 2.75, bend = 9.25;
+        canvas.drawPath(
+          Path()
+            ..moveTo(3 * u, top * u)
+            ..lineTo(3 * u, bend * u)
+            ..arcToPoint(
+              at(15, bend),
+              radius: Radius.circular(6 * u),
+              clockwise: false,
+            )
+            ..lineTo(15 * u, top * u)
+            ..lineTo(11.4 * u, top * u)
+            ..lineTo(11.4 * u, bend * u)
+            ..arcToPoint(at(6.6, bend), radius: Radius.circular(2.4 * u))
+            ..lineTo(6.6 * u, top * u)
+            ..close(),
+          p,
+        );
+        // The poles.
+        canvas.drawLine(at(3, 6.1), at(6.6, 6.1), p);
+        canvas.drawLine(at(11.4, 6.1), at(15, 6.1), p);
     }
   }
 

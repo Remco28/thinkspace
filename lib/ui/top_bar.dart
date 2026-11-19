@@ -289,6 +289,7 @@ class TopBar extends StatelessWidget {
               SmallIconButton(
                 key: const ValueKey('snap'),
                 icon: Icons.filter_center_focus,
+                glyph: (s, c) => OutlineGlyph(GlyphKind.magnet, s, c),
                 tooltip: 'Snap to grid  (Shift+G) — hold Ctrl to place freely',
                 active: c.snapOn,
                 onPressed: c.toggleSnap,
