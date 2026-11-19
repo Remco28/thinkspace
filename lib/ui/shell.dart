@@ -102,7 +102,7 @@ class _EditorShellState extends State<EditorShell> {
   void initState() {
     super.initState();
     pickFromPage = c.pickColourFromPage;
-    if (widget.enableRecovery) c.addListener(_syncTitle);
+    if (widget.enableRecovery) c.panels.addListener(_syncTitle);
     if (widget.enableRecovery) {
       final data = appDataDir(
         Platform.environment,
@@ -116,7 +116,7 @@ class _EditorShellState extends State<EditorShell> {
         c.autoGrow = _prefs.autoGrow ?? c.autoGrow;
         c.lockTipShown = _prefs.lockTipShown;
         _keptSig = _keptPrefsSig();
-        c.addListener(_keepPrefs);
+        c.panels.addListener(_keepPrefs);
       }
       // Each window keeps its own recovery copy, so two open at once never
       // overwrite each other's unsaved work.
@@ -297,8 +297,8 @@ class _EditorShellState extends State<EditorShell> {
   @override
   void dispose() {
     if (pickFromPage == c.pickColourFromPage) pickFromPage = null;
-    c.removeListener(_syncTitle);
-    c.removeListener(_keepPrefs);
+    c.panels.removeListener(_syncTitle);
+    c.panels.removeListener(_keepPrefs);
     _prefsTimer?.cancel();
     _lifecycle?.dispose();
     _inspector?.stop();

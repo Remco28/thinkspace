@@ -17,7 +17,7 @@ class PropertiesPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: c,
+      listenable: c.panels,
       builder: (context, _) {
         final objs = c.selectedObjects;
         final title = objs.isEmpty
