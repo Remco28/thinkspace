@@ -26,7 +26,10 @@ All three must be clean. The test suite runs without a display. CI runs the same
 
 ```bash
 tool/package_linux.sh                  # dist/thinkspace-linux-x64.tar.gz
+tool/test_install.sh                   # install.sh leaves no trace (sandboxed)
 ```
+
+The installer is `packaging/install.sh`. Anything it adds or changes goes in the README's "What the installer changes" table, gets undone by `--remove`, and gets a case in `tool/test_install.sh`, which runs the real installer in a throwaway home folder with a throwaway GNOME settings store.
 
 ### Windows
 

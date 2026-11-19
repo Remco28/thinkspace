@@ -80,7 +80,7 @@ The size comes from doing less. There are no plugins, accounts, filters, brushes
 
 - Arrows and lines that bend into curves and stay attached to what they point at.
 - Text, numbered markers, rectangles, ellipses, a pen and a highlighter that keeps writing underneath readable.
-- Screenshots taken from inside the app (Linux), with the desktop's own area picker.
+- Screenshots taken from inside the app (Linux), with the desktop's own area picker, or from anywhere with a shortcut you choose.
 - Cut-outs and one-click background removal, which always make a new image and keep the original.
 - Hide details boxes that pixelate or cover something before you share it.
 - A page that grows to fit, and one undo step per gesture.
@@ -120,7 +120,23 @@ Pasting images from the clipboard uses `xclip` (X11) or `wl-clipboard` (Wayland)
 sudo apt install xclip wl-clipboard
 ```
 
-To remove it, run `./install.sh --remove` from the same folder.
+To remove it, run `./install.sh --remove` from the same folder. Your settings and unsaved work stay; `./install.sh --remove --purge` deletes them too.
+
+#### What the installer changes
+
+Everything is in your home folder, and `--remove` undoes all of it:
+
+| What | Where | On `--remove` |
+|---|---|---|
+| The program and its licences | `~/.local/share/thinkspace/app` and `licenses` | Removed |
+| The `thinkspace` command | `~/.local/bin/thinkspace`, a link | Removed |
+| Menu entry, icons and the `.thinkspace` file type | `~/.local/share/applications`, `icons/hicolor` and `mime/packages`, whose desktop caches are refreshed | Removed, and the caches refreshed. Folders and caches it created are removed once empty |
+| A record of the folders and caches it created | `~/.local/state/thinkspace/install` | Removed |
+| Your settings and unsaved work, made by the app | `~/.local/share/thinkspace`, beside the program | Kept. `--purge` deletes them |
+| The screenshot shortcut, only if you set one in the app | One "Thinkspace screenshot" entry in GNOME's custom keyboard shortcuts | Removed. Your other shortcuts are not touched |
+| A socket for each open window, so the shortcut can find it | `$XDG_RUNTIME_DIR/thinkspace` | Removed as each window closes, and cleared at logout |
+
+If you delete the files by hand instead, also delete "Thinkspace screenshot" under Settings → Keyboard → Custom Shortcuts. Left behind, it does nothing.
 
 ### Windows
 

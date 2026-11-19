@@ -23,6 +23,8 @@ jobs:
       - run: desktop-file-validate packaging/io.github.remco28.thinkspace.desktop
       - run: flutter analyze
       - run: flutter test
+      - name: The installer leaves no trace
+        run: tool/test_install.sh
       - name: Build (release)
         run: flutter build linux --release
 
