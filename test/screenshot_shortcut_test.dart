@@ -45,12 +45,17 @@ void main() {
 
   // Against the real gsettings, kept in a throwaway file so nothing on this
   // computer changes. Needs GNOME's schemas, so it is skipped elsewhere.
-  final hasSchema =
-      Process.runSync('gsettings', [
-        'list-keys',
-        ScreenshotShortcut.listSchema,
-      ]).exitCode ==
-      0;
+  bool hasSchema;
+  try {
+    hasSchema =
+        Process.runSync('gsettings', [
+          'list-keys',
+          ScreenshotShortcut.listSchema,
+        ]).exitCode ==
+        0;
+  } on ProcessException {
+    hasSchema = false; // no gsettings at all, as on Windows
+  }
   group('with GNOME settings', () {
     late Directory home;
     late Future<ProcessResult> Function(String, List<String>) run;
