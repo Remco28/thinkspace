@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 
 import '../io/clipboard.dart';
 import '../io/paths.dart';
+import '../io/project_file.dart';
 import '../model/assets.dart';
 import '../model/connect.dart';
 import '../model/geometry.dart';
@@ -426,6 +427,7 @@ class EditorController extends ChangeNotifier {
     finishColourPick(null);
     _toastTimer?.cancel();
     _autosaveTimer?.cancel();
+    _panels.dispose();
     super.dispose();
   }
 
@@ -434,7 +436,17 @@ class EditorController extends ChangeNotifier {
   /// Forget pictures nothing can bring back: not on the page, not in the
   /// collection, not in any undo or redo step, not on the internal clipboard.
   /// Recently made ones are kept, since an edit may be about to use them.
-  void pruneAssets({Duration minAge = const Duration(minutes: 2)}) {
+  void pruneAssets({Duration minAge = const Duration(minutes: 2)}) =>
+      assets.retain(_assetsInUse(), minAge);
+
+  /// Forget one picture straight away if nothing can bring it back, rather
+  /// than waiting for [pruneAssets]. For a result just replaced by another,
+  /// which would otherwise hold its full decoded size for minutes.
+  void _forgetIfUnused(String id) {
+    if (!_assetsInUse().contains(id)) assets.forget(id);
+  }
+
+  Set<String> _assetsInUse() {
     final keep = <String>{...doc.usedAssets};
     final pp = pendingPaste;
     if (pp != null) keep.add(pp.assetId);
@@ -450,7 +462,7 @@ class EditorController extends ChangeNotifier {
         keep.add(m.group(1)!);
       }
     }
-    assets.retain(keep, minAge);
+    return keep;
   }
 
   // ===== recovery ==========================================================
@@ -473,7 +485,7 @@ class EditorController extends ChangeNotifier {
     _needsAutosave = false;
     try {
       await f.parent.create(recursive: true);
-      await _writeAtomic(f, projectJson());
+      await _writeProject(f);
     } catch (_) {}
   }
 
@@ -501,7 +513,7 @@ class EditorController extends ChangeNotifier {
   Future<void> restoreRecovery({File? from}) async {
     final f = from ?? recoveryFile;
     if (f == null) return;
-    await loadProjectJson(await f.readAsString());
+    await loadProjectFile(f.path, remember: false);
     _savedSig = null; // it has never been saved under a real name
     dirty = true;
     _needsAutosave = true;
@@ -510,12 +522,33 @@ class EditorController extends ChangeNotifier {
 
   void notify() => notifyListeners();
 
+  /// The side panels, the top bar and the window's own bookkeeping listen
+  /// here rather than to the controller. It fires on every change except
+  /// those made inside [quietly]: the many small steps of a drag, a pan or a
+  /// zoom, which change only what the canvas shows. Rebuilding every panel
+  /// on each of those cost most of a frame. The panels catch up on the next
+  /// ordinary change, which every gesture ends with.
+  Listenable get panels => _panels;
+  final _panels = _Signal();
+  int _quiet = 0;
+
+  /// Run [f] with its notifications reaching the canvas only.
+  void quietly(void Function() f) {
+    _quiet++;
+    try {
+      f();
+    } finally {
+      _quiet--;
+    }
+  }
+
   /// Every change is drawn through here, so attached line ends are put in
   /// step first: whatever moved, what is attached to it follows.
   @override
   void notifyListeners() {
     relinkConnectors(doc);
     super.notifyListeners();
+    if (_quiet == 0) _panels.fire();
   }
 
   void showToast(String msg, {int seconds = 3}) {
@@ -936,19 +969,23 @@ class EditorController extends ChangeNotifier {
   // ===== hit testing =======================================================
 
   /// Everything under [p], topmost first.
-  List<SceneObject> objectsAt(Offset p) {
+  List<SceneObject> objectsAt(Offset p) => _hitsAt(p).toList();
+
+  /// Whether anything can be picked at [p]: stops at the first hit, for the
+  /// pointer's shape, which is asked on every mouse move.
+  bool anyObjectAt(Offset p) => _hitsAt(p).isNotEmpty;
+
+  Iterable<SceneObject> _hitsAt(Offset p) sync* {
     final tol = (touchInput ? 12 : 4) / zoom;
-    final out = <SceneObject>[];
     for (final layer in doc.layers.reversed) {
       if (!layer.visible || layer.locked) continue;
       for (final o in layer.objects.reversed) {
         if (!o.visible || o.locked) continue;
         if (o.hitTest(p, tol, assets) || (o is Framed && o.onBorder(p, tol))) {
-          out.add(o);
+          yield o;
         }
       }
     }
-    return out;
   }
 
   /// The object a line's end dropped at [p] attaches to: the topmost one it
@@ -1156,19 +1193,20 @@ class EditorController extends ChangeNotifier {
     if (notify) notifyListeners();
   }
 
+  /// Zooming and panning change the view only, so the panels are not told.
   void zoomTo(double z, {Offset? anchorScreen}) {
     final a = anchorScreen ?? Offset(viewport.width / 2, viewport.height / 2);
     final sceneAnchor = toScene(a);
     zoom = z.clamp(0.02, 16.0);
     pan = a - sceneAnchor * zoom;
     _viewFitted = false;
-    notifyListeners();
+    quietly(notifyListeners);
   }
 
   void panBy(Offset d) {
     pan += d;
     _viewFitted = false;
-    notifyListeners();
+    quietly(notifyListeners);
   }
 
   void toggleGrid() {
@@ -2711,11 +2749,15 @@ class EditorController extends ChangeNotifier {
           break;
         }
         final gen = _bgGen;
+        final replaced = o.assetId;
         undo(quiet: true);
         final back = doc.objectById(o.id);
         if (back is ImageObject) {
           final ok = await removeBackgroundFrom(back, session: gen);
           if (!ok) endBgSession();
+          // Each Less or More makes a new full-size picture. The one it
+          // replaced is usually referenced by nothing now, so let it go.
+          _forgetIfUnused(replaced);
         } else {
           endBgSession();
         }
@@ -2758,26 +2800,23 @@ class EditorController extends ChangeNotifier {
 
   /// Load a project. Returns how many pictures could not be read (the rest of
   /// the project still opens; a missing picture just draws as nothing).
-  Future<int> loadProjectJson(String s, {String? path}) async {
-    final j = jsonDecode(s) as Map<String, dynamic>;
-    if (j['format'] != 'thinkspace') {
-      throw const FormatException('Not a Thinkspace project');
-    }
-    final version = j['version'];
-    if (version is num && version > 1) {
-      throw const FormatException(
-        'This project was made by a newer Thinkspace',
-      );
-    }
-    final newDoc = Document.fromJson(Map<String, dynamic>.from(j['document']));
+  Future<int> loadProjectJson(String s, {String? path}) =>
+      _loadProject(parseProject(s), path: path);
+
+  /// Open a project file; large files are read and decoded in the background.
+  Future<int> loadProjectFile(String path, {bool remember = true}) async =>
+      _loadProject(await readProjectFile(path), path: remember ? path : null);
+
+  Future<int> _loadProject(ProjectParts parts, {String? path}) async {
+    final (docJson, encoded) = parts;
+    final newDoc = Document.fromJson(docJson);
     // Decode into a scratch store first, so a bad file leaves the current
     // project untouched and a good one swaps in all at once.
     final fresh = AssetStore();
-    final encoded = Map<String, dynamic>.from(j['assets'] ?? {});
     var unreadable = 0;
     for (final e in encoded.entries) {
       try {
-        await fresh.addEncoded(base64Decode(e.value as String), id: e.key);
+        await fresh.addEncoded(e.value, id: e.key);
       } catch (_) {
         unreadable++;
       }
@@ -2813,26 +2852,20 @@ class EditorController extends ChangeNotifier {
     return unreadable;
   }
 
-  /// Write to a temporary file beside [f], then rename it into place, so a
-  /// crash or a full disk can never leave a half-written project behind.
-  static Future<void> _writeAtomic(File f, String content) async {
-    final tmp = File('${f.path}.tmp');
-    try {
-      await tmp.writeAsString(content, flush: true);
-      await tmp.rename(f.path);
-    } catch (_) {
-      try {
-        if (tmp.existsSync()) tmp.deleteSync();
-      } catch (_) {}
-      rethrow;
-    }
-  }
+  /// Write the project to [f]. The images are encoded and written in the
+  /// background when they are large (see `project_file.dart`), and the file
+  /// is only renamed into place once it is complete.
+  Future<void> _writeProject(File f) =>
+      writeProjectFile(f.path, jsonEncode(doc.toJson()), {
+        for (final id in doc.usedAssets)
+          if (assets[id] != null) id: assets[id]!.bytes,
+      });
 
   /// Returns false (and says so) if the project could not be written.
   Future<bool> saveTo(String path) async {
     finishTextEdit();
     try {
-      await _writeAtomic(File(path), projectJson());
+      await _writeProject(File(path));
     } catch (_) {
       showToast('Could not save ${fileNameOf(path)} — nothing was changed');
       return false;
@@ -2863,10 +2896,7 @@ class EditorController extends ChangeNotifier {
   }
 
   Future<void> openFrom(String path) async {
-    final bad = await loadProjectJson(
-      await File(path).readAsString(),
-      path: path,
-    );
+    final bad = await loadProjectFile(path);
     if (bad == 0) showToast('Opened ${fileNameOf(path)}');
   }
 
@@ -3065,4 +3095,8 @@ class EditorController extends ChangeNotifier {
     final a = assets[id];
     return a == null ? null : [a.width, a.height];
   }
+}
+
+class _Signal extends ChangeNotifier {
+  void fire() => notifyListeners();
 }

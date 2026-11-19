@@ -115,7 +115,7 @@ class _CanvasViewState extends State<CanvasView> {
     if (!c.pickingColour && c.tool != Tool.remove) return;
     c.pointerScreen = at;
     if (c.pickingColour) c.pickHoverColour = c.colourAt(c.toScene(at));
-    c.notify();
+    c.quietly(c.notify); // only the canvas shows it
   }
 
   void _hover(PointerHoverEvent e) {
@@ -123,7 +123,7 @@ class _CanvasViewState extends State<CanvasView> {
     final g = ix.gripAt(e.localPosition);
     if (g != c.hoverGrip) {
       c.hoverGrip = g;
-      c.notify();
+      c.quietly(c.notify);
     }
     final cur = ix.cursorAt(e.localPosition, spaceDown: widget.spaceDown.value);
     if (cur != _cursor) setState(() => _cursor = cur);
@@ -305,9 +305,14 @@ class _CanvasViewState extends State<CanvasView> {
                         }
                         c.panBy(e.panDelta);
                       },
-                      child: CustomPaint(
-                        painter: CanvasPainter(c),
-                        size: Size.infinite,
+                      // The canvas repaints on every step of a drag, pan or
+                      // zoom; its own layer keeps that from repainting the
+                      // panels and the top bar with it.
+                      child: RepaintBoundary(
+                        child: CustomPaint(
+                          painter: CanvasPainter(c),
+                          size: Size.infinite,
+                        ),
                       ),
                     ),
                   ),

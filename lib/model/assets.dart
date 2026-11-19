@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -36,7 +37,8 @@ class Asset {
   }
 }
 
-(Uint8List, int, int) _buildAlphaMask(Uint8List rgba, int w, int h) {
+(Uint8List, int, int) _buildAlphaMask((Uint8List, int, int) job) {
+  final (rgba, w, h) = job;
   final k = (math.max(w, h) / 1024).ceil().clamp(1, 64);
   final mw = (w / k).ceil(), mh = (h / k).ceil();
   final mask = Uint8List(mw * mh);
@@ -82,11 +84,12 @@ class AssetStore {
       final n = int.tryParse(id.substring(1));
       if (n != null && n >= _next) _next = n + 1;
     }
-    final (mask, mw, mh) = _buildAlphaMask(
-      raw!.buffer.asUint8List(),
-      image.width,
-      image.height,
-    );
+    // Scanning every pixel of a large photo takes long enough to drop
+    // frames, so big images are scanned in the background.
+    final job = (raw!.buffer.asUint8List(), image.width, image.height);
+    final (mask, mw, mh) = image.width * image.height > 400000
+        ? await Isolate.run(() => _buildAlphaMask(job))
+        : _buildAlphaMask(job);
     final asset = Asset(assetId, bytes, image, mask, mw, mh);
     _assets[assetId] = asset;
     _made[assetId] = DateTime.now();

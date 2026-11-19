@@ -110,7 +110,7 @@ class _LayersPanelState extends State<LayersPanel> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: c,
+      listenable: c.panels,
       builder: (context, _) {
         _noticeFresh();
         _noticeRename();

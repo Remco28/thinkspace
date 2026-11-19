@@ -178,7 +178,7 @@ class CanvasInteractor {
           ? SystemMouseCursors.resizeUpDown
           : SystemMouseCursors.resizeUpLeftDownRight;
     }
-    if (c.objectsAt(p).isNotEmpty) return SystemMouseCursors.move;
+    if (c.anyObjectAt(p)) return SystemMouseCursors.move;
     return SystemMouseCursors.basic;
   }
 
@@ -559,6 +559,17 @@ class CanvasInteractor {
   // ---- pointer move --------------------------------------------------------
 
   void pointerMove(Offset screen, Modifiers m) {
+    // While resizing or turning, the Properties panel shows the size and
+    // angle as they change. Every other gesture only needs the canvas to
+    // follow; the panels catch up when it ends (see pointerUp).
+    if (_mode case _Mode.resize || _Mode.rotate || _Mode.gripResize) {
+      _pointerMove(screen, m);
+    } else {
+      c.quietly(() => _pointerMove(screen, m));
+    }
+  }
+
+  void _pointerMove(Offset screen, Modifiers m) {
     final deltaScreen = screen - _lastScreen;
     _lastScreen = screen;
     final p = c.toScene(screen);

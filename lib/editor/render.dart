@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -81,6 +82,9 @@ TextSpan textSpanFor(String text, TextStyle style) {
 /// built from emoji parts (a skin tone, a joiner, a flag, a keycap), or is a
 /// character that is an emoji unless it asks otherwise.
 bool isEmoji(String g) {
+  // Nearly every grapheme is one plain character, and every emoji either
+  // takes two code units or is at or above U+231A.
+  if (g.length == 1 && g.codeUnitAt(0) < 0x231A) return false;
   final cps = g.runes.toList();
   if (cps.isEmpty || cps.contains(0xFE0E)) return false;
   for (final c in cps) {
@@ -266,34 +270,104 @@ void _paintHide(
     canvas.restore();
     return;
   }
+  final tiles = _hideTiles(h, below, assets, background, page);
+  canvas.drawImageRect(
+    tiles,
+    Rect.fromLTWH(0, 0, tiles.width.toDouble(), tiles.height.toDouble()),
+    local,
+    Paint()..filterQuality = FilterQuality.none,
+  );
+  canvas.restore();
+}
+
+/// Each pixelating box's averaged tiles, with what they were made from.
+/// Making them takes two offscreen renders, and painting happens on every
+/// frame of a pan, a hover or a drag elsewhere, so they are made again only
+/// when the box or something under it changes.
+final _hideCache = Expando<(List<Object>, ui.Image)>('hide tiles');
+
+/// Strings compare by their text, point lists by being the same list.
+bool _sameKey(List<Object> a, List<Object> b) {
+  if (a.length != b.length) return false;
+  for (int i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+ui.Image _hideTiles(
+  HideObject h,
+  List<SceneObject> below,
+  AssetStore assets,
+  int background,
+  Rect? page,
+) {
+  // Only what overlaps matters, which also keeps overlapping boxes cheap.
+  final area = h.bounds;
+  final under = [
+    for (final o in below)
+      if (o.paintBounds.overlaps(area)) o,
+  ];
+  // A box underneath pixelates what is under it in turn, so that counts too.
+  final reach = under.whereType<HideObject>().fold(
+    area,
+    (r, o) => r.expandToInclude(o.bounds),
+  );
+  final key = <Object>[
+    jsonEncode([
+      h.toJson(),
+      background,
+      if (page != null) [page.left, page.top, page.width, page.height],
+    ]),
+    for (final o in below)
+      if (o.paintBounds.overlaps(reach)) ...[
+        // A pen mark's points are only ever replaced, so the list itself
+        // stands for them; writing out hundreds of points every frame
+        // would cost more than the tiles save.
+        if (o is StrokeObject) ...[
+          o.points,
+          jsonEncode([
+            o.baseJson('stroke'),
+            o.color,
+            o.width,
+            o.highlight.name,
+          ]),
+        ] else
+          jsonEncode(o.toJson()),
+      ],
+  ];
+  final hit = _hideCache[h];
+  if (hit != null && _sameKey(hit.$1, key)) return hit.$2;
+  hit?.$2.dispose();
+  final tiles = _makeHideTiles(h, under, assets, background, page);
+  _hideCache[h] = (key, tiles);
+  return tiles;
+}
+
+ui.Image _makeHideTiles(
+  HideObject h,
+  List<SceneObject> under,
+  AssetStore assets,
+  int background,
+  Rect? page,
+) {
   final block = math.max(2.0, h.block);
   final cols = (h.size.width / block).round().clamp(1, 600);
   final rows = (h.size.height / block).round().clamp(1, 600);
   // What is underneath, drawn small: a few samples to each tile...
   final rec = ui.PictureRecorder();
-  final under = Canvas(rec);
-  under.scale(
+  final canvas = Canvas(rec);
+  canvas.scale(
     cols * _hideSamples / h.size.width,
     rows * _hideSamples / h.size.height,
   );
-  under.translate(h.size.width / 2, h.size.height / 2);
-  under.rotate(-h.rotation);
-  under.translate(-h.center.dx, -h.center.dy);
+  canvas.translate(h.size.width / 2, h.size.height / 2);
+  canvas.rotate(-h.rotation);
+  canvas.translate(-h.center.dx, -h.center.dy);
   if (background != 0 && page != null) {
-    under.drawRect(page, Paint()..color = Color(background));
+    canvas.drawRect(page, Paint()..color = Color(background));
   }
-  // Only what overlaps matters, which also keeps overlapping boxes cheap.
-  final area = h.bounds;
-  paintObjects(
-    under,
-    [
-      for (final o in below)
-        if (o.paintBounds.overlaps(area)) o,
-    ],
-    assets,
-    background: background,
-    page: page,
-  );
+  paintObjects(canvas, under, assets, background: background, page: page);
   final detail = rec.endRecording().toImageSync(
     cols * _hideSamples,
     rows * _hideSamples,
@@ -307,15 +381,8 @@ void _paintHide(
     Paint()..filterQuality = FilterQuality.medium,
   );
   final tiles = rec2.endRecording().toImageSync(cols, rows);
-  canvas.drawImageRect(
-    tiles,
-    Rect.fromLTWH(0, 0, cols.toDouble(), rows.toDouble()),
-    local,
-    Paint()..filterQuality = FilterQuality.none,
-  );
   detail.dispose();
-  tiles.dispose();
-  canvas.restore();
+  return tiles;
 }
 
 void _boxTransform(ui.Canvas canvas, BoxObject b) {
@@ -383,7 +450,7 @@ void _paintImage(ui.Canvas canvas, ImageObject o, AssetStore assets) {
       a.image,
       Rect.fromLTWH(0, 0, a.width.toDouble(), a.height.toDouble()),
       dst,
-      paint..filterQuality = FilterQuality.high,
+      paint..filterQuality = _filterFor(canvas, dst, a),
     );
     canvas.restore();
   }
@@ -401,20 +468,57 @@ void _paintImage(ui.Canvas canvas, ImageObject o, AssetStore assets) {
   canvas.restore();
 }
 
+/// How to sample [a] drawn into [dst] on [canvas]. Shrunk, as a photo
+/// usually is on the page, the smooth filter reads a pre-shrunk copy of the
+/// picture (mipmaps), which is both faster and free of the sparkle the
+/// sharper filter gives when it skips most of the pixels. At its own size or
+/// larger, the sharper filter keeps edges crisp.
+FilterQuality _filterFor(ui.Canvas canvas, Rect dst, Asset a) {
+  final m = canvas.getTransform();
+  final view = math.min(
+    math.sqrt(m[0] * m[0] + m[1] * m[1]),
+    math.sqrt(m[4] * m[4] + m[5] * m[5]),
+  );
+  final shown = math.min(dst.width / a.width, dst.height / a.height) * view;
+  return shown < 0.99 ? FilterQuality.medium : FilterQuality.high;
+}
+
+/// Each text object's laid-out letters, kept until something that changes
+/// them does. Laying text out again for every frame of a drag or a pan was
+/// the costliest part of painting a page with many notes. The cache lives
+/// on the object, so a removed object takes its entry with it, and undo,
+/// which makes new objects, simply starts afresh.
+final _laidOut = Expando<(Object, TextPainter)>('laid-out text');
+
+TextPainter _cachedPainter(TextObject t) {
+  // Everything textPainterFor reads.
+  final key = (
+    t.text,
+    t.font,
+    t.fontSize,
+    t.bold,
+    t.italic,
+    t.color,
+    t.align,
+    t.size.width,
+  );
+  final hit = _laidOut[t];
+  if (hit != null && hit.$1 == key) return hit.$2;
+  hit?.$2.dispose();
+  final tp = textPainterFor(t);
+  _laidOut[t] = (key, tp);
+  return tp;
+}
+
 void _paintText(ui.Canvas canvas, TextObject t) {
   final rect = _boxRect(t);
   void backdrop(Color colour) => canvas.drawRRect(
     RRect.fromRectAndRadius(rect, const Radius.circular(6)),
     Paint()..color = colour,
   );
-  void letters() {
-    final tp = textPainterFor(t);
-    tp.paint(
-      canvas,
-      rect.topLeft + const Offset(TextObject.pad, TextObject.pad),
-    );
-    tp.dispose();
-  }
+  void letters() => _cachedPainter(
+    t,
+  ).paint(canvas, rect.topLeft + const Offset(TextObject.pad, TextObject.pad));
 
   // Without a backdrop, the shadow is the letters'.
   if (t.shadow) {
@@ -645,9 +749,23 @@ Path smoothPath(List<Offset> pts) {
   return path;
 }
 
+/// Each pen or highlighter mark's smoothed outline, for as long as its
+/// points stay the same list. Points are only ever replaced, never changed in
+/// place, so the list itself says whether the path is still right. Keeping
+/// the same path also lets the graphics engine keep its own work on it.
+final _strokePaths = Expando<(List<Offset>, Path)>('stroke paths');
+
 void _paintStroke(ui.Canvas canvas, StrokeObject s) {
+  final hit = _strokePaths[s];
+  final Path path;
+  if (hit != null && identical(hit.$1, s.points)) {
+    path = hit.$2;
+  } else {
+    path = smoothPath(s.points);
+    _strokePaths[s] = (s.points, path);
+  }
   canvas.drawPath(
-    smoothPath(s.points),
+    path,
     Paint()
       ..color = Color(s.color)
       ..style = PaintingStyle.stroke

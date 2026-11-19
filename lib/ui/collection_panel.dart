@@ -17,7 +17,7 @@ class CollectionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: c,
+      listenable: c.panels,
       builder: (context, _) {
         final items = c.doc.collection;
         return Column(

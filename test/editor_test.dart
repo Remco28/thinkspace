@@ -1173,6 +1173,39 @@ void main() {
       expect(jsonDecode(File(path).readAsStringSync())['format'], 'thinkspace');
     });
 
+    test('a large project is written and read in the background, '
+        'byte for byte the same file', () async {
+      // Noise does not compress, so this is well over the 1 MB at which
+      // saving and opening move off the UI isolate, and over the pixel
+      // count at which the alpha mask is built in the background.
+      const w = 900, h = 900;
+      final rnd = math.Random(7);
+      final px = Uint8List(w * h * 4);
+      for (int i = 0; i < px.length; i++) {
+        px[i] = i % 4 == 3 ? (i < px.length ~/ 2 ? 255 : 0) : rnd.nextInt(256);
+      }
+      final asset = await c.assets.addImage(await imageFromRgba(px, w, h));
+      expect(asset.bytes.length, greaterThan(1 << 20));
+      final img = c.placeAsset(asset);
+
+      final dir = Directory.systemTemp.createTempSync('thinkspace_big');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/big.thinkspace';
+      expect(await c.saveTo(path), isTrue);
+      expect(File(path).readAsStringSync(), c.projectJson());
+      expect(File('$path.tmp').existsSync(), isFalse);
+
+      final c2 = newEditor();
+      await c2.openFrom(path);
+      expect(c2.doc.encode(), c.doc.encode());
+      final back =
+          c2.assets[(c2.doc.objectById(img.id) as ImageObject).assetId]!;
+      expect(back.bytes, asset.bytes);
+      // The mask built in the background matches: top half opaque.
+      expect(back.alphaAt(10, 10), 255);
+      expect(back.alphaAt(10, h - 10), 0);
+    });
+
     test('unused assets are not written', () async {
       await addImage();
       await makeAsset(c, w: 500, h: 500); // never placed
@@ -2378,6 +2411,23 @@ void main() {
       expect(c.doc.allObjects.single.opacity, 0.4);
     });
 
+    test('Less and More let go of the results they replace', () async {
+      final o = await whiteBox();
+      final original = o.assetId;
+      await c.removeBackgroundFrom(o);
+      final before = c.assets.length;
+      for (final t in [0.1, 0.2, 0.3, 0.4]) {
+        c.wandTolerance = t;
+        await c.adjustBackground();
+      }
+      expect(c.bgSessionObject, isNotNull);
+      expect(c.assets.length, before, reason: 'one result at a time');
+      expect(c.assets[original], isNotNull, reason: 'undo still needs it');
+      c.undo();
+      expect(c.doc.allObjects.single, isA<ImageObject>());
+      expect((c.doc.allObjects.single as ImageObject).assetId, original);
+    });
+
     test(
       'Done while a removal is being computed does not reopen the bar',
       () async {
@@ -2697,6 +2747,47 @@ void main() {
         ),
         isTrue,
       );
+    });
+  });
+
+  group('who is told about a change', () {
+    // The canvas hears everything; the panels skip the in-between steps of
+    // a drag, a pan or a zoom, and catch up when it ends.
+    late int canvas, panels;
+    setUp(() {
+      canvas = 0;
+      panels = 0;
+      c.addListener(() => canvas++);
+      c.panels.addListener(() => panels++);
+    });
+
+    test('panning and zooming reach only the canvas', () {
+      c.panBy(const Offset(20, 0));
+      c.zoomTo(2);
+      ix.scroll(const Offset(100, 100), const Offset(0, 40), noMods);
+      expect(canvas, 3);
+      expect(panels, 0);
+    });
+
+    test(
+      'moving an object tells the panels at the start and end only',
+      () async {
+        final img = await addImage(at: const Offset(300, 300));
+        canvas = panels = 0;
+        drag(ix, const Offset(300, 300), const Offset(400, 360), steps: 12);
+        expect(img.center, const Offset(400, 360));
+        expect(canvas, greaterThan(12));
+        expect(panels, lessThanOrEqualTo(3));
+        expect(panels, greaterThan(0), reason: 'the end of the drag is news');
+      },
+    );
+
+    test('resizing keeps the panels live, for the size readout', () async {
+      final img = await addImage(at: const Offset(300, 300), w: 200, h: 100);
+      c.select([img.id]);
+      panels = 0;
+      drag(ix, const Offset(400, 350), const Offset(500, 380), steps: 12);
+      expect(panels, greaterThanOrEqualTo(12));
     });
   });
 }
