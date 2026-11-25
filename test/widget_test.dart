@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart' show RenderEditable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1457,6 +1458,68 @@ void main() {
     expect(c.tool, Tool.line);
   });
 
+  appTest('the layer on the name tag moves the selection to another layer', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final first = c.doc.layers.first;
+    c.addObject(
+      ShapeObject(
+        id: 'a',
+        name: 'a',
+        ellipse: false,
+        center: const Offset(300, 300),
+        size: const Size(120, 80),
+        fill: 0xFF43A047,
+      ),
+    );
+    c.addObject(
+      ShapeObject(
+        id: 'b',
+        name: 'b',
+        ellipse: true,
+        center: const Offset(450, 300),
+        size: const Size(80, 80),
+        fill: 0xFF1E88E5,
+      ),
+    );
+    c.addLayer();
+    final second = c.doc.layers.last;
+    c.renameLayer(second.id, 'Notes');
+    c.select(['a', 'b']);
+    await tester.pump();
+    // Both on one layer: the tag names it, and the name is a button.
+    final button = find.byKey(const ValueKey('tag-layer'));
+    expect(button, findsOneWidget);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.text('MOVE TO LAYER'), findsOneWidget);
+    await tester.tap(find.text('Notes').last);
+    await tester.pumpAndSettle();
+    expect(c.doc.layerOf('a')?.id, second.id);
+    expect(c.doc.layerOf('b')?.id, second.id);
+    expect(c.selection, ['a', 'b']);
+    c.undo();
+    expect(c.doc.layerOf('a')?.id, first.id, reason: 'one undo step');
+    expect(c.doc.layerOf('b')?.id, first.id);
+    // On different layers there is no one layer to name.
+    c.moveObjectsToLayer(['b'], second.id);
+    c.select(['a', 'b']);
+    await tester.pump();
+    expect(button, findsNothing);
+    // A hidden layer is marked, and what moves onto it leaves the selection.
+    c.setLayerVisible(second.id, false);
+    c.select(['a']);
+    await tester.pump();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.text('Hidden'), findsOneWidget);
+    await tester.tap(find.text('Notes').last);
+    await tester.pumpAndSettle();
+    expect(c.doc.layerOf('a')?.id, second.id);
+    expect(c.selection, isEmpty);
+  });
+
   appTest('a changed tool look offers a way back to the default', (
     tester,
   ) async {
@@ -1797,6 +1860,49 @@ void main() {
     expect(shown.preferredLineHeight, closeTo(page.preferredLineHeight, 0.01));
     final inner = t.size.width - TextObject.pad * 2;
     expect(shown.getMaxIntrinsicHeight(inner), page.preferredLineHeight);
+    c.finishTextEdit();
+  });
+
+  appTest('the box being typed in wraps where the page does, never sooner', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    RenderEditable field() => tester
+        .state<EditableTextState>(
+          find.descendant(
+            of: find.byKey(const ValueKey('text-editor')),
+            matching: find.byType(EditableText),
+          ),
+        )
+        .renderEditable;
+    // A box of a set width: the field's lines are exactly the page's width
+    // (its own caret room hangs past the edge).
+    final fixed = c.createText(const Offset(100, 100), text: 'Wrapped here');
+    c.currentLayer.objects.add(fixed);
+    c.beginTextEdit(fixed.id);
+    await tester.pump();
+    expect(
+      field().size.width - 3,
+      closeTo(fixed.size.width - TextObject.pad * 2, 0.01),
+    );
+    c.finishTextEdit();
+    await tester.pump();
+    // A box that grows as you type has plenty to spare, so a field that
+    // measures text a little wider than the page still keeps it on one line.
+    final grows = c.createText(
+      const Offset(100, 300),
+      text: '',
+      autoWidth: true,
+    );
+    c.currentLayer.objects.add(grows);
+    c.beginTextEdit(grows.id);
+    await tester.pump();
+    await tester.enterText(find.byKey(const ValueKey('text-editor')), 'text');
+    await tester.pump();
+    expect(
+      field().size.width,
+      greaterThan(grows.size.width - TextObject.pad * 2 + grows.fontSize),
+    );
     c.finishTextEdit();
   });
 }

@@ -422,7 +422,7 @@ class CanvasPainter extends CustomPainter {
     tp.paint(canvas, tag.tag.topLeft + const Offset(_tagPadX, _tagPadY));
     tp.dispose();
     // A hairline between the name and the padlock, which is a button laid
-    // over the tag by the canvas view.
+    // over the tag by the canvas view (as is the layer's name).
     canvas.drawLine(
       Offset(tag.lock.left, tag.tag.top + 4),
       Offset(tag.lock.left, tag.tag.bottom - 4),
@@ -493,28 +493,30 @@ TextPainter _tagText(String name, String? layer) => TextPainter(
   ellipsis: '…',
 );
 
-/// Where the selection's name tag sits on screen (in a view of [size]), and
-/// the padlock button at its end. Null when nothing is selected or a text is
-/// being typed.
-({Rect tag, Rect lock, String name, String? layer})? selectionTag(
-  EditorController c,
-  Size size,
-) {
+/// Where the selection's name tag sits on screen (in a view of [size]), the
+/// padlock button at its end and, when the selection is all on one layer,
+/// the layer's name, which is a button that moves it to another layer. Null
+/// when nothing is selected or a text is being typed.
+({Rect tag, Rect lock, Rect? layerButton, String name, String? layer})?
+selectionTag(EditorController c, Size size) {
   final sel = c.selectedObjects;
   if (sel.isEmpty || c.editingTextId != null) return null;
   // Not while a line's end is over something: it could cover the snap points.
   if (c.attachHover != null) return null;
-  final String name;
-  String? layer;
-  if (sel.length == 1) {
-    name = sel.first.name;
-    layer = c.doc.layerOf(sel.first.id)?.name;
-  } else {
-    name = '${sel.length} objects';
-  }
+  final name = sel.length == 1 ? sel.first.name : '${sel.length} objects';
+  final layers = {for (final o in sel) c.doc.layerOf(o.id)};
+  final layer = layers.length == 1 ? layers.single?.name : null;
   final tp = _tagText(name, layer)..layout(maxWidth: _tagTextMax);
   final w = tp.width + _tagPadX * 2 + kTagLockWidth,
       h = tp.height + _tagPadY * 2;
+  // The layer part starts at its icon, after the name and three spaces.
+  double? layerX;
+  if (layer != null) {
+    final boxes = tp.getBoxesForSelection(
+      TextSelection(baseOffset: name.length + 3, extentOffset: name.length + 4),
+    );
+    if (boxes.isNotEmpty) layerX = boxes.first.left;
+  }
   tp.dispose();
   final b = c.selectionBounds;
   var anchor = c.toScreen(b.topLeft);
@@ -535,14 +537,23 @@ TextPainter _tagText(String name, String? layer) => TextPainter(
     pos.dy < 4 ? anchor.dy + 10 : pos.dy,
   );
   final tag = Rect.fromLTWH(pos.dx, pos.dy, w, h);
+  final lock = Rect.fromLTRB(
+    tag.right - kTagLockWidth,
+    tag.top,
+    tag.right,
+    tag.bottom,
+  );
   return (
     tag: tag,
-    lock: Rect.fromLTRB(
-      tag.right - kTagLockWidth,
-      tag.top,
-      tag.right,
-      tag.bottom,
-    ),
+    lock: lock,
+    layerButton: layerX == null
+        ? null
+        : Rect.fromLTRB(
+            tag.left + _tagPadX + layerX - 4,
+            tag.top,
+            lock.left,
+            tag.bottom,
+          ),
     name: name,
     layer: layer,
   );

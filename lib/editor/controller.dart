@@ -1433,6 +1433,11 @@ class EditorController extends ChangeNotifier {
       }
       target.objects.addAll(moving);
       currentLayerId = layerId;
+      // On a hidden or locked layer they can't be seen or picked any more,
+      // as when a layer they are on is hidden or locked.
+      if (!target.visible || target.locked) {
+        selection = selection.where((s) => !ids.contains(s)).toList();
+      }
     });
   }
 
