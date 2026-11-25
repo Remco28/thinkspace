@@ -1,7 +1,6 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 
+import '../io/screenshot_shortcut.dart';
 import '../editor/controller.dart';
 import '../io/files.dart';
 import 'menus.dart';
@@ -177,16 +176,14 @@ class TopBar extends StatelessWidget {
                           'Ctrl+I',
                           icon: Icons.add_photo_alternate_outlined,
                         ),
-                        // The desktop's screenshot service is a Linux thing;
-                        // Windows has none of it yet.
-                        if (Platform.isLinux)
+                        if (screenshotsHere)
                           _item(
                             MenuAction.screenshot,
                             'Take screenshot…',
                             'S',
                             icon: Icons.screenshot_monitor_outlined,
                           ),
-                        if (Platform.isLinux)
+                        if (screenshotsHere)
                           _item(
                             MenuAction.screenshotShortcut,
                             'Screenshot shortcut…',
@@ -317,7 +314,7 @@ class TopBar extends StatelessWidget {
               const Spacer(),
               // Pictures in and out of the page: a screenshot, a copy, an
               // export.
-              if (Platform.isLinux)
+              if (screenshotsHere)
                 SmallIconButton(
                   key: const ValueKey('screenshot'),
                   icon: Icons.screenshot_monitor_outlined,
@@ -414,9 +411,9 @@ class TopBar extends StatelessWidget {
   /// Everything right of the name: every button is a control's width, every
   /// divider 1 px plus its margins, and the padding at both ends.
   double get _toolsWidth {
-    // The tools, then undo, redo, grid, snap, copy and export, and on Linux
-    // the screenshot button.
-    final shot = Platform.isLinux ? 1 : 0;
+    // The tools, then undo, redo, grid, snap, copy and export, and where
+    // screenshots work, the screenshot button.
+    final shot = screenshotsHere ? 1 : 0;
     final buttons = _toolGroups.fold<int>(0, (n, g) => n + g.length) + 6 + shot;
     final dividers = _toolGroups.length - 1 + 2;
     return buttons * kControlHeight +

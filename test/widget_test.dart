@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thinkspace/io/screenshot_shortcut.dart';
 import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/editor/image_ops.dart' show HoleFill;
 import 'package:thinkspace/editor/render.dart' show textPainterFor;
@@ -1589,7 +1590,7 @@ void main() {
       await tester.pump();
       expect(c.toastMessage, contains('screenshot service'));
     });
-  }, skip: Platform.isLinux ? false : 'Screenshots are Linux only');
+  }, skip: screenshotsHere ? false : 'No screenshots on this system');
 
   appTest('F11 asks the window for full screen and back; Esc does not', (
     tester,

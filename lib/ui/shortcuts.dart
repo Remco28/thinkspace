@@ -1,7 +1,6 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 
+import '../io/screenshot_shortcut.dart';
 import 'widgets.dart';
 import 'design.dart';
 
@@ -183,7 +182,7 @@ List<(String, List<_Row>)> get _sections => [
         ],
         'Paste an image into the collection',
       ),
-      if (Platform.isLinux)
+      if (screenshotsHere)
         (
           [
             ['S'],

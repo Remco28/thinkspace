@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../io/screenshot_shortcut.dart';
 import '../dev/inspector.dart';
 import '../editor/canvas_view.dart';
 import '../editor/controller.dart';
@@ -506,7 +507,7 @@ class _EditorShellState extends State<EditorShell> {
         shift ? c.toggleSnap() : c.toggleGrid();
       case LogicalKeyboardKey.keyF:
         c.fitToView();
-      case LogicalKeyboardKey.keyS when Platform.isLinux:
+      case LogicalKeyboardKey.keyS when screenshotsHere:
         _takeScreenshot();
       case LogicalKeyboardKey.keyM:
         if (c.canMerge) {
@@ -697,9 +698,11 @@ class _EditorShellState extends State<EditorShell> {
     await _windowChannel.invokeMethod<void>(got ? 'showWindow' : 'quit');
   }
 
-  /// Step aside, let the desktop's own picker take a screenshot, and bring
-  /// the picture in as a paste does. The native side moves the window out of
-  /// the way and back (`linux/runner/my_application.cc`).
+  /// Step aside, let the person pick part of the screen, and bring the
+  /// picture in as a paste does. The native side moves the window out of the
+  /// way and back: on Linux the desktop's own picker does the picking
+  /// (`linux/runner/my_application.cc`), on Windows Thinkspace's overlay
+  /// (`windows/runner/screen_pick.cpp`).
   ///
   /// True if a picture came in.
   Future<bool> _takeScreenshot() async {
@@ -709,13 +712,20 @@ class _EditorShellState extends State<EditorShell> {
     try {
       final path = await _windowChannel.invokeMethod<String>('takeScreenshot');
       if (path == null) return false; // cancelled in the picker
-      await c.receiveScreenshot(await File(path).readAsBytes());
+      final file = File(path);
+      final bytes = await file.readAsBytes();
+      // On Windows the file is Thinkspace's own, in the temp folder.
+      if (Platform.isWindows) unawaited(file.delete().catchError((_) => file));
+      await c.receiveScreenshot(bytes);
       return true;
     } on MissingPluginException {
       c.showToast('Screenshots are not available here');
     } on PlatformException {
       c.showToast(
-        "Couldn't reach the desktop's screenshot service (xdg-desktop-portal)",
+        Platform.isWindows
+            ? "Couldn't take the screenshot"
+            : "Couldn't reach the desktop's screenshot service "
+                  '(xdg-desktop-portal)',
       );
     } on FileSystemException {
       c.showToast("That screenshot couldn't be read");
