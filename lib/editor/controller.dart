@@ -1436,6 +1436,34 @@ class EditorController extends ChangeNotifier {
     });
   }
 
+  /// Put objects just in front of, or just behind, [anchorId], on its layer:
+  /// what dropping rows between others in the Layers list does. They keep
+  /// their order among themselves and their place on the page. One undo step.
+  void moveObjectsBeside(
+    List<String> ids,
+    String anchorId, {
+    required bool inFront,
+  }) {
+    final target = doc.layerOf(anchorId);
+    if (target == null || ids.contains(anchorId)) return;
+    final moving = [
+      for (final l in doc.layers)
+        for (final o in l.objects)
+          if (ids.contains(o.id)) o,
+    ];
+    if (moving.isEmpty) return;
+    final anchor = doc.objectById(anchorId)!;
+    final cross = moving.any((o) => doc.layerOf(o.id) != target);
+    transact(cross ? 'move to ${target.name}' : 'reorder', () {
+      for (final l in doc.layers) {
+        l.objects.removeWhere(moving.contains);
+      }
+      final i = target.objects.indexOf(anchor);
+      target.objects.insertAll(inFront ? i + 1 : i, moving);
+      currentLayerId = target.id;
+    });
+  }
+
   void setObjectVisible(String id, bool v) => transact(v ? 'show' : 'hide', () {
     doc.objectById(id)?.visible = v;
     if (!v) selection = selection.where((s) => s != id).toList();

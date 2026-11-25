@@ -174,7 +174,7 @@ class PropertiesPanel extends StatelessWidget {
               ActionButton(
                 key: const ValueKey('grid-show'),
                 label: 'Show grid',
-                icon: Icons.grid_4x4,
+                glyph: (s, c) => OutlineGlyph(GlyphKind.grid, s, c),
                 selected: c.showGrid,
                 tooltip: 'Show the grid  (G)',
                 onPressed: c.toggleGrid,
@@ -182,7 +182,7 @@ class PropertiesPanel extends StatelessWidget {
               ActionButton(
                 key: const ValueKey('grid-snap'),
                 label: 'Snap',
-                icon: Icons.filter_center_focus,
+                glyph: (s, c) => OutlineGlyph(GlyphKind.magnet, s, c),
                 selected: c.snapOn,
                 tooltip:
                     'Snap to the grid  (Shift+G). Hold Ctrl while dragging to place freely.',

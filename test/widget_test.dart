@@ -327,6 +327,47 @@ void main() {
     expect(c.tool, Tool.line);
   });
 
+  appTest('dragging an object row between others changes what is in front', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    for (final n in ['back', 'middle', 'front']) {
+      c.addObject(
+        ShapeObject(
+          id: n,
+          name: n,
+          ellipse: false,
+          center: const Offset(100, 100),
+          size: const Size(50, 50),
+        ),
+      );
+    }
+    c.select([]);
+    await tester.pump();
+    // The list shows the front first: front, middle, back.
+    final from = tester.getCenter(find.byKey(const ValueKey('object-back')));
+    final to = tester.getRect(find.byKey(const ValueKey('object-front')));
+    final g = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
+    await g.moveBy(const Offset(0, -10));
+    await g.moveTo(to.center - const Offset(0, 6));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('drop-line')), findsOneWidget);
+    await g.up();
+    await tester.pump();
+    expect(c.doc.layers.first.objects.map((o) => o.id), [
+      'middle',
+      'front',
+      'back',
+    ], reason: 'dropped on the top half of "front", so in front of it');
+    expect(find.byKey(const ValueKey('drop-line')), findsNothing);
+    c.undo();
+    expect(c.doc.layers.first.objects.map((o) => o.id), [
+      'back',
+      'middle',
+      'front',
+    ]);
+  });
+
   appTest('the layer menu offers Duplicate layer', (tester) async {
     final c = await pumpApp(tester);
     c.addObject(

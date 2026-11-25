@@ -176,11 +176,15 @@ class ActionButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
+    this.glyph,
     this.tooltip,
     this.selected = false,
   });
   final String label;
   final IconData? icon;
+
+  /// A drawn icon (size, colour) in place of [icon], such as the magnet.
+  final Widget Function(double size, Color color)? glyph;
   final String? tooltip;
 
   /// Drawn as "on", for buttons that behave like switches (Show grid).
@@ -194,7 +198,11 @@ class ActionButton extends StatelessWidget {
       height: kControlHeight,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: icon == null ? const SizedBox.shrink() : Icon(icon, size: kIcon),
+        icon: glyph != null
+            ? glyph!(kIcon, selected ? kAccent : kInkSoft)
+            : icon == null
+            ? const SizedBox.shrink()
+            : Icon(icon, size: kIcon),
         label: Text(label, overflow: TextOverflow.ellipsis),
         style: OutlinedButton.styleFrom(
           visualDensity: VisualDensity.compact,

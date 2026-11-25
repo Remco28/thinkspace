@@ -49,7 +49,7 @@ The collection on the left holds images you have gathered but not placed yet. Dr
 Layers are for organising, not effects. Put each option on its own layer and click the eyes to flip between them, so the person you are showing can compare without you rebuilding anything.
 
 - Click a layer to select everything on it, then drag to move it all together.
-- Drag an object onto another layer and it keeps its place on the page.
+- Drag an object onto another layer and it keeps its place on the page. Drag it between other objects in the list to put it in front of or behind them.
 - Show, hide, reorder and lock layers. A new layer opens its name for typing.
 - Open up to ten images at once with `Ctrl+O` and each gets its own layer, named after its file.
 

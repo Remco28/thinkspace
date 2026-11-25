@@ -387,7 +387,7 @@ class _LayerTile extends StatelessWidget {
   }
 }
 
-class _ObjectRow extends StatelessWidget {
+class _ObjectRow extends StatefulWidget {
   const _ObjectRow({
     required this.c,
     required this.layer,
@@ -398,7 +398,69 @@ class _ObjectRow extends StatelessWidget {
   final SceneObject object;
 
   @override
+  State<_ObjectRow> createState() => _ObjectRowState();
+}
+
+/// A row is also where other rows are dropped: on its top half they go in
+/// front of it (above in the list), on its bottom half behind it. A line
+/// shows which.
+class _ObjectRowState extends State<_ObjectRow> {
+  /// While a drag is over this row: true for its top half, false for the
+  /// bottom, null when nothing is over it.
+  bool? _dropAbove;
+
+  EditorController get c => widget.c;
+  Layer get layer => widget.layer;
+  SceneObject get object => widget.object;
+
+  bool _topHalf(Offset global) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return true;
+    return box.globalToLocal(global).dy < box.size.height / 2;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    return DragTarget<ObjectDrag>(
+      onWillAcceptWithDetails: (d) => !d.data.ids.contains(object.id),
+      onMove: (d) {
+        final above = _topHalf(d.offset);
+        if (above != _dropAbove) setState(() => _dropAbove = above);
+      },
+      onLeave: (_) => setState(() => _dropAbove = null),
+      onAcceptWithDetails: (d) {
+        final above = _topHalf(d.offset);
+        setState(() => _dropAbove = null);
+        // The list shows the front-most object first, so above is in front.
+        c.moveObjectsBeside(d.data.ids, object.id, inFront: above);
+      },
+      builder: (context, cand, _) => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          _row(context),
+          if (cand.isNotEmpty && _dropAbove != null)
+            Positioned(
+              key: const ValueKey('drop-line'),
+              left: 30,
+              right: kSpace8,
+              top: _dropAbove! ? -1 : null,
+              bottom: _dropAbove! ? null : -1,
+              child: IgnorePointer(
+                child: Container(
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: kAccent,
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context) {
     final selected = c.selection.contains(object.id);
     final dim = !object.visible || !layer.visible;
     final row = Container(
