@@ -1557,7 +1557,13 @@ void main() {
       expect(c.pendingPaste?.name, 'screenshot', reason: 'it asks where');
       c.resolvePaste(toCollection: false);
       expect(c.doc.allObjects.whereType<ImageObject>(), hasLength(1));
-      expect(file.existsSync(), isTrue, reason: "the desktop's copy is kept");
+      expect(
+        file.existsSync(),
+        !Platform.isWindows,
+        reason: Platform.isWindows
+            ? "Thinkspace's own temporary file is deleted"
+            : "the desktop's copy is kept",
+      );
       await tester.pump(const Duration(seconds: 7)); // the first-picture tip
     });
 
@@ -1588,7 +1594,14 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 100));
       });
       await tester.pump();
-      expect(c.toastMessage, contains('screenshot service'));
+      expect(
+        c.toastMessage,
+        contains(
+          Platform.isWindows
+              ? "Couldn't take the screenshot"
+              : 'screenshot service',
+        ),
+      );
     });
   }, skip: screenshotsHere ? false : 'No screenshots on this system');
 

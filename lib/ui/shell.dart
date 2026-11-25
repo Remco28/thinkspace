@@ -715,7 +715,7 @@ class _EditorShellState extends State<EditorShell> {
       final file = File(path);
       final bytes = await file.readAsBytes();
       // On Windows the file is Thinkspace's own, in the temp folder.
-      if (Platform.isWindows) unawaited(file.delete().catchError((_) => file));
+      if (Platform.isWindows) await file.delete().catchError((_) => file);
       await c.receiveScreenshot(bytes);
       return true;
     } on MissingPluginException {
