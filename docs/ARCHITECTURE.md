@@ -94,7 +94,7 @@ With `THINKSPACE_DEBUG_PORT` set, the app serves `/state` (the controller's own 
 
 - `test/model_test.dart` — serialisation, hit-testing, geometry.
 - `test/editor_test.dart` — the controller and interactor driven headlessly with real gesture sequences: drawing, moving, snapping, resizing and rotating (including rotated objects), cycling through overlaps, marquee, layers, z-order, cutouts of rotated/flipped images, background removal, merge, recovery, save/load, export pixels.
-- `test/widget_test.dart` — the real widget tree with pointer and keyboard events: tools, shortcuts, layer panel, text editing on the page, paste chooser, recovery dialog, the name tag's padlock, and layout at several window sizes.
+- `test/widget_test.dart` — the real widget tree with pointer and keyboard events: tools, shortcuts, layer panel, text editing on the page, paste chooser, recovery dialog, the name tag's padlock and layer button, and layout at several window sizes.
 - `test/curves_test.dart` — curved lines and the eyedropper.
 - `test/remove_marks_test.dart` — what a sweep removes, leaves and undoes.
 - `test/hide_styles_recent_test.dart` — Hide details (including the pixels it produces), tool looks, locking, recent files and prefs.
