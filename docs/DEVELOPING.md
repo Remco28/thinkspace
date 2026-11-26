@@ -76,20 +76,20 @@ The headless app runs the built bundle, not hot reload. Run `flutter build linux
 
 The images in the README are screenshots of the real app (`tool/ts shot`), cropped. `layers.png` and `collection.png` are animated PNGs made from two or three such shots.
 
-The scene in them is drawn, not photographed. `docs/images/scene/make_scene.py` draws the room and furniture as SVG, has Chrome turn each into a PNG, and writes the whole scene as a project:
+The scene in them is built from the photos in `docs/images/scene/photos/`: an empty room, and each piece of furniture on white, made with Codex's image generation for the README (the prompt is in `make_scene.py`). Keep them; they cannot be made again exactly. `make_scene.py` trims and scales each piece, cuts it out of its white and turns the photo's pale floor shadow into a real one, and writes the whole scene as a project:
 
 ```bash
 python3 docs/images/scene/make_scene.py /tmp/scene     # writes /tmp/scene/Living room.thinkspace
 tool/ts do '{"cmd":"open","path":"/tmp/scene/Living room.thinkspace"}'
 ```
 
-The project has five layers (Room, the two sofa options with the leather one hidden, Decor and Notes) and the six pieces in the collection, white-backed as they would come from a shop's website. To change the scene, edit the drawing functions or `PIECES` and run it again.
+The project has five layers (Room, the two sofa options with the leather one hidden, Decor and Notes), with the cut-outs on the page and the white-backed pieces in the collection, as they would come from a shop's website. Where each piece goes, and how hard its white is cut, is in `PIECES`.
 
 Then, in the headless app with its own data folder:
 
-- **hero.png** is the whole window. Drag the divider under the Layers list down until every layer shows (about `tool/xinput.py drag 1294 405 1294 572`), click the sofa so its label shows, and move the pointer off the page.
+- **hero.png** is the whole window. Drag the divider under the Layers list down until every layer shows (about `tool/xinput.py drag 1294 405 1294 572`; the app remembers it), select the velvet sofa so its label shows, and move the pointer off the page.
 - **layers.png** crops `(316, 46, 1440, 752)` from two shots: as opened, then with `layerVisible` switching Option A off and Option B on. 1.6 s per frame.
-- **collection.png** crops `(0, 46, 1150, 752)` from three shots: the armchair clicked in the collection, the armchair being dragged onto the page with the button still held, and after `removeBackground` on it. 1.6, 1.2 and 2.4 s. For the middle shot, `tool/xinput.py drag 69 150 455 625 30 hold` leaves the button down, and `tool/xinput.py up` lets go after the shot.
+- **collection.png** crops `(0, 46, 1150, 752)` from three shots: the armchair clicked in the collection, the armchair being dragged onto the page with the button still held, and after `removeBackground` on it. 1.6, 1.2 and 2.4 s. For the middle shot, `tool/xinput.py drag 69 150 500 590 30 hold` leaves the button down (drop the armchair further left or lower and the page grows to fit it), and `tool/xinput.py up` lets go after the shot.
 
 Pillow writes the animated PNGs: `frames[0].save(out, save_all=True, append_images=frames[1:], duration=[...], loop=0, optimize=True)`.
 
