@@ -58,10 +58,12 @@ class ThinkspaceApp extends StatelessWidget {
             labelMedium: _flat,
             labelSmall: _flat,
           ),
+          // The accent itself, not a tone Material derives from it, so
+          // sliders and switches are the same blue as everything else.
           colorScheme: ColorScheme.fromSeed(
             seedColor: kAccent,
             brightness: Brightness.light,
-          ),
+          ).copyWith(primary: kAccent),
           visualDensity: VisualDensity.compact,
           scaffoldBackgroundColor: Colors.white,
           dividerColor: kBorder,

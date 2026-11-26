@@ -1424,6 +1424,85 @@ void main() {
     expect(find.text('COLLECTION'), findsNothing);
   });
 
+  appTest('resting on the current layer\'s bar says what it means', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    final bar = find.byKey(const ValueKey('current-layer-bar'));
+    expect(bar, findsOneWidget);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(bar));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('New things go on this layer'), findsOneWidget);
+    await mouse.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
+  });
+
+  appTest('the Layers list says which end is the front', (tester) async {
+    final c = await pumpApp(tester);
+    c.addLayer();
+    await tester.pump();
+    final front = tester.getRect(find.byKey(const ValueKey('list-front')));
+    final back = tester.getRect(find.byKey(const ValueKey('list-back')));
+    final top = tester.getRect(
+      find.byKey(ValueKey('layer-${c.doc.layers.last.id}')),
+    );
+    final bottom = tester.getRect(
+      find.byKey(ValueKey('layer-${c.doc.layers.first.id}')),
+    );
+    expect(front.bottom, lessThanOrEqualTo(top.top));
+    expect(back.top, greaterThanOrEqualTo(bottom.bottom));
+  });
+
+  appTest('resting on Grow the page explains it', (tester) async {
+    await pumpApp(tester);
+    final row = find.byKey(const ValueKey('grow-page'));
+    expect(row, findsOneWidget);
+    expect(find.textContaining('past its edge'), findsNothing);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(row));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.textContaining('past its edge'), findsOneWidget);
+    await mouse.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
+  });
+
+  appTest('a row being renamed is scrolled fully into view', (tester) async {
+    final c = await pumpApp(tester);
+    for (var i = 0; i < 12; i++) {
+      c.addLayer();
+      for (var j = 0; j < 3; j++) {
+        c.addObject(
+          ShapeObject(
+            id: 'o$i-$j',
+            name: 'shape $i-$j',
+            ellipse: false,
+            center: Offset(100.0 + j * 50, 100),
+            size: const Size(40, 40),
+            fill: 0xFF43A047,
+          ),
+        );
+      }
+    }
+    await tester.pumpAndSettle();
+    final list = tester.getRect(find.byType(ReorderableListView));
+    // The bottom layer's objects, then back to the top: each row lands
+    // wholly inside the list, not a few pixels short.
+    for (final id in ['o0-0', 'o0-2', 'o6-1', 'o11-2']) {
+      c.beginRename(id);
+      await tester.pumpAndSettle();
+      final row = tester.getRect(find.byKey(ValueKey('object-$id')));
+      expect(row.top, greaterThanOrEqualTo(list.top - 0.5), reason: id);
+      expect(row.bottom, lessThanOrEqualTo(list.bottom + 0.5), reason: id);
+      c.endRename();
+      await tester.pumpAndSettle();
+    }
+  });
+
   appTest('the padlock on the name tag and Ctrl+L lock in place', (
     tester,
   ) async {

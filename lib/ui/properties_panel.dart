@@ -101,25 +101,29 @@ class PropertiesPanel extends StatelessWidget {
           children: [
             Row(
               children: [
-                NumberField(
-                  key: const ValueKey('canvas-w'),
-                  value: d.canvasSize.width,
-                  suffix: ' wide',
-                  width: 104,
-                  onSubmitted: (v) =>
-                      c.setCanvasSize(Size(v, d.canvasSize.height)),
+                Expanded(
+                  child: NumberField(
+                    key: const ValueKey('canvas-w'),
+                    value: d.canvasSize.width,
+                    suffix: ' wide',
+                    width: 104,
+                    onSubmitted: (v) =>
+                        c.setCanvasSize(Size(v, d.canvasSize.height)),
+                  ),
                 ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: kSpace8),
                   child: Text('×', style: TextStyle(color: kInkSoft)),
                 ),
-                NumberField(
-                  key: const ValueKey('canvas-h'),
-                  value: d.canvasSize.height,
-                  suffix: ' high',
-                  width: 104,
-                  onSubmitted: (v) =>
-                      c.setCanvasSize(Size(d.canvasSize.width, v)),
+                Expanded(
+                  child: NumberField(
+                    key: const ValueKey('canvas-h'),
+                    value: d.canvasSize.height,
+                    suffix: ' high',
+                    width: 104,
+                    onSubmitted: (v) =>
+                        c.setCanvasSize(Size(d.canvasSize.width, v)),
+                  ),
                 ),
               ],
             ),
@@ -134,16 +138,14 @@ class PropertiesPanel extends StatelessWidget {
             SwitchRow(
               key: const ValueKey('grow-page'),
               label: 'Grow the page as I add things',
-              hint:
-                  'The page gets bigger, on any side, when you place or move something past its edge.',
+              tooltip:
+                  'The page gets bigger, on any side, when you place or move something past its edge.\n'
+                  'You can also drag the handles on the page’s edge. Resizing never changes what is on it.',
               value: c.autoGrow,
               onChanged: (v) {
                 c.autoGrow = v;
                 c.notify();
               },
-            ),
-            const Hint(
-              'You can also drag the handles on the page’s edge. Resizing never changes what is on it.',
             ),
           ],
         ),
@@ -864,15 +866,18 @@ class PropertiesPanel extends StatelessWidget {
           'Size',
           Row(
             children: [
-              NumberField(
-                key: const ValueKey('size-w'),
-                value: one.size.width,
-                width: 64,
-                onSubmitted: (v) => c.editSelected(
-                  'resize',
-                  (o) => (o as BoxObject).size = Size(
-                    math.max(4, v),
-                    o.size.height,
+              Expanded(
+                child: NumberField(
+                  key: const ValueKey('size-w'),
+                  value: one.size.width,
+                  width: 64,
+                  suffix: ' px',
+                  onSubmitted: (v) => c.editSelected(
+                    'resize',
+                    (o) => (o as BoxObject).size = Size(
+                      math.max(4, v),
+                      o.size.height,
+                    ),
                   ),
                 ),
               ),
@@ -880,15 +885,18 @@ class PropertiesPanel extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: kSpace4),
                 child: Text('×', style: TextStyle(color: kInkSoft)),
               ),
-              NumberField(
-                key: const ValueKey('size-h'),
-                value: one.size.height,
-                width: 64,
-                onSubmitted: (v) => c.editSelected(
-                  'resize',
-                  (o) => (o as BoxObject).size = Size(
-                    o.size.width,
-                    math.max(4, v),
+              Expanded(
+                child: NumberField(
+                  key: const ValueKey('size-h'),
+                  value: one.size.height,
+                  width: 64,
+                  suffix: ' px',
+                  onSubmitted: (v) => c.editSelected(
+                    'resize',
+                    (o) => (o as BoxObject).size = Size(
+                      o.size.width,
+                      math.max(4, v),
+                    ),
                   ),
                 ),
               ),
@@ -919,14 +927,16 @@ class PropertiesPanel extends StatelessWidget {
         'Rotate',
         Row(
           children: [
-            NumberField(
-              key: const ValueKey('rotation'),
-              value: (one.rotation * 180 / math.pi),
-              suffix: '°',
-              width: 76,
-              onSubmitted: (v) => c.editSelected(
-                'rotate',
-                (o) => (o as BoxObject).rotation = v * math.pi / 180,
+            Expanded(
+              child: NumberField(
+                key: const ValueKey('rotation'),
+                value: (one.rotation * 180 / math.pi),
+                suffix: '°',
+                width: 76,
+                onSubmitted: (v) => c.editSelected(
+                  'rotate',
+                  (o) => (o as BoxObject).rotation = v * math.pi / 180,
+                ),
               ),
             ),
             const SizedBox(width: kSpace8),
@@ -1024,18 +1034,20 @@ class PropertiesPanel extends StatelessWidget {
           onChanged: onBorder,
         ),
         const SizedBox(width: kSpace8),
-        Opacity(
-          opacity: border == 0 ? 0.4 : 1,
-          child: IgnorePointer(
-            ignoring: border == 0,
-            child: Tooltip(
-              message: 'Border width',
-              waitDuration: kTooltipWait,
-              child: ValueField(
-                key: const ValueKey('border-width'),
-                value: width.roundToDouble(),
-                unit: 'px',
-                onSubmitted: (v) => onWidth(v.clamp(1, 40).roundToDouble()),
+        Expanded(
+          child: Opacity(
+            opacity: border == 0 ? 0.4 : 1,
+            child: IgnorePointer(
+              ignoring: border == 0,
+              child: Tooltip(
+                message: 'Border width',
+                waitDuration: kTooltipWait,
+                child: ValueField(
+                  key: const ValueKey('border-width'),
+                  value: width.roundToDouble(),
+                  unit: 'px',
+                  onSubmitted: (v) => onWidth(v.clamp(1, 40).roundToDouble()),
+                ),
               ),
             ),
           ),

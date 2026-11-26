@@ -240,7 +240,8 @@ class ButtonRow extends StatelessWidget {
   );
 }
 
-/// A label, a switch, and, when asked, a line of explanation underneath.
+/// A label, a switch, and, when asked, a line of explanation underneath or
+/// a longer one shown when the pointer rests on the row.
 class SwitchRow extends StatelessWidget {
   const SwitchRow({
     super.key,
@@ -248,14 +249,20 @@ class SwitchRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.hint,
+    this.tooltip,
   });
   final String label;
   final String? hint;
+  final String? tooltip;
   final bool value;
   final ValueChanged<bool> onChanged;
 
   @override
-  Widget build(BuildContext context) => InkWell(
+  Widget build(BuildContext context) => tooltip == null
+      ? _row()
+      : Tooltip(message: tooltip, waitDuration: kTooltipWait, child: _row());
+
+  Widget _row() => InkWell(
     onTap: () => onChanged(!value),
     borderRadius: BorderRadius.circular(kRadius),
     child: Padding(
