@@ -74,6 +74,6 @@ The headless app runs the built bundle, not hot reload. Run `flutter build linux
 
 ## Refreshing the README images
 
-The pictures in the README are screenshots of the real app (`tool/ts shot`), cropped. `layers.png` and `collection.png` are animated PNGs made from two or three such shots. The furniture and room images in them were generated for the README and are not part of the repository.
+The images in the README are screenshots of the real app (`tool/ts shot`), cropped. `layers.png` and `collection.png` are animated PNGs made from two or three such shots. The furniture and room images in them were generated for the README and are not part of the repository.
 
 To retake them, start the headless app with its own data folder, open a few images with `openImages`, put more in the collection with `importFile` and `"collection": true`, and drive the rest with `tool/ts do` and `tool/xinput.py`. Typing with `tool/xinput.py` only reaches the app when the page has keyboard focus, so click an empty part of the canvas first. Renaming many objects is easier in the saved `.thinkspace` file, which is plain JSON, than through the interface.

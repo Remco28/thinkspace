@@ -50,7 +50,8 @@ Layers are for organising, not effects. Put each option on its own layer and cli
 
 - Click a layer to select everything on it, then drag to move it all together.
 - Drag an object onto another layer and it keeps its place on the page. Drag it between other objects in the list to put it in front of or behind them.
-- Show, hide, reorder and lock layers. A new layer opens its name for typing.
+- Or click the layer's name on the selection's label and pick another layer, or **New layer** to give the selection one of its own.
+- Show, hide, reorder and lock layers. The layer new things go on is named in blue. A new layer opens its name for typing.
 - Open up to ten images at once with `Ctrl+O` and each gets its own layer, named after its file.
 
 ## Keyboard first
@@ -59,7 +60,7 @@ Layers are for organising, not effects. Put each option on its own layer and cli
 
 Every tool has a single letter: `V` select, `A` arrow, `T` text, `H` highlighter, and so on. The active tool shows its key under its button, so you learn the keys by using the toolbar.
 
-Press `?` or `F1` for the sheet on the right. The rest of the editing has keys too: nudging with the arrow keys, `[` and `]` for order, `F2` to rename, `Ctrl+L` to lock, `M` to merge and `Space` with a drag to pan. `S` takes a screenshot: Thinkspace steps aside, you pick part of the screen, and the picture lands on the page.
+Press `?` or `F1` for the sheet on the right. The rest of the editing has keys too: nudging with the arrow keys, `[` and `]` for order, `F2` to rename, `Ctrl+L` to lock, `M` to merge and `Space` with a drag to pan. `S` takes a screenshot: Thinkspace steps aside, you pick part of the screen, and the image lands on the page.
 
 The full list is in [docs/KEYBOARD.md](docs/KEYBOARD.md).
 
@@ -144,6 +145,8 @@ Windows 10 or newer, 64-bit. Download one of these:
 
 - `Thinkspace-Setup.exe` is an installer. It needs no administrator rights, adds a Start-menu entry and opens `.thinkspace` files on double-click.
 - `thinkspace-windows-x64.zip` unzips anywhere. Run `thinkspace.exe`.
+
+To update, run the new installer over the old one. You don't need to uninstall first, and your work and settings are kept.
 
 The program is not signed, so the first run may show "Windows protected your PC". Choose **More info**, then **Run anyway**.
 

@@ -25,6 +25,9 @@ Thinkspace is a small desktop app for combining pictures, lines and layers to ex
 - X screenshots of the virtual display come out black; use `tool/ts shot`.
 - The virtual display has no window manager, so full screen, maximise and window frames do nothing there. To test them, run `DISPLAY=:99 dbus-run-session -- xfwm4 --compositor=off --sm-client-disable &` (without its own D-Bus session it exits at once), and remember the window then sits below a 24 px title bar for `tool/xinput.py`.
 - Flutter's popup menus are at most about 280 px wide, whatever width a row asks for.
+- A `Positioned` child that sits outside its `Stack`'s box (a negative offset with `Clip.none`) is painted but gets no hover or clicks. Keep anything that must be pointed at, such as a tooltip's target, inside the box.
+- The Layers list works out where a row is from its fixed row heights and gaps (`_scrollToRow` in `lib/ui/layers_panel.dart`), so it can scroll to a row it has not built. Change a row's height or spacing and change that too; a widget test catches a mismatch.
+- Text being typed on Windows measures slightly wider than on the page, so the text field gets spare room past the box (`_TextEditorOverlayState`). flutter_test cannot reproduce it, so keep the spare room even if the tests pass without it.
 
 ## Human testing
 
