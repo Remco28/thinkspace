@@ -586,11 +586,14 @@ class _TagLayer extends StatelessWidget {
     final box = context.findRenderObject()! as RenderBox;
     final at = box.localToGlobal(box.size.bottomLeft(const Offset(0, 4)));
     const w = 200.0;
+    const fresh = '';
     final id = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
         menuLabel('Move to layer', width: w),
+        menuItem(value: fresh, label: 'New layer', icon: Icons.add, width: w),
+        menuDivider(),
         // Front first, as in the Layers panel.
         for (final l in c.doc.layers.reversed)
           menuItem(
@@ -607,7 +610,11 @@ class _TagLayer extends StatelessWidget {
           ),
       ],
     );
-    if (id != null && id != here) c.moveObjectsToLayer(ids, id);
+    if (id == fresh) {
+      c.moveObjectsToNewLayer(ids);
+    } else if (id != null && id != here) {
+      c.moveObjectsToLayer(ids, id);
+    }
     refocus();
   }
 

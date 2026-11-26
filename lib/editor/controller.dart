@@ -1259,10 +1259,19 @@ class EditorController extends ChangeNotifier {
     freshLayerCount++;
   }
 
+  /// "Layer 4" for the fourth layer, or the next number no layer has.
+  String _newLayerName() {
+    final taken = {for (final l in doc.layers) l.name};
+    var n = doc.layers.length + 1;
+    while (taken.contains('Layer $n')) {
+      n++;
+    }
+    return 'Layer $n';
+  }
+
   void addLayer() => transact('add layer', () {
     final idx = doc.layers.indexWhere((l) => l.id == currentLayerId);
-    final n = doc.layers.length + 1;
-    final layer = Layer(id: doc.newId('l'), name: 'Layer $n');
+    final layer = Layer(id: doc.newId('l'), name: _newLayerName());
     doc.layers.insert(idx < 0 ? doc.layers.length : idx + 1, layer);
     _madeLayer(layer);
   });
@@ -1438,6 +1447,31 @@ class EditorController extends ChangeNotifier {
       if (!target.visible || target.locked) {
         selection = selection.where((s) => !ids.contains(s)).toList();
       }
+    });
+  }
+
+  /// Move objects onto a layer of their own, made just in front of the
+  /// frontmost layer they come from, so nothing jumps behind anything else
+  /// on those layers. It gets a plain numbered name; the person can rename it
+  /// later, and is not asked to now.
+  void moveObjectsToNewLayer(List<String> ids) {
+    final from = [
+      for (var i = 0; i < doc.layers.length; i++)
+        if (doc.layers[i].objects.any((o) => ids.contains(o.id))) i,
+    ];
+    if (from.isEmpty) return;
+    transact('move to new layer', () {
+      final layer = Layer(id: doc.newId('l'), name: _newLayerName());
+      for (final l in doc.layers) {
+        for (final o in List.of(l.objects)) {
+          if (ids.contains(o.id)) {
+            l.objects.remove(o);
+            layer.objects.add(o);
+          }
+        }
+      }
+      doc.layers.insert(from.last + 1, layer);
+      currentLayerId = layer.id;
     });
   }
 

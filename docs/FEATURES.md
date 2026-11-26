@@ -31,7 +31,7 @@ Everything Thinkspace does, grouped by what you are trying to do. For the reason
 ## Layers and selection
 
 - **Layers for organising.** Show or hide, reorder, lock, and move everything on a layer together: click a layer to select its contents, then drag. Drag any object onto another layer and it keeps its place on the page, or between other objects in the list to put it in front of or behind them. A new layer goes just above the current one and opens its name for typing.
-- **Move things to another layer from where they are.** Click the layer's name in the selection's name tag and pick a layer. Hidden and locked layers are marked, because what you move onto one drops out of sight or out of reach.
+- **Move things to another layer from where they are.** Click the layer's name in the selection's name tag and pick a layer, or **New layer** to put them on one of their own (also in the right-click menu). Hidden and locked layers are marked, because what you move onto one drops out of sight or out of reach.
 - **Lock things in place.** The padlock at the end of the selection's name tag, or `Ctrl+L`, locks it. A locked thing ignores clicks, so you can work on what is above it. Unlock it from its row in the Layers list.
 - **Select the thing you mean.** Overlapping images are common. Click the same spot again, or `Alt`-click, to reach the one underneath. The selected object shows its name and layer on the page.
 - **A side panel with two parts.** The layer list and the settings for the selection share the right-hand column. Drag the divider to give either more room, and double-click it to reset.

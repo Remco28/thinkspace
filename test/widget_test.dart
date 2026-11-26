@@ -1502,6 +1502,18 @@ void main() {
     c.undo();
     expect(c.doc.layerOf('a')?.id, first.id, reason: 'one undo step');
     expect(c.doc.layerOf('b')?.id, first.id);
+    // Or onto a layer of their own.
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New layer'));
+    await tester.pumpAndSettle();
+    // Just in front of the layer they left, under "Notes".
+    expect(c.doc.layers, hasLength(3));
+    expect(c.doc.layerOf('a')?.id, c.doc.layers[1].id);
+    expect(c.doc.layerOf('b')?.id, c.doc.layers[1].id);
+    expect(c.doc.layers.last.id, second.id);
+    c.undo();
+    await tester.pump();
     // On different layers there is no one layer to name.
     c.moveObjectsToLayer(['b'], second.id);
     c.select(['a', 'b']);

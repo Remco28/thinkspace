@@ -487,6 +487,38 @@ void main() {
       },
     );
 
+    test(
+      'moved onto a new layer, made in front of the layers they left',
+      () async {
+        final a = await addImage(at: const Offset(100, 100));
+        final b = await addImage(at: const Offset(200, 100));
+        final bottom = c.doc.layers.first;
+        c.addLayer(); // "Layer 2", above
+        final above = c.currentLayer;
+        c.moveObjectsToLayer([b.id], above.id);
+        c.addLayer(); // "Layer 3", the front, left alone
+        final front = c.currentLayer;
+        final depth = c.undoDepth;
+
+        c.moveObjectsToNewLayer([a.id, b.id]);
+        final made = c.doc.layerOf(a.id)!;
+        expect(c.doc.layerOf(b.id), same(made));
+        expect(made.name, 'Layer 4');
+        expect(c.doc.layers.map((l) => l.id), [
+          bottom.id,
+          above.id,
+          made.id,
+          front.id,
+        ]);
+        expect(made.objects.map((o) => o.id), [a.id, b.id]);
+        expect(c.currentLayerId, made.id);
+        expect(c.undoDepth, depth + 1, reason: 'one step');
+        c.undo();
+        expect(c.doc.layers, hasLength(3));
+        expect(c.doc.layerOf(a.id)?.id, bottom.id);
+      },
+    );
+
     test('z-order within a layer', () async {
       final a = await addImage(at: const Offset(100, 100));
       final b = await addImage(at: const Offset(200, 100));
