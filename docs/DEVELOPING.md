@@ -74,6 +74,23 @@ The headless app runs the built bundle, not hot reload. Run `flutter build linux
 
 ## Refreshing the README images
 
-The images in the README are screenshots of the real app (`tool/ts shot`), cropped. `layers.png` and `collection.png` are animated PNGs made from two or three such shots. The furniture and room images in them were generated for the README and are not part of the repository.
+The images in the README are screenshots of the real app (`tool/ts shot`), cropped. `layers.png` and `collection.png` are animated PNGs made from two or three such shots.
 
-To retake them, start the headless app with its own data folder, open a few images with `openImages`, put more in the collection with `importFile` and `"collection": true`, and drive the rest with `tool/ts do` and `tool/xinput.py`. Typing with `tool/xinput.py` only reaches the app when the page has keyboard focus, so click an empty part of the canvas first. Renaming many objects is easier in the saved `.thinkspace` file, which is plain JSON, than through the interface.
+The scene in them is drawn, not photographed. `docs/images/scene/make_scene.py` draws the room and furniture as SVG, has Chrome turn each into a PNG, and writes the whole scene as a project:
+
+```bash
+python3 docs/images/scene/make_scene.py /tmp/scene     # writes /tmp/scene/Living room.thinkspace
+tool/ts do '{"cmd":"open","path":"/tmp/scene/Living room.thinkspace"}'
+```
+
+The project has five layers (Room, the two sofa options with the leather one hidden, Decor and Notes) and the six pieces in the collection, white-backed as they would come from a shop's website. To change the scene, edit the drawing functions or `PIECES` and run it again.
+
+Then, in the headless app with its own data folder:
+
+- **hero.png** is the whole window. Drag the divider under the Layers list down until every layer shows (about `tool/xinput.py drag 1294 405 1294 572`), click the sofa so its label shows, and move the pointer off the page.
+- **layers.png** crops `(316, 46, 1440, 752)` from two shots: as opened, then with `layerVisible` switching Option A off and Option B on. 1.6 s per frame.
+- **collection.png** crops `(0, 46, 1150, 752)` from three shots: the armchair clicked in the collection, the armchair being dragged onto the page with the button still held, and after `removeBackground` on it. 1.6, 1.2 and 2.4 s. For the middle shot, `tool/xinput.py drag 69 150 455 625 30 hold` leaves the button down, and `tool/xinput.py up` lets go after the shot.
+
+Pillow writes the animated PNGs: `frames[0].save(out, save_all=True, append_images=frames[1:], duration=[...], loop=0, optimize=True)`.
+
+Typing with `tool/xinput.py` only reaches the app when the page has keyboard focus, so click an empty part of the canvas first.

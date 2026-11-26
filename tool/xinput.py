@@ -3,7 +3,8 @@
 
   tool/xinput.py move 640 400
   tool/xinput.py click 640 400 [button]
-  tool/xinput.py drag 300 300 500 400 [steps]
+  tool/xinput.py drag 300 300 500 400 [steps] [hold]   # hold: keep the button down
+  tool/xinput.py up                    # let go of a held drag
   tool/xinput.py type "hello"          # printable characters
   tool/xinput.py key ctrl+z | Delete | Escape | ctrl+shift+s
   tool/xinput.py scroll 640 400 -3     # negative = up (zoom in)
@@ -90,10 +91,13 @@ elif cmd == "click":
     button(b, True); button(b, False)
 elif cmd == "drag":
     x1, y1, x2, y2 = map(float, args[:4])
-    steps = int(args[4]) if len(args) > 4 else 12
+    steps = int(args[4]) if len(args) > 4 and args[4].isdigit() else 12
     move(x1, y1); button(1, True)
     for i in range(1, steps + 1):
         move(x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps)
+    if "hold" not in args[4:]:
+        button(1, False)
+elif cmd == "up":
     button(1, False)
 elif cmd == "type":
     type_text(args[0])

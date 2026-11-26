@@ -25,7 +25,7 @@
   <a href="docs/DEVELOPING.md">Build from source</a>
 </p>
 
-![Thinkspace planning a living room: a collection of furniture images on the left, the room with a velvet sofa, lamp, print and plant in the middle, and layers for two sofa options on the right](docs/images/hero.png)
+![Thinkspace planning a living room: a collection of furniture images on the left, the room with a green velvet sofa, arc lamp, print and fiddle-leaf fig in the middle, and layers for two sofa options on the right](docs/images/hero.png)
 
 Thinkspace is a small desktop app for combining images, lines and layers to explain an idea. It is what you reach for when GIMP is too slow, Paint is too thin and you do not want to learn a drawing suite. It opens in under a second, fits in an 11 MB download, and every tool has a one-letter key.
 
@@ -188,4 +188,4 @@ Thinkspace should stay small. A new feature has to help with arranging, marking 
 
 MIT, see [LICENSE](LICENSE). The bundled typefaces are under the SIL Open Font License, and their licences are in `assets/fonts/`. Inter is used for the interface and for sans text. Lora, JetBrains Mono and Caveat are the other typefaces for text on the page.
 
-The furniture and room images in the screenshots were generated for this README.
+The room and furniture in the screenshots are drawn by [`docs/images/scene/make_scene.py`](docs/images/scene/make_scene.py), so they can be remade at any time.
