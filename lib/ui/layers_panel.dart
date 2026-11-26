@@ -24,10 +24,6 @@ const double _objectGap = 1; // above each object row
 /// between layers and the smaller gap under it.
 const double _gapAbove = _groupGap + _groupGap / 2;
 
-/// The quiet "Front" and "Back" at the two ends of the list, which say which
-/// way round it is.
-const double _endLabel = 20;
-
 /// The object's kind, drawn as its tool is in the toolbar.
 Widget kindGlyph(SceneObject o, double size, Color color) => switch (o.kind) {
   ObjectKind.text => OutlineGlyph(GlyphKind.text, size, color),
@@ -107,7 +103,7 @@ class _LayersPanelState extends State<LayersPanel> {
   void _scrollToRow(String id) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
-      var top = _pad + _endLabel;
+      var top = _pad;
       var height = _layerRow;
       var first = true;
       search:
@@ -168,8 +164,6 @@ class _LayersPanelState extends State<LayersPanel> {
                 scrollController: _scroll,
                 buildDefaultDragHandles: false,
                 padding: const EdgeInsets.symmetric(vertical: kSpace4),
-                header: const _EndLabel('Front', key: ValueKey('list-front')),
-                footer: const _EndLabel('Back', key: ValueKey('list-back')),
                 itemCount: n,
                 onReorderItem: (oldI, newI) =>
                     c.moveLayer(n - 1 - oldI, n - 1 - newI),
@@ -828,27 +822,5 @@ class _Eye extends StatelessWidget {
         : !visible || hover
         ? kIconInk
         : kInkFaint,
-  );
-}
-
-/// "Front" above the list and "Back" below it, small and quiet, lined up with
-/// the layers' names: what is higher in the list is drawn in front.
-class _EndLabel extends StatelessWidget {
-  const _EndLabel(this.text, {super.key});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: _endLabel,
-    child: Padding(
-      padding: const EdgeInsets.only(left: _rowInset + _rowPad + _lead),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: kTextCaption, color: kInkSoft),
-        ),
-      ),
-    ),
   );
 }

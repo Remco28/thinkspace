@@ -1440,22 +1440,6 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  appTest('the Layers list says which end is the front', (tester) async {
-    final c = await pumpApp(tester);
-    c.addLayer();
-    await tester.pump();
-    final front = tester.getRect(find.byKey(const ValueKey('list-front')));
-    final back = tester.getRect(find.byKey(const ValueKey('list-back')));
-    final top = tester.getRect(
-      find.byKey(ValueKey('layer-${c.doc.layers.last.id}')),
-    );
-    final bottom = tester.getRect(
-      find.byKey(ValueKey('layer-${c.doc.layers.first.id}')),
-    );
-    expect(front.bottom, lessThanOrEqualTo(top.top));
-    expect(back.top, greaterThanOrEqualTo(bottom.bottom));
-  });
-
   appTest('resting on Grow the page explains it', (tester) async {
     await pumpApp(tester);
     final row = find.byKey(const ValueKey('grow-page'));
