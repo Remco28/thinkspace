@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart' show RenderEditable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thinkspace/version.dart';
 import 'package:thinkspace/io/screenshot_shortcut.dart';
 import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/editor/image_ops.dart' show HoleFill;
@@ -783,6 +784,32 @@ void main() {
     expect(find.text('Save as…'), findsOneWidget);
     expect(find.text('WHEN I PASTE AN IMAGE'), findsOneWidget);
     expect(find.text('Keyboard shortcuts'), findsOneWidget);
+  });
+
+  appTest('the version is at the foot of the menu and on the name', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await tester.tap(find.byKey(const ValueKey('main-menu')));
+    await tester.pumpAndSettle();
+    expect(find.text('Thinkspace $appVersion'), findsOneWidget);
+    // It is small print, not a choice.
+    await tester.tap(find.byKey(const ValueKey('menu-version')));
+    await tester.pumpAndSettle();
+    expect(find.text('Save as…'), findsOneWidget, reason: 'menu still open');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(
+      tester.getCenter(find.byKey(const ValueKey('app-name'))),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Thinkspace $appVersion'), findsOneWidget);
+    await mouse.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
   });
 
   appTest('cut out opens a card that asks its questions in order', (

@@ -6,6 +6,7 @@ import '../io/files.dart';
 import 'menus.dart';
 import 'widgets.dart';
 import 'design.dart';
+import '../version.dart';
 
 enum MenuAction {
   newDoc,
@@ -247,15 +248,25 @@ class TopBar extends StatelessWidget {
                           '?',
                           icon: Icons.keyboard_outlined,
                         ),
+                        menuDivider(),
+                        menuNote(
+                          'Thinkspace $appVersion',
+                          key: const ValueKey('menu-version'),
+                        ),
                       ],
                     ),
                     const SizedBox(width: kSpace4),
-                    const Text(
-                      'Thinkspace',
-                      style: TextStyle(
-                        fontWeight: kWeightHeading,
-                        fontSize: kTextTitle,
-                        letterSpacing: -0.2,
+                    const Tooltip(
+                      message: 'Thinkspace $appVersion',
+                      waitDuration: kTooltipWait,
+                      child: Text(
+                        'Thinkspace',
+                        key: ValueKey('app-name'),
+                        style: TextStyle(
+                          fontWeight: kWeightHeading,
+                          fontSize: kTextTitle,
+                          letterSpacing: -0.2,
+                        ),
                       ),
                     ),
                     const SizedBox(width: kSpace12),
