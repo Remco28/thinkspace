@@ -66,7 +66,7 @@ Each tool has a `ToolStyle` (colour, width, fill, size, font and a few tool-spec
 
 ### Images
 
-`image_ops.dart` holds the pixel work: polygon cutouts (clip + draw, optionally erasing the hole from the original), flood-fill colour removal with tolerance, and corner-seeded background removal. Results become new assets (the Less/More bar forgets each result it replaces at once, rather than leaving it for the two-minute prune); the object just points at the new id, so every operation is undoable and the originals are never mutated.
+`image_ops.dart` holds the pixel work: polygon cutouts (clip + draw, optionally erasing the hole from the original), flood-fill colour removal with tolerance, and background removal. Background removal takes the background's colours from the image's edge (only colours on at least two sides, so a subject running off one side is not taken for background), floods inwards comparing colours with a red-mean weighting closer to the eye than plain RGB, and, unless the edge is one plain colour, follows a background that changes gradually in small steps up to a drift limit. On a plain edge it does not follow: a white lamp shade's soft shading on a white background would be followed in. The new edge is un-mixed from the background removed beside it. Results become new assets (the Less/More bar forgets each result it replaces at once, rather than leaving it for the two-minute prune); the object just points at the new id, so every operation is undoable and the originals are never mutated.
 
 ### Files
 

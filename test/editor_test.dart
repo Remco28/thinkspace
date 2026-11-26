@@ -2176,6 +2176,96 @@ void main() {
       },
     );
 
+    /// A 200 x 200 image: [paintBackground], then a dark square in the middle.
+    Future<Uint8List> removedFrom(
+      void Function(Canvas) paintBackground, {
+      Rect square = const Rect.fromLTWH(70, 70, 60, 60),
+    }) async {
+      final rec = PictureRecorder();
+      final canvas = Canvas(rec);
+      paintBackground(canvas);
+      canvas.drawRect(square, Paint()..color = const Color(0xFF223344));
+      final asset = await c.assets.addImage(
+        await rec.endRecording().toImage(200, 200),
+      );
+      final r = await removeBackground(asset, 0.14);
+      expect(r, isNotNull, reason: 'a background was found');
+      return (await r!.image.toByteData(
+        format: ImageByteFormat.rawStraightRgba,
+      ))!.buffer.asUint8List();
+    }
+
+    int a2(Uint8List px, int x, int y) => px[(y * 200 + x) * 4 + 3];
+
+    void expectCleared(Uint8List px, {required String reason}) {
+      for (final (x, y) in [
+        (3, 3), (100, 3), (196, 196), (100, 196), (40, 100), (160, 100),
+        (100, 50), (100, 150), (60, 60), (140, 140),
+        (66, 100), (134, 100), (100, 66), (100, 134), // close to the square
+      ]) {
+        expect(a2(px, x, y), 0, reason: '$reason at $x,$y');
+      }
+      expect(a2(px, 100, 100), 255, reason: 'the square stays');
+    }
+
+    test('a gradient background goes, end to end', () async {
+      final px = await removedFrom(
+        (canvas) => canvas.drawRect(
+          const Rect.fromLTWH(0, 0, 200, 200),
+          Paint()
+            ..shader = Gradient.linear(
+              Offset.zero,
+              const Offset(0, 200),
+              const [Color(0xFF3A6FC8), Color(0xFFE4ECF6)],
+            ),
+        ),
+      );
+      expectCleared(px, reason: 'gradient');
+    });
+
+    test('a background lighter in the middle than at its edges goes', () async {
+      final px = await removedFrom(
+        (canvas) => canvas.drawRect(
+          const Rect.fromLTWH(0, 0, 200, 200),
+          Paint()
+            ..shader = Gradient.radial(const Offset(100, 100), 145, const [
+              Color(0xFFFFFFFF),
+              Color(0xFF909090),
+            ]),
+        ),
+      );
+      expectCleared(px, reason: 'vignette');
+    });
+
+    test('a background of two colours goes, both of them', () async {
+      final px = await removedFrom((canvas) {
+        canvas.drawRect(
+          const Rect.fromLTWH(0, 0, 100, 200),
+          Paint()..color = const Color(0xFFF1E6D2),
+        );
+        canvas.drawRect(
+          const Rect.fromLTWH(100, 0, 100, 200),
+          Paint()..color = const Color(0xFFA9C4DE),
+        );
+      });
+      expectCleared(px, reason: 'two-tone');
+    });
+
+    test('a subject running off one side of the image is kept', () async {
+      // Shoulders cut off at the bottom: their colour is on the edge, but on
+      // one side only, so it is not taken for background.
+      final px = await removedFrom(
+        (canvas) => canvas.drawRect(
+          const Rect.fromLTWH(0, 0, 200, 200),
+          Paint()..color = const Color(0xFFFFFFFF),
+        ),
+        square: const Rect.fromLTWH(40, 90, 120, 110),
+      );
+      expect(a2(px, 5, 5), 0);
+      expect(a2(px, 100, 198), 255, reason: 'on the bottom edge, still kept');
+      expect(a2(px, 100, 120), 255);
+    });
+
     test('what was removed really shows the page colour underneath', () async {
       final tree = await treeDrawing();
       final r = (await removeBackground(tree, 0.14))!;

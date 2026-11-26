@@ -217,12 +217,16 @@ typedef _RemoveJob = ({
   return (px: px, removed: removed);
 }
 
-/// Remove the background of a picture: the colour that runs around its edge
-/// (white, usually), flooded inwards through similar colours. With [inside],
-/// roomy areas of that same colour that the flood could not reach, such as the
-/// gaps inside a drawing's outline, go too. The pixels along the new edge are
-/// "un-mixed" from the background, so a drawing on white does not keep a pale
-/// halo when it is placed over another colour.
+/// Remove the background of an image: the colours that run around its edge,
+/// flooded inwards. It follows a background that changes gradually, such as
+/// a gradient, a studio backdrop or darker corners, and one made of a few
+/// colours, such as a two-tone wall. A colour on only one side of the edge is
+/// taken for the subject running off the image, not background. With
+/// [inside], roomy areas of a background colour that the flood could not
+/// reach, such as the gaps inside a drawing's outline, go too. The pixels
+/// along the new edge are "un-mixed" from the background beside them, so a
+/// drawing on white does not keep a pale halo when it is placed over another
+/// colour.
 Future<ColorRemoval?> removeBackground(
   Asset src,
   double tolerance, {
@@ -243,45 +247,176 @@ Future<ColorRemoval?> removeBackground(
 
 typedef _BgJob = ({Uint8List source, int w, int h, double limit, bool inside});
 
-({Uint8List px, int removed}) _removeBg(_BgJob j) {
-  final w = j.w, h = j.h, src = j.source, limit = j.limit;
-  final px = Uint8List.fromList(src);
-  final n = w * h;
+/// How different two colours look, squared. Red-mean weighting: closer to
+/// the eye than plain RGB distance (green differences count for more, blue
+/// for less), scaled so that greys measure the same as before.
+double _seen2(int r1, int g1, int b1, int r2, int g2, int b2) {
+  final rm = (r1 + r2) / 2;
+  final dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+  return ((2 + rm / 256) * dr * dr +
+          4 * dg * dg +
+          (2 + (255 - rm) / 256) * db * db) /
+      3;
+}
 
-  // 1. What colour is the background? The commonest colour on the edge.
-  final bins = <int, List<int>>{}; // key -> [count, r, g, b] sums
-  void sample(int p) {
+/// The background's colours, worked out from the image's edge: each colour
+/// that covers a fair share of it, on at least two of its sides. [plain] when
+/// nearly all the edge is one colour. Null when the edge has no background to
+/// speak of.
+({List<(int, int, int)> colours, bool plain})? _edgePalette(
+  Uint8List src,
+  int w,
+  int h,
+  double limit,
+) {
+  // [count, r, g, b, top, bottom, left, right]
+  final bins = <int, List<int>>{};
+  void sample(int p, int side) {
     final i = p * 4;
     if (src[i + 3] < 200) return;
     final key =
         ((src[i] >> 3) << 10) | ((src[i + 1] >> 3) << 5) | (src[i + 2] >> 3);
-    final e = bins.putIfAbsent(key, () => [0, 0, 0, 0]);
+    final e = bins.putIfAbsent(key, () => List.filled(8, 0));
     e[0]++;
     e[1] += src[i];
     e[2] += src[i + 1];
     e[3] += src[i + 2];
+    e[4 + side]++;
   }
 
   for (int x = 0; x < w; x++) {
-    sample(x);
-    sample((h - 1) * w + x);
+    sample(x, 0);
+    sample((h - 1) * w + x, 1);
   }
   for (int y = 1; y < h - 1; y++) {
-    sample(y * w);
-    sample(y * w + w - 1);
+    sample(y * w, 2);
+    sample(y * w + w - 1, 3);
   }
-  if (bins.isEmpty) return (px: px, removed: 0);
-  final top = bins.values.reduce((a, b) => a[0] >= b[0] ? a : b);
-  // A real background is the bulk of the edge, not one colour among many.
+  if (bins.isEmpty) return null;
   final edgeCount = bins.values.fold<int>(0, (n, e) => n + e[0]);
-  if (top[0] < edgeCount * 0.3) return (px: px, removed: 0);
-  final br = top[1] ~/ top[0], bg = top[2] ~/ top[0], bb = top[3] ~/ top[0];
 
-  double dist(int p) => _dist(src, p * 4, br, bg, bb);
-  // Already see-through counts as background that can be flooded across.
-  bool passes(int p, double lim) => src[p * 4 + 3] < 8 || dist(p) <= lim;
+  // Gather similar colours together, the commonest first.
+  final merge = math.max(6.0, limit / 2);
+  final groups = <List<int>>[];
+  for (final b in bins.values.toList()..sort((a, b) => b[0] - a[0])) {
+    final r = b[1] ~/ b[0], g = b[2] ~/ b[0], bl = b[3] ~/ b[0];
+    List<int>? home;
+    for (final gr in groups) {
+      final d2 = _seen2(
+        r,
+        g,
+        bl,
+        gr[1] ~/ gr[0],
+        gr[2] ~/ gr[0],
+        gr[3] ~/ gr[0],
+      );
+      if (d2 <= merge * merge) {
+        home = gr;
+        break;
+      }
+    }
+    if (home == null) {
+      groups.add(List.of(b));
+    } else {
+      for (int k = 0; k < 8; k++) {
+        home[k] += b[k];
+      }
+    }
+  }
+  groups.sort((a, b) => b[0] - a[0]);
 
-  final gone = Uint8List(n); // 1 = background, 2 = looked at and kept
+  final sideLen = [w, w, math.max(1, h - 2), math.max(1, h - 2)];
+  bool onTwoSides(List<int> g) {
+    var sides = 0;
+    for (int s = 0; s < 4; s++) {
+      if (g[4 + s] >= sideLen[s] * 0.1) sides++;
+    }
+    return sides >= 2;
+  }
+
+  final first = groups.first;
+  final kept = <List<int>>[
+    // The commonest colour counts as background when it is the bulk of the
+    // edge, as a plain background is.
+    if (first[0] >= edgeCount * 0.3 || onTwoSides(first)) first,
+    for (final g in groups.skip(1))
+      if (g[0] >= edgeCount * 0.04 && onTwoSides(g)) g,
+  ];
+  final covered = kept.fold<int>(0, (n, g) => n + g[0]);
+  // A real background is most of the edge, not one colour among many.
+  if (kept.isEmpty ||
+      (first[0] < edgeCount * 0.3 && covered < edgeCount * 0.5)) {
+    return null;
+  }
+  // Plain: nearly all the edge is within a whisker of its commonest colour,
+  // whatever the tolerance.
+  final fr = first[1] ~/ first[0], fg = first[2] ~/ first[0];
+  final fb = first[3] ~/ first[0];
+  var near = 0;
+  for (final b in bins.values) {
+    final d2 = _seen2(b[1] ~/ b[0], b[2] ~/ b[0], b[3] ~/ b[0], fr, fg, fb);
+    if (d2 <= 12 * 12) near += b[0];
+  }
+  final plain = near >= edgeCount * 0.9;
+  return (
+    colours: [
+      for (final g in kept.take(8)) (g[1] ~/ g[0], g[2] ~/ g[0], g[3] ~/ g[0]),
+    ],
+    plain: plain,
+  );
+}
+
+({Uint8List px, int removed}) _removeBg(_BgJob j) {
+  final w = j.w, h = j.h, src = j.source, limit = j.limit;
+  final px = Uint8List.fromList(src);
+  final n = w * h;
+  final none = (px: px, removed: 0);
+
+  // 1. What colours is the background? Those that run around the edge.
+  final edge = _edgePalette(src, w, h, limit);
+  if (edge == null) return none;
+  final palette = edge.colours;
+
+  /// How far a pixel is from the nearest background colour, squared.
+  double far2(int p) {
+    final i = p * 4;
+    var best = double.infinity;
+    for (final (r, g, b) in palette) {
+      final d = _seen2(src[i], src[i + 1], src[i + 2], r, g, b);
+      if (d < best) best = d;
+    }
+    return best;
+  }
+
+  /// A pixel's colour averaged with its neighbours, so noise and JPEG
+  /// speckle do not count as steps.
+  (int, int, int) smooth(int p) {
+    final x = p % w, y = p ~/ w;
+    var r = 0, g = 0, b = 0, k = 0;
+    for (int yy = math.max(0, y - 1); yy <= math.min(h - 1, y + 1); yy++) {
+      for (int xx = math.max(0, x - 1); xx <= math.min(w - 1, x + 1); xx++) {
+        final i = (yy * w + xx) * 4;
+        r += src[i];
+        g += src[i + 1];
+        b += src[i + 2];
+        k++;
+      }
+    }
+    return (r ~/ k, g ~/ k, b ~/ k);
+  }
+
+  final lim2 = limit * limit;
+  // A background that changes gradually is followed one small step at a
+  // time, but never further than this from its colours on the edge. Not
+  // when the edge is one plain colour, as with a product photo on white:
+  // there the background does not change, and the soft shading of something
+  // white on it, a lamp shade or a pot, would be followed in instead.
+  final step = math.max(2.5, limit * 0.04);
+  final step2 = step * step;
+  final drift2 = edge.plain ? lim2 : 4 * lim2;
+  bool clear0(int p) => src[p * 4 + 3] < 8;
+
+  final gone = Uint8List(n); // 1 = background
   int removed = 0;
   void clear(int p) {
     if (px[p * 4 + 3] != 0) removed++;
@@ -289,55 +424,67 @@ typedef _BgJob = ({Uint8List source, int w, int h, double limit, bool inside});
     gone[p] = 1;
   }
 
-  // 2. Flood in from every pixel on the edge.
+  // 2. Flood in from the edge.
   final stack = <int>[];
-  void push(int p) {
-    if (gone[p] == 0) {
-      gone[p] = 3; // queued
+  void seed(int p) {
+    if (gone[p] == 0 && (clear0(p) || far2(p) <= lim2)) {
+      clear(p);
       stack.add(p);
     }
   }
 
   for (int x = 0; x < w; x++) {
-    push(x);
-    push((h - 1) * w + x);
+    seed(x);
+    seed((h - 1) * w + x);
   }
   for (int y = 1; y < h - 1; y++) {
-    push(y * w);
-    push(y * w + w - 1);
+    seed(y * w);
+    seed(y * w + w - 1);
   }
   while (stack.isNotEmpty) {
     final p = stack.removeLast();
-    if (!passes(p, limit)) {
-      gone[p] = 2;
-      continue;
-    }
-    clear(p);
     final x = p % w, y = p ~/ w;
-    if (x > 0) push(p - 1);
-    if (x < w - 1) push(p + 1);
-    if (y > 0) push(p - w);
-    if (y < h - 1) push(p + w);
+    (int, int, int)? here;
+    void reach(int q) {
+      if (gone[q] != 0) return;
+      var ok = clear0(q);
+      if (!ok) {
+        final d = far2(q);
+        ok = d <= lim2;
+        if (!ok && d <= drift2) {
+          final a = here ??= smooth(p), b = smooth(q);
+          ok = _seen2(a.$1, a.$2, a.$3, b.$1, b.$2, b.$3) <= step2;
+        }
+      }
+      if (ok) {
+        clear(q);
+        stack.add(q);
+      }
+    }
+
+    if (x > 0) reach(p - 1);
+    if (x < w - 1) reach(p + 1);
+    if (y > 0) reach(p - w);
+    if (y < h - 1) reach(p + w);
   }
 
-  // 3. Roomy pockets of the very same colour that the flood could not reach.
+  // 3. Roomy pockets of a background colour that the flood could not reach.
   if (j.inside) {
     final tight = math.min(limit, 31.0);
+    final tight2 = tight * tight;
     final minArea = math.max(48, n ~/ 3000);
     final seen = Uint8List(n);
     for (int s = 0; s < n; s++) {
-      if (gone[s] != 0 && gone[s] != 2) continue;
-      if (seen[s] == 1 || src[s * 4 + 3] < 8 || dist(s) > tight) continue;
+      if (gone[s] == 1 || seen[s] == 1 || clear0(s) || far2(s) > tight2) {
+        continue;
+      }
       final comp = <int>[s];
       seen[s] = 1;
       for (int k = 0; k < comp.length; k++) {
         final p = comp[k];
         final x = p % w, y = p ~/ w;
         void visit(int q) {
-          if (seen[q] == 0 &&
-              gone[q] != 1 &&
-              src[q * 4 + 3] >= 8 &&
-              dist(q) <= tight) {
+          if (seen[q] == 0 && gone[q] != 1 && !clear0(q) && far2(q) <= tight2) {
             seen[q] = 1;
             comp.add(q);
           }
@@ -355,35 +502,39 @@ typedef _BgJob = ({Uint8List source, int w, int h, double limit, bool inside});
       }
     }
   }
-  if (removed == 0) return (px: px, removed: 0);
+  if (removed == 0) return none;
 
   // 4. Un-mix the thin edge left behind: a pixel that is part picture and
   // part background keeps only its picture colour, with the rest as opacity.
-  final band = <int>[];
+  // The background it is mixed with is the one removed right beside it.
+  final band = <(int, int, int, int)>[]; // pixel, and its background colour
   for (int y = 0; y < h; y++) {
     for (int x = 0; x < w; x++) {
       final p = y * w + x;
-      if (gone[p] == 1 || src[p * 4 + 3] < 8) continue;
-      var near = false;
-      for (int dy = -2; dy <= 2 && !near; dy++) {
+      if (gone[p] == 1 || clear0(p)) continue;
+      var r = 0, g = 0, b = 0, k = 0;
+      for (int dy = -2; dy <= 2; dy++) {
         final yy = y + dy;
         if (yy < 0 || yy >= h) continue;
         for (int dx = -2; dx <= 2; dx++) {
           final xx = x + dx;
           if (xx < 0 || xx >= w) continue;
-          if (gone[yy * w + xx] == 1) {
-            near = true;
-            break;
+          final q = yy * w + xx;
+          if (gone[q] == 1 && !clear0(q)) {
+            r += src[q * 4];
+            g += src[q * 4 + 1];
+            b += src[q * 4 + 2];
+            k++;
           }
         }
       }
-      if (near) band.add(p);
+      if (k > 0) band.add((p, r ~/ k, g ~/ k, b ~/ k));
     }
   }
-  final bgc = [br, bg, bb];
+
   // The picture's own colour near a band pixel: the colour furthest from the
   // background within a few pixels, which is the middle of the stroke.
-  List<int>? purestNear(int x, int y) {
+  List<int>? purestNear(int x, int y, int br, int bg, int bb) {
     var best = -1.0;
     int? bp;
     for (int dy = -3; dy <= 3; dy++) {
@@ -392,7 +543,7 @@ typedef _BgJob = ({Uint8List source, int w, int h, double limit, bool inside});
         if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
         final q = yy * w + xx;
         if (gone[q] == 1 || src[q * 4 + 3] < 200) continue;
-        final d = dist(q);
+        final d = _dist(src, q * 4, br, bg, bb);
         if (d > best) {
           best = d;
           bp = q;
@@ -403,9 +554,10 @@ typedef _BgJob = ({Uint8List source, int w, int h, double limit, bool inside});
     return [src[bp * 4], src[bp * 4 + 1], src[bp * 4 + 2]];
   }
 
-  for (final p in band) {
+  for (final (p, br, bg, bb) in band) {
     final i = p * 4;
-    final f = purestNear(p % w, p ~/ w);
+    final bgc = [br, bg, bb];
+    final f = purestNear(p % w, p ~/ w, br, bg, bb);
     var alpha = 0.0;
     List<int>? fg;
     if (f != null) {
