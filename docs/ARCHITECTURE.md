@@ -76,11 +76,13 @@ A `.thinkspace` project is one JSON file: `{format, version, document, assets: {
 
 Clipboard images go through `xclip` or `wl-clipboard`, because Flutter's clipboard carries only text. A copy counts only once the clipboard is read back and holds exactly the new image; otherwise the next tool is tried and then the copy is reported as failed, because a silent failure leaves the previous image there to be pasted. A selection copied as an image takes along any Hide details boxes over it (`withCovers`). When Thinkspace copies, it puts a rendered PNG on the system clipboard *and* remembers a signature of it, so a later paste can tell "my own copy" from "something new" and paste full-fidelity objects.
 
-### Screenshots (Linux)
+### Screenshots
 
 The GTK runner (`linux/runner/my_application.cc`) does the work Dart cannot do alone. `takeScreenshot` on the `thinkspace/window` channel hides the window, asks the desktop's screenshot service (xdg-desktop-portal, over GDBus) for a picture with the desktop's own area picker, and shows the window again. It hides rather than minimises: on GNOME under Wayland a window coming back from minimised stays unfocused, while one shown again gets the focus. The picture then comes in as a paste does.
 
 Every window is its own process. Each listens on a socket of its own in `$XDG_RUNTIME_DIR/thinkspace` and notes when it last had the focus in a file beside it. `thinkspace --capture`, which the screenshot shortcut runs, sends the window used last a `capture` line, before Flutter even starts, and exits. If no window answers, it starts a window that stays hidden until the picture is in, or quits if it was cancelled. The shortcut itself is a GNOME custom keyboard shortcut, set and removed through `gsettings` by `lib/io/screenshot_shortcut.dart`, which only ever touches its own entry.
+
+On Windows (`windows/runner/`) there is no screenshot service to ask, so `screen_pick.cpp` is the picker: it copies every monitor, covers them with a window showing that frozen copy dimmed, and saves the box the person drags as a PNG in the temp folder, which the app reads and deletes. `thinkspace --capture` (`capture.cpp`, before Flutter starts) finds the window used last as the highest Thinkspace window in the stacking order and sends it a `WM_COPYDATA` message, or else starts hidden as on Linux. The shortcut is a "Thinkspace screenshot" Start-menu entry with shortcut keys on it, so Explorer does the listening and nothing of ours runs in the background; the installer's uninstaller removes it.
 
 ### Inspector (`lib/dev/inspector.dart`)
 
@@ -92,7 +94,7 @@ With `THINKSPACE_DEBUG_PORT` set, the app serves `/state` (the controller's own 
 
 - `test/model_test.dart` — serialisation, hit-testing, geometry.
 - `test/editor_test.dart` — the controller and interactor driven headlessly with real gesture sequences: drawing, moving, snapping, resizing and rotating (including rotated objects), cycling through overlaps, marquee, layers, z-order, cutouts of rotated/flipped images, background removal, merge, recovery, save/load, export pixels.
-- `test/widget_test.dart` — the real widget tree with pointer and keyboard events: tools, shortcuts, layer panel, text editing on the page, paste chooser, recovery dialog, the name tag's padlock, and layout at several window sizes.
+- `test/widget_test.dart` — the real widget tree with pointer and keyboard events: tools, shortcuts, layer panel, text editing on the page, paste chooser, recovery dialog, the name tag's padlock and layer button, and layout at several window sizes.
 - `test/curves_test.dart` — curved lines and the eyedropper.
 - `test/remove_marks_test.dart` — what a sweep removes, leaves and undoes.
 - `test/hide_styles_recent_test.dart` — Hide details (including the pixels it produces), tool looks, locking, recent files and prefs.

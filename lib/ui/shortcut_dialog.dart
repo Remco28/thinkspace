@@ -7,10 +7,11 @@ import 'design.dart';
 import 'shortcuts.dart';
 
 /// Where the dialog reads and writes the shortcut; tests put a stand-in here.
-ScreenshotShortcut Function() screenshotShortcutStore = ScreenshotShortcut.new;
+ScreenshotShortcut Function() screenshotShortcutStore =
+    screenshotShortcutForThisComputer;
 
 /// Choose the keys that take a screenshot from anywhere, even with
-/// Thinkspace in the background. Linux (GNOME) only.
+/// Thinkspace in the background. GNOME on Linux, and Windows.
 Future<void> showScreenshotShortcut(BuildContext context, EditorController c) =>
     showDialog<void>(
       context: context,
@@ -58,6 +59,13 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
     }
     if (_isModifier(k)) return KeyEventResult.handled;
     final hw = HardwareKeyboard.instance;
+    if (hw.isMetaPressed && !widget.store.superKey) {
+      setState(
+        () => _note =
+            "Windows keeps the Windows key for itself. Use Ctrl or Alt.",
+      );
+      return KeyEventResult.handled;
+    }
     final s = shortcutFor(
       k,
       ctrl: hw.isControlPressed,
@@ -71,7 +79,8 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
         _note = null;
       } else {
         _note =
-            'Add Ctrl, Alt or Super to a letter, so typing never sets it off.';
+            'Add Ctrl${widget.store.superKey ? ', Alt or Super' : ' or Alt'} '
+            'to a letter, so typing never sets it off.';
       }
     });
     return KeyEventResult.handled;
@@ -199,7 +208,8 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
               Text(
                 _note ??
                     'Ctrl + Print works well. If the keys do nothing later, '
-                        'the desktop uses them for something else.',
+                        '${widget.store.superKey ? 'the desktop' : 'Windows'} '
+                        'uses them for something else.',
                 style: soft.copyWith(color: _note == null ? kInkSoft : kDanger),
               ),
             ],

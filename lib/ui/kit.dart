@@ -176,11 +176,15 @@ class ActionButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
+    this.glyph,
     this.tooltip,
     this.selected = false,
   });
   final String label;
   final IconData? icon;
+
+  /// A drawn icon (size, colour) in place of [icon], such as the magnet.
+  final Widget Function(double size, Color color)? glyph;
   final String? tooltip;
 
   /// Drawn as "on", for buttons that behave like switches (Show grid).
@@ -194,7 +198,11 @@ class ActionButton extends StatelessWidget {
       height: kControlHeight,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: icon == null ? const SizedBox.shrink() : Icon(icon, size: kIcon),
+        icon: glyph != null
+            ? glyph!(kIcon, selected ? kAccent : kInkSoft)
+            : icon == null
+            ? const SizedBox.shrink()
+            : Icon(icon, size: kIcon),
         label: Text(label, overflow: TextOverflow.ellipsis),
         style: OutlinedButton.styleFrom(
           visualDensity: VisualDensity.compact,
@@ -232,7 +240,8 @@ class ButtonRow extends StatelessWidget {
   );
 }
 
-/// A label, a switch, and, when asked, a line of explanation underneath.
+/// A label, a switch, and, when asked, a line of explanation underneath or
+/// a longer one shown when the pointer rests on the row.
 class SwitchRow extends StatelessWidget {
   const SwitchRow({
     super.key,
@@ -240,14 +249,20 @@ class SwitchRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.hint,
+    this.tooltip,
   });
   final String label;
   final String? hint;
+  final String? tooltip;
   final bool value;
   final ValueChanged<bool> onChanged;
 
   @override
-  Widget build(BuildContext context) => InkWell(
+  Widget build(BuildContext context) => tooltip == null
+      ? _row()
+      : Tooltip(message: tooltip, waitDuration: kTooltipWait, child: _row());
+
+  Widget _row() => InkWell(
     onTap: () => onChanged(!value),
     borderRadius: BorderRadius.circular(kRadius),
     child: Padding(

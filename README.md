@@ -49,7 +49,7 @@ The collection on the left holds images you have gathered but not placed yet. Dr
 Layers are for organising, not effects. Put each option on its own layer and click the eyes to flip between them, so the person you are showing can compare without you rebuilding anything.
 
 - Click a layer to select everything on it, then drag to move it all together.
-- Drag an object onto another layer and it keeps its place on the page.
+- Drag an object onto another layer and it keeps its place on the page. Drag it between other objects in the list to put it in front of or behind them.
 - Show, hide, reorder and lock layers. A new layer opens its name for typing.
 - Open up to ten images at once with `Ctrl+O` and each gets its own layer, named after its file.
 
@@ -59,7 +59,7 @@ Layers are for organising, not effects. Put each option on its own layer and cli
 
 Every tool has a single letter: `V` select, `A` arrow, `T` text, `H` highlighter, and so on. The active tool shows its key under its button, so you learn the keys by using the toolbar.
 
-Press `?` or `F1` for the sheet on the right. The rest of the editing has keys too: nudging with the arrow keys, `[` and `]` for order, `F2` to rename, `Ctrl+L` to lock, `M` to merge and `Space` with a drag to pan. On Linux, `S` takes a screenshot: Thinkspace steps aside, you pick part of the screen, and the picture lands on the page.
+Press `?` or `F1` for the sheet on the right. The rest of the editing has keys too: nudging with the arrow keys, `[` and `]` for order, `F2` to rename, `Ctrl+L` to lock, `M` to merge and `Space` with a drag to pan. `S` takes a screenshot: Thinkspace steps aside, you pick part of the screen, and the picture lands on the page.
 
 The full list is in [docs/KEYBOARD.md](docs/KEYBOARD.md).
 
@@ -80,7 +80,7 @@ The size comes from doing less. There are no plugins, accounts, filters, brushes
 
 - Arrows and lines that bend into curves and stay attached to what they point at.
 - Text, numbered markers, rectangles, ellipses, a pen and a highlighter that keeps writing underneath readable.
-- Screenshots taken from inside the app (Linux), with the desktop's own area picker, or from anywhere with a shortcut you choose.
+- Screenshots taken from inside the app, or from anywhere with a shortcut you choose.
 - Cut-outs and one-click background removal, which always make a new image and keep the original.
 - Hide details boxes that pixelate or cover something before you share it.
 - A page that grows to fit, and one undo step per gesture.
@@ -147,13 +147,15 @@ Windows 10 or newer, 64-bit. Download one of these:
 
 The program is not signed, so the first run may show "Windows protected your PC". Choose **More info**, then **Run anyway**.
 
-The clipboard needs nothing extra. Take a screenshot with `Win+Shift+S` and press `Ctrl+V`, or copy image files in Explorer and paste them. Unsaved work is kept in `%APPDATA%\Thinkspace`.
+The clipboard needs nothing extra: copy an image or image files in Explorer and paste them. Unsaved work is kept in `%APPDATA%\Thinkspace`.
+
+The screenshot shortcut, if you set one, is a "Thinkspace screenshot" entry in your Start menu with your keys on it. The installer's uninstaller removes it. With the zip, delete it from the Start menu yourself.
 
 Touch and pen work too. One finger does what the mouse does, two fingers move and zoom the page, and holding a finger on something opens its menu. A pen behaves like a mouse, and its barrel button is a right click.
 
 ## A first five minutes
 
-1. Press `S` in Thinkspace and drag across part of the screen. On Windows, take a screenshot to the clipboard and press `Ctrl+V` instead. Choose **Add to "Layer 1"**. The page becomes the size of your screenshot.
+1. Press `S` in Thinkspace and drag across part of the screen. Choose **Add to "Layer 1"**. The page becomes the size of your screenshot.
 2. Press `A` and drag across the screen to draw an arrow. Drag either end to resize it. `Shift` keeps it straight.
 3. Press `T`, click, type a note. Press `Esc` to finish.
 4. Copy another image and press `Ctrl+Shift+V` to put it in the collection. Drag it onto the page, pull a corner to size it, and slide **Opacity** in the panel.

@@ -21,7 +21,12 @@ The values (colours, sizes, spacing, corners, timings) live in [`lib/ui/design.d
 - **Controls are shown even when they don't apply yet,** greyed until they do. Example: Reset to default.
 - **The active tool shows its key** as a small keycap under its button. The tools start at a fixed spot (past the Collection panel at its usual width) and never follow the panel, so the keycap hangs over open page area.
 - **Controls in the panel:** every field, dropdown, button and button group is the same height. A labelled action is a full-width outlined button (Cut out…, Fit page to content); a set of options or small actions is a joined group of icon buttons (Align, Arrange). A single icon action next to fields is a one-button group, so it is boxed like its neighbours.
-- **One thing looks selected.** In the Layers list only the selection is filled; the current layer has an accent bar at its left.
+- **One thing looks selected.** In the Layers list only the selection is filled; the current layer is named in the accent colour, with a bar at its left whose tooltip says new things go there.
+- **The Layers list has no bands or cards.** Layers are set apart by a thin line and a little room, and both kinds of row share one set of columns: an object's icon starts under its layer's name, and every eye sits in one column at the right, with the padlock and the layer's count just before it. Grey bands behind the layer rows were tried and looked heavy once the columns lined up.
+- **Visible things' eyes are quiet** and darken under the pointer; a hidden thing's crossed-out eye is dark, so what is hidden stands out. Hidden layers' names stay faint on purpose.
+- **Explanations go in tooltips** when they would otherwise be paragraphs in the panel (Grow the page as I add things).
+- **The rows in a panel section end on one right edge,** and sizes carry their unit (px).
+- **One blue:** switches and sliders use the accent colour, not a shade picked by Flutter's theme.
 - **Numbers sit on the right of their field,** so a unit (°, px, wide) is right beside them.
 
 ## Type

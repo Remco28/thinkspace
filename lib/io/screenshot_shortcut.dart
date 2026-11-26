@@ -1,6 +1,15 @@
 import 'dart:io';
 
-import 'package:flutter/services.dart' show LogicalKeyboardKey;
+import 'package:flutter/services.dart' show LogicalKeyboardKey, MethodChannel;
+
+/// Whether Thinkspace can take screenshots on this computer: through the
+/// desktop's screenshot service on Linux, with its own overlay on Windows
+/// (`windows/runner/screen_pick.cpp`).
+bool get screenshotsHere => Platform.isLinux || Platform.isWindows;
+
+/// The shortcut store for this computer.
+ScreenshotShortcut screenshotShortcutForThisComputer() =>
+    Platform.isWindows ? WindowsScreenshotShortcut() : ScreenshotShortcut();
 
 /// The screenshot shortcut the person chooses: a GNOME custom keyboard
 /// shortcut that runs `thinkspace --capture` (see `my_application.cc`).
@@ -22,6 +31,9 @@ class ScreenshotShortcut {
   static const path =
       '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/thinkspace-screenshot/';
   static const _entry = '$listSchema.custom-keybinding:$path';
+
+  /// Whether the Super (Windows) key can be part of the shortcut.
+  bool get superKey => true;
 
   /// What the shortcut runs. Quoted, since GNOME splits it like a shell.
   String get command => "'${executable.replaceAll("'", r"'\''")}' --capture";
@@ -119,6 +131,97 @@ class ScreenshotShortcut {
 
   static String stringList(List<String> items) =>
       items.isEmpty ? '@as []' : '[${items.map(quote).join(', ')}]';
+}
+
+/// The screenshot shortcut on Windows: a "Thinkspace screenshot" entry in
+/// the person's Start menu with shortcut keys on it, made by the window
+/// (`windows/runner/capture.cpp`). Windows' own shortcut keys can't use the
+/// Windows key. The installer's uninstaller removes the entry.
+class WindowsScreenshotShortcut extends ScreenshotShortcut {
+  WindowsScreenshotShortcut({
+    Future<Object?> Function(String method, [Object? arg])? invoke,
+    super.executable,
+  }) : _invoke = invoke ?? _channel.invokeMethod<Object?>;
+
+  static const _channel = MethodChannel('thinkspace/window');
+  final Future<Object?> Function(String method, [Object? arg]) _invoke;
+
+  @override
+  bool get superKey => false;
+
+  @override
+  String get command => '"$executable" --capture';
+
+  @override
+  Future<bool> available() async => true;
+
+  @override
+  Future<String?> current() async {
+    final v = await _invoke('getShortcut');
+    return v is int ? accelForHotkey(v) : null;
+  }
+
+  @override
+  Future<bool> set(String accel) async {
+    final hotkey = hotkeyForAccel(accel);
+    return hotkey != null && await _invoke('setShortcut', hotkey) == true;
+  }
+
+  @override
+  Future<bool> remove() async => await _invoke('removeShortcut') == true;
+
+  // Windows key codes (VK_*) for the keys a shortcut can use, by GTK name.
+  static final _keyCodes = <String, int>{
+    'Print': 0x2C,
+    'Pause': 0x13,
+    'Scroll_Lock': 0x91,
+    'Insert': 0x2D,
+    'Home': 0x24,
+    'End': 0x23,
+    'Page_Up': 0x21,
+    'Page_Down': 0x22,
+    'space': 0x20,
+    for (var i = 1; i <= 12; i++) 'F$i': 0x6F + i,
+    for (var i = 0; i < 26; i++) String.fromCharCode(0x61 + i): 0x41 + i, // a-z
+    for (var i = 0; i < 10; i++) '$i': 0x30 + i,
+  };
+  static const _shift = 0x100, _control = 0x200, _alt = 0x400;
+
+  /// An accelerator such as `<Control>Print` as a Start menu shortcut's
+  /// hotkey: the key code, and Shift, Ctrl and Alt in the byte above. Null
+  /// for what Windows can't use (the Windows key, or an unknown key).
+  static int? hotkeyForAccel(String accel) {
+    final mods = RegExp(r'<(\w+)>').allMatches(accel).map((m) => m.group(1)!);
+    final code = _keyCodes[accel.replaceAll(RegExp(r'<\w+>'), '')];
+    if (code == null) return null;
+    var hotkey = code;
+    for (final m in mods) {
+      switch (m) {
+        case 'Control' || 'Primary' || 'Ctrl':
+          hotkey |= _control;
+        case 'Alt':
+          hotkey |= _alt;
+        case 'Shift':
+          hotkey |= _shift;
+        default:
+          return null;
+      }
+    }
+    return hotkey;
+  }
+
+  /// The other way round; null for a key code Thinkspace doesn't offer.
+  static String? accelForHotkey(int hotkey) {
+    final code = hotkey & 0xFF;
+    final name = _keyCodes.entries
+        .where((e) => e.value == code)
+        .map((e) => e.key)
+        .firstOrNull;
+    if (name == null) return null;
+    return '${hotkey & _control != 0 ? '<Control>' : ''}'
+        '${hotkey & _alt != 0 ? '<Alt>' : ''}'
+        '${hotkey & _shift != 0 ? '<Shift>' : ''}$name';
+  }
 }
 
 /// A key press as a shortcut: the GTK accelerator GNOME stores and the key

@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart' show RenderEditable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thinkspace/io/screenshot_shortcut.dart';
 import 'package:thinkspace/editor/controller.dart';
 import 'package:thinkspace/editor/image_ops.dart' show HoleFill;
 import 'package:thinkspace/editor/render.dart' show textPainterFor;
@@ -325,6 +327,47 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
     await tester.pump();
     expect(c.tool, Tool.line);
+  });
+
+  appTest('dragging an object row between others changes what is in front', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    for (final n in ['back', 'middle', 'front']) {
+      c.addObject(
+        ShapeObject(
+          id: n,
+          name: n,
+          ellipse: false,
+          center: const Offset(100, 100),
+          size: const Size(50, 50),
+        ),
+      );
+    }
+    c.select([]);
+    await tester.pump();
+    // The list shows the front first: front, middle, back.
+    final from = tester.getCenter(find.byKey(const ValueKey('object-back')));
+    final to = tester.getRect(find.byKey(const ValueKey('object-front')));
+    final g = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
+    await g.moveBy(const Offset(0, -10));
+    await g.moveTo(to.center - const Offset(0, 6));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('drop-line')), findsOneWidget);
+    await g.up();
+    await tester.pump();
+    expect(c.doc.layers.first.objects.map((o) => o.id), [
+      'middle',
+      'front',
+      'back',
+    ], reason: 'dropped on the top half of "front", so in front of it');
+    expect(find.byKey(const ValueKey('drop-line')), findsNothing);
+    c.undo();
+    expect(c.doc.layers.first.objects.map((o) => o.id), [
+      'back',
+      'middle',
+      'front',
+    ]);
   });
 
   appTest('the layer menu offers Duplicate layer', (tester) async {
@@ -1381,6 +1424,69 @@ void main() {
     expect(find.text('COLLECTION'), findsNothing);
   });
 
+  appTest('resting on the current layer\'s bar says what it means', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    final bar = find.byKey(const ValueKey('current-layer-bar'));
+    expect(bar, findsOneWidget);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(bar));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('New things go on this layer'), findsOneWidget);
+    await mouse.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
+  });
+
+  appTest('resting on Grow the page explains it', (tester) async {
+    await pumpApp(tester);
+    final row = find.byKey(const ValueKey('grow-page'));
+    expect(row, findsOneWidget);
+    expect(find.textContaining('past its edge'), findsNothing);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(row));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.textContaining('past its edge'), findsOneWidget);
+    await mouse.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
+  });
+
+  appTest('a row being renamed is scrolled fully into view', (tester) async {
+    final c = await pumpApp(tester);
+    for (var i = 0; i < 12; i++) {
+      c.addLayer();
+      for (var j = 0; j < 3; j++) {
+        c.addObject(
+          ShapeObject(
+            id: 'o$i-$j',
+            name: 'shape $i-$j',
+            ellipse: false,
+            center: Offset(100.0 + j * 50, 100),
+            size: const Size(40, 40),
+            fill: 0xFF43A047,
+          ),
+        );
+      }
+    }
+    await tester.pumpAndSettle();
+    final list = tester.getRect(find.byType(ReorderableListView));
+    // The bottom layer's objects, then back to the top: each row lands
+    // wholly inside the list, not a few pixels short.
+    for (final id in ['o0-0', 'o0-2', 'o6-1', 'o11-2']) {
+      c.beginRename(id);
+      await tester.pumpAndSettle();
+      final row = tester.getRect(find.byKey(ValueKey('object-$id')));
+      expect(row.top, greaterThanOrEqualTo(list.top - 0.5), reason: id);
+      expect(row.bottom, lessThanOrEqualTo(list.bottom + 0.5), reason: id);
+      c.endRename();
+      await tester.pumpAndSettle();
+    }
+  });
+
   appTest('the padlock on the name tag and Ctrl+L lock in place', (
     tester,
   ) async {
@@ -1413,6 +1519,80 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
     await tester.pump();
     expect(c.tool, Tool.line);
+  });
+
+  appTest('the layer on the name tag moves the selection to another layer', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    final first = c.doc.layers.first;
+    c.addObject(
+      ShapeObject(
+        id: 'a',
+        name: 'a',
+        ellipse: false,
+        center: const Offset(300, 300),
+        size: const Size(120, 80),
+        fill: 0xFF43A047,
+      ),
+    );
+    c.addObject(
+      ShapeObject(
+        id: 'b',
+        name: 'b',
+        ellipse: true,
+        center: const Offset(450, 300),
+        size: const Size(80, 80),
+        fill: 0xFF1E88E5,
+      ),
+    );
+    c.addLayer();
+    final second = c.doc.layers.last;
+    c.renameLayer(second.id, 'Notes');
+    c.select(['a', 'b']);
+    await tester.pump();
+    // Both on one layer: the tag names it, and the name is a button.
+    final button = find.byKey(const ValueKey('tag-layer'));
+    expect(button, findsOneWidget);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.text('MOVE TO LAYER'), findsOneWidget);
+    await tester.tap(find.text('Notes').last);
+    await tester.pumpAndSettle();
+    expect(c.doc.layerOf('a')?.id, second.id);
+    expect(c.doc.layerOf('b')?.id, second.id);
+    expect(c.selection, ['a', 'b']);
+    c.undo();
+    expect(c.doc.layerOf('a')?.id, first.id, reason: 'one undo step');
+    expect(c.doc.layerOf('b')?.id, first.id);
+    // Or onto a layer of their own.
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New layer'));
+    await tester.pumpAndSettle();
+    // Just in front of the layer they left, under "Notes".
+    expect(c.doc.layers, hasLength(3));
+    expect(c.doc.layerOf('a')?.id, c.doc.layers[1].id);
+    expect(c.doc.layerOf('b')?.id, c.doc.layers[1].id);
+    expect(c.doc.layers.last.id, second.id);
+    c.undo();
+    await tester.pump();
+    // On different layers there is no one layer to name.
+    c.moveObjectsToLayer(['b'], second.id);
+    c.select(['a', 'b']);
+    await tester.pump();
+    expect(button, findsNothing);
+    // A hidden layer is marked, and what moves onto it leaves the selection.
+    c.setLayerVisible(second.id, false);
+    c.select(['a']);
+    await tester.pump();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.text('Hidden'), findsOneWidget);
+    await tester.tap(find.text('Notes').last);
+    await tester.pumpAndSettle();
+    expect(c.doc.layerOf('a')?.id, second.id);
+    expect(c.selection, isEmpty);
   });
 
   appTest('a changed tool look offers a way back to the default', (
@@ -1515,7 +1695,13 @@ void main() {
       expect(c.pendingPaste?.name, 'screenshot', reason: 'it asks where');
       c.resolvePaste(toCollection: false);
       expect(c.doc.allObjects.whereType<ImageObject>(), hasLength(1));
-      expect(file.existsSync(), isTrue, reason: "the desktop's copy is kept");
+      expect(
+        file.existsSync(),
+        !Platform.isWindows,
+        reason: Platform.isWindows
+            ? "Thinkspace's own temporary file is deleted"
+            : "the desktop's copy is kept",
+      );
       await tester.pump(const Duration(seconds: 7)); // the first-picture tip
     });
 
@@ -1546,9 +1732,16 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 100));
       });
       await tester.pump();
-      expect(c.toastMessage, contains('screenshot service'));
+      expect(
+        c.toastMessage,
+        contains(
+          Platform.isWindows
+              ? "Couldn't take the screenshot"
+              : 'screenshot service',
+        ),
+      );
     });
-  }, skip: Platform.isLinux ? false : 'Screenshots are Linux only');
+  }, skip: screenshotsHere ? false : 'No screenshots on this system');
 
   appTest('F11 asks the window for full screen and back; Esc does not', (
     tester,
@@ -1742,6 +1935,49 @@ void main() {
     expect(shown.preferredLineHeight, closeTo(page.preferredLineHeight, 0.01));
     final inner = t.size.width - TextObject.pad * 2;
     expect(shown.getMaxIntrinsicHeight(inner), page.preferredLineHeight);
+    c.finishTextEdit();
+  });
+
+  appTest('the box being typed in wraps where the page does, never sooner', (
+    tester,
+  ) async {
+    final c = await pumpApp(tester);
+    RenderEditable field() => tester
+        .state<EditableTextState>(
+          find.descendant(
+            of: find.byKey(const ValueKey('text-editor')),
+            matching: find.byType(EditableText),
+          ),
+        )
+        .renderEditable;
+    // A box of a set width: the field's lines are exactly the page's width
+    // (its own caret room hangs past the edge).
+    final fixed = c.createText(const Offset(100, 100), text: 'Wrapped here');
+    c.currentLayer.objects.add(fixed);
+    c.beginTextEdit(fixed.id);
+    await tester.pump();
+    expect(
+      field().size.width - 3,
+      closeTo(fixed.size.width - TextObject.pad * 2, 0.01),
+    );
+    c.finishTextEdit();
+    await tester.pump();
+    // A box that grows as you type has plenty to spare, so a field that
+    // measures text a little wider than the page still keeps it on one line.
+    final grows = c.createText(
+      const Offset(100, 300),
+      text: '',
+      autoWidth: true,
+    );
+    c.currentLayer.objects.add(grows);
+    c.beginTextEdit(grows.id);
+    await tester.pump();
+    await tester.enterText(find.byKey(const ValueKey('text-editor')), 'text');
+    await tester.pump();
+    expect(
+      field().size.width,
+      greaterThan(grows.size.width - TextObject.pad * 2 + grows.fontSize),
+    );
     c.finishTextEdit();
   });
 }

@@ -20,6 +20,7 @@ enum _Act {
   paste,
   selectAll,
   fit,
+  newLayer,
 }
 
 /// The right-click menu: what you can do with the thing under the pointer.
@@ -85,17 +86,21 @@ Future<void> showObjectMenu(
         shortcut: 'Ctrl+Shift+[',
         width: w,
       ),
-      if (others.isNotEmpty) ...[
-        menuDivider(),
-        menuLabel('Move to layer', width: w),
-        for (final l in others)
-          menuItem(
-            value: l.id,
-            label: l.name,
-            icon: Icons.layers_outlined,
-            width: w,
-          ),
-      ],
+      menuDivider(),
+      menuLabel('Move to layer', width: w),
+      menuItem(
+        value: _Act.newLayer,
+        label: 'New layer',
+        icon: Icons.add,
+        width: w,
+      ),
+      for (final l in others)
+        menuItem(
+          value: l.id,
+          label: l.name,
+          icon: Icons.layers_outlined,
+          width: w,
+        ),
       menuDivider(),
       if (one is ImageObject) ...[
         menuItem(
@@ -175,6 +180,8 @@ Future<void> showObjectMenu(
     return;
   }
   switch (v as _Act) {
+    case _Act.newLayer:
+      c.moveObjectsToNewLayer(sel.map((o) => o.id).toList());
     case _Act.copy:
       c.copySelection();
     case _Act.cut:

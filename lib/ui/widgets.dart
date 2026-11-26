@@ -202,7 +202,8 @@ class ValueField extends StatelessWidget {
   Widget build(BuildContext context) => NumberField(
     value: value,
     suffix: unit,
-    width: unit == null ? 48 : 56,
+    // Room for "100%" with its unit.
+    width: unit == null ? 48 : 64,
     onSubmitted: onSubmitted,
   );
 }
@@ -294,10 +295,14 @@ class ColorRow extends StatelessWidget {
                           ],
                         ),
                   borderRadius: BorderRadius.circular(kRadius),
+                  // Chosen, it is marked like a chosen fixed swatch.
                   border: Border.all(
-                    color: custom ? kAccent : kOutline,
+                    color: custom ? Colors.white : kOutline,
                     width: custom ? 2 : 1,
                   ),
+                  boxShadow: custom
+                      ? const [BoxShadow(color: kInk, spreadRadius: 2)]
+                      : null,
                 ),
               ),
             ),

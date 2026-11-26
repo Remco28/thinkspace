@@ -131,4 +131,67 @@ void main() {
       expect(await list(), [theirs]);
     });
   }, skip: hasSchema ? false : 'GNOME settings schemas are not installed');
+
+  group('on Windows', () {
+    test('keys become a Start menu hotkey and back', () {
+      const w = WindowsScreenshotShortcut.hotkeyForAccel;
+      expect(w('<Control>Print'), 0x22C);
+      expect(w('<Control><Alt>s'), 0x653);
+      expect(w('<Shift>F9'), 0x178);
+      expect(w('<Control>space'), 0x220);
+      expect(w('<Super>s'), isNull, reason: 'no Windows key in a hotkey');
+      expect(w('<Control>Menu'), isNull);
+      for (final a in [
+        '<Control>Print',
+        '<Control><Alt>s',
+        '<Shift>F9',
+        '<Alt>7',
+        '<Control><Shift>Page_Down',
+      ]) {
+        expect(WindowsScreenshotShortcut.accelForHotkey(w(a)!), a);
+      }
+      expect(WindowsScreenshotShortcut.accelForHotkey(0x2FF), isNull);
+    });
+
+    test('the window keeps the shortcut', () async {
+      final calls = <String>[];
+      Object? saved;
+      final s = WindowsScreenshotShortcut(
+        executable: r'C:\Program Files\Thinkspace\thinkspace.exe',
+        invoke: (method, [arg]) async {
+          calls.add('$method ${arg ?? ''}'.trim());
+          switch (method) {
+            case 'getShortcut':
+              return saved;
+            case 'setShortcut':
+              saved = arg;
+              return true;
+            case 'removeShortcut':
+              saved = null;
+              return true;
+          }
+          return null;
+        },
+      );
+      expect(s.superKey, isFalse);
+      expect(await s.available(), isTrue);
+      expect(await s.current(), isNull);
+      expect(await s.set('<Control>Print'), isTrue);
+      expect(await s.current(), '<Control>Print');
+      expect(await s.set('<Super>s'), isFalse, reason: 'never sent');
+      expect(await s.remove(), isTrue);
+      expect(await s.current(), isNull);
+      expect(calls, [
+        'getShortcut',
+        'setShortcut 556',
+        'getShortcut',
+        'removeShortcut',
+        'getShortcut',
+      ]);
+      expect(
+        s.command,
+        r'"C:\Program Files\Thinkspace\thinkspace.exe" --capture',
+      );
+    });
+  });
 }

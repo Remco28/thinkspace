@@ -44,5 +44,9 @@ Root: HKA; Subkey: "Software\Classes\Thinkspace.Project"; ValueType: string; Val
 Root: HKA; Subkey: "Software\Classes\Thinkspace.Project\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\thinkspace.exe,0"
 Root: HKA; Subkey: "Software\Classes\Thinkspace.Project\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\thinkspace.exe"" ""%1"""
 
+[UninstallDelete]
+; The screenshot shortcut, if the app made one (windows/runner/capture.cpp).
+Type: files; Name: "{userprograms}\Thinkspace screenshot.lnk"
+
 [Run]
 Filename: "{app}\thinkspace.exe"; Description: "Start Thinkspace"; Flags: nowait postinstall skipifsilent

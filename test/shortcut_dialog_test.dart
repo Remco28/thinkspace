@@ -8,9 +8,12 @@ import 'package:thinkspace/ui/shortcut_dialog.dart';
 
 /// GNOME's keyboard settings, kept in memory.
 class _Store extends ScreenshotShortcut {
-  _Store({this.works = true, this.binding})
+  _Store({this.works = true, this.binding, this.windows = false})
     : super(executable: '/opt/thinkspace/thinkspace');
   final bool works;
+  final bool windows;
+  @override
+  bool get superKey => !windows;
   String? binding;
   final calls = <String>[];
 
@@ -85,6 +88,19 @@ void main() {
     expect(c.toastMessage, 'Screenshot shortcut: Ctrl + Print');
     expect(find.text('Screenshot shortcut'), findsNothing, reason: 'closed');
     await tester.pump(const Duration(seconds: 4));
+  });
+
+  testWidgets('on Windows the Windows key is not offered', (tester) async {
+    final store = _Store(windows: true);
+    await open(tester, store);
+    await press(tester, [LogicalKeyboardKey.metaLeft, LogicalKeyboardKey.keyS]);
+    expect(
+      find.textContaining('Windows keeps the Windows key'),
+      findsOneWidget,
+    );
+    expect(tester.widget<FilledButton>(save()).onPressed, isNull);
+    await press(tester, [LogicalKeyboardKey.keyK]);
+    expect(find.textContaining('Add Ctrl or Alt'), findsOneWidget);
   });
 
   testWidgets('a shortcut already set shows, and can be removed', (

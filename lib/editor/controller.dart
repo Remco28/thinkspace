@@ -1259,10 +1259,19 @@ class EditorController extends ChangeNotifier {
     freshLayerCount++;
   }
 
+  /// "Layer 4" for the fourth layer, or the next number no layer has.
+  String _newLayerName() {
+    final taken = {for (final l in doc.layers) l.name};
+    var n = doc.layers.length + 1;
+    while (taken.contains('Layer $n')) {
+      n++;
+    }
+    return 'Layer $n';
+  }
+
   void addLayer() => transact('add layer', () {
     final idx = doc.layers.indexWhere((l) => l.id == currentLayerId);
-    final n = doc.layers.length + 1;
-    final layer = Layer(id: doc.newId('l'), name: 'Layer $n');
+    final layer = Layer(id: doc.newId('l'), name: _newLayerName());
     doc.layers.insert(idx < 0 ? doc.layers.length : idx + 1, layer);
     _madeLayer(layer);
   });
@@ -1433,6 +1442,64 @@ class EditorController extends ChangeNotifier {
       }
       target.objects.addAll(moving);
       currentLayerId = layerId;
+      // On a hidden or locked layer they can't be seen or picked any more,
+      // as when a layer they are on is hidden or locked.
+      if (!target.visible || target.locked) {
+        selection = selection.where((s) => !ids.contains(s)).toList();
+      }
+    });
+  }
+
+  /// Move objects onto a layer of their own, made just in front of the
+  /// frontmost layer they come from, so nothing jumps behind anything else
+  /// on those layers. It gets a plain numbered name; the person can rename it
+  /// later, and is not asked to now.
+  void moveObjectsToNewLayer(List<String> ids) {
+    final from = [
+      for (var i = 0; i < doc.layers.length; i++)
+        if (doc.layers[i].objects.any((o) => ids.contains(o.id))) i,
+    ];
+    if (from.isEmpty) return;
+    transact('move to new layer', () {
+      final layer = Layer(id: doc.newId('l'), name: _newLayerName());
+      for (final l in doc.layers) {
+        for (final o in List.of(l.objects)) {
+          if (ids.contains(o.id)) {
+            l.objects.remove(o);
+            layer.objects.add(o);
+          }
+        }
+      }
+      doc.layers.insert(from.last + 1, layer);
+      currentLayerId = layer.id;
+    });
+  }
+
+  /// Put objects just in front of, or just behind, [anchorId], on its layer:
+  /// what dropping rows between others in the Layers list does. They keep
+  /// their order among themselves and their place on the page. One undo step.
+  void moveObjectsBeside(
+    List<String> ids,
+    String anchorId, {
+    required bool inFront,
+  }) {
+    final target = doc.layerOf(anchorId);
+    if (target == null || ids.contains(anchorId)) return;
+    final moving = [
+      for (final l in doc.layers)
+        for (final o in l.objects)
+          if (ids.contains(o.id)) o,
+    ];
+    if (moving.isEmpty) return;
+    final anchor = doc.objectById(anchorId)!;
+    final cross = moving.any((o) => doc.layerOf(o.id) != target);
+    transact(cross ? 'move to ${target.name}' : 'reorder', () {
+      for (final l in doc.layers) {
+        l.objects.removeWhere(moving.contains);
+      }
+      final i = target.objects.indexOf(anchor);
+      target.objects.insertAll(inFront ? i + 1 : i, moving);
+      currentLayerId = target.id;
     });
   }
 

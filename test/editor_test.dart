@@ -449,6 +449,76 @@ void main() {
       expect(c.doc.layerOf(img.id)!.id, c.doc.layers.first.id);
     });
 
+    test(
+      'rows dropped beside another: in front or behind, any layer',
+      () async {
+        final a = await addImage(at: const Offset(100, 100));
+        final b = await addImage(at: const Offset(200, 100));
+        final cc = await addImage(at: const Offset(300, 100));
+        final first = c.doc.layers.first;
+        ids(Layer l) => l.objects.map((o) => o.id).toList();
+        final depth = c.undoDepth;
+
+        c.moveObjectsBeside([a.id], cc.id, inFront: true);
+        expect(ids(first), [b.id, cc.id, a.id]);
+        c.moveObjectsBeside([a.id], b.id, inFront: false);
+        expect(ids(first), [a.id, b.id, cc.id]);
+        expect(c.undoDepth, depth + 2, reason: 'each drop is one step');
+
+        // Two together keep their order, onto another layer, and keep their
+        // place on the page.
+        final d = await addImage(at: const Offset(400, 100));
+        c.addLayer();
+        final top = c.currentLayer;
+        c.moveObjectsToLayer([d.id], top.id);
+        c.moveObjectsBeside([cc.id, a.id], d.id, inFront: false);
+        expect(ids(top), [a.id, cc.id, d.id]);
+        expect(ids(first), [b.id]);
+        expect(c.doc.objectById(cc.id)!.bounds.center, const Offset(300, 100));
+        expect(c.currentLayerId, top.id);
+
+        // Onto itself, or where it already is: nothing changes, no undo step.
+        final before = c.undoDepth;
+        c.moveObjectsBeside([a.id], a.id, inFront: true);
+        c.moveObjectsBeside([a.id], cc.id, inFront: false);
+        expect(c.undoDepth, before);
+        c.undo();
+        expect(ids(c.doc.layers.first), [a.id, b.id, cc.id]);
+      },
+    );
+
+    test(
+      'moved onto a new layer, made in front of the layers they left',
+      () async {
+        final a = await addImage(at: const Offset(100, 100));
+        final b = await addImage(at: const Offset(200, 100));
+        final bottom = c.doc.layers.first;
+        c.addLayer(); // "Layer 2", above
+        final above = c.currentLayer;
+        c.moveObjectsToLayer([b.id], above.id);
+        c.addLayer(); // "Layer 3", the front, left alone
+        final front = c.currentLayer;
+        final depth = c.undoDepth;
+
+        c.moveObjectsToNewLayer([a.id, b.id]);
+        final made = c.doc.layerOf(a.id)!;
+        expect(c.doc.layerOf(b.id), same(made));
+        expect(made.name, 'Layer 4');
+        expect(c.doc.layers.map((l) => l.id), [
+          bottom.id,
+          above.id,
+          made.id,
+          front.id,
+        ]);
+        expect(made.objects.map((o) => o.id), [a.id, b.id]);
+        expect(c.currentLayerId, made.id);
+        expect(c.undoDepth, depth + 1, reason: 'one step');
+        c.undo();
+        expect(c.doc.layers, hasLength(3));
+        expect(c.doc.layerOf(a.id)?.id, bottom.id);
+      },
+    );
+
     test('z-order within a layer', () async {
       final a = await addImage(at: const Offset(100, 100));
       final b = await addImage(at: const Offset(200, 100));

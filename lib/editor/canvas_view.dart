@@ -10,6 +10,7 @@ import 'canvas_painter.dart';
 import 'controller.dart';
 import 'interactor.dart';
 import '../ui/context_menu.dart';
+import '../ui/menus.dart';
 import '../ui/widgets.dart' show KeyCap;
 import 'render.dart';
 import '../ui/design.dart';
@@ -323,12 +324,19 @@ class _CanvasViewState extends State<CanvasView> {
                     area: box.biggest,
                     refocus: () => widget.focusNode?.requestFocus(),
                   ),
-                if (selectionTag(c, box.biggest) case final tag?)
+                if (selectionTag(c, box.biggest) case final tag?) ...[
+                  if (tag.layerButton case final r?)
+                    _TagLayer(
+                      c: c,
+                      rect: r,
+                      refocus: () => widget.focusNode?.requestFocus(),
+                    ),
                   _TagLock(
                     c: c,
                     rect: tag.lock,
                     refocus: () => widget.focusNode?.requestFocus(),
                   ),
+                ],
                 if (c.editingTextId != null)
                   _TextEditorOverlay(c: c, key: ValueKey(c.editingTextId)),
                 if (candidate.isNotEmpty)
@@ -382,6 +390,16 @@ class _TextEditorOverlayState extends State<_TextEditorOverlay> {
   Widget build(BuildContext context) {
     final t = c.doc.objectById(c.editingTextId ?? '');
     if (t is! TextObject) return const SizedBox.shrink();
+    // The field keeps 1 px plus the caret's width free at the end of a line.
+    const caretMargin = 3.0;
+    final spare = t.autoWidth
+        ? caretMargin + t.fontSize * t.font.scale * 2
+        : caretMargin;
+    final (spareLeft, spareRight) = switch (t.align) {
+      TextAlign.center => (spare / 2, spare / 2),
+      TextAlign.right || TextAlign.end => (spare, 0.0),
+      _ => (0.0, spare),
+    };
     final m = Matrix4.identity()
       ..translateByDouble(c.pan.dx, c.pan.dy, 0, 1)
       ..scaleByDouble(c.zoom, c.zoom, 1, 1)
@@ -397,38 +415,55 @@ class _TextEditorOverlayState extends State<_TextEditorOverlay> {
         child: SizedBox(
           width: t.size.width,
           height: t.size.height,
-          child: Focus(
-            onKeyEvent: (node, e) {
-              if (e is KeyDownEvent &&
-                  e.logicalKey == LogicalKeyboardKey.escape) {
-                c.finishTextEdit();
-                return KeyEventResult.handled;
-              }
-              return KeyEventResult.ignored;
-            },
-            // Page text is part of the picture, not the interface: a larger
-            // text size in the computer's settings must not enlarge it here,
-            // or the field would show it bigger than the page draws it and
-            // wrap its end out of sight.
-            child: MediaQuery.withNoTextScaling(
-              child: TextField(
-                controller: _text,
-                focusNode: _focus,
-                key: const ValueKey('text-editor'),
-                maxLines: null,
-                style: textStyleFor(t),
-                textAlign: t.align,
-                cursorColor: kAccent,
-                decoration: InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  filled: t.background != 0,
-                  fillColor: Color(t.background),
-                  contentPadding: const EdgeInsets.all(TextObject.pad),
+          // The field gets spare room past the box's edge (on the side the
+          // text grows towards), so it never wraps a line the page keeps on
+          // one: on some computers the field measures text a hair wider than
+          // the page does. Its own caret room is part of that, so a box of a
+          // set width wraps at the same place as on the page. The colour is
+          // drawn at the box's size, not the field's.
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              if (t.background != 0)
+                Positioned.fill(child: ColoredBox(color: Color(t.background))),
+              Positioned(
+                left: -spareLeft,
+                right: -spareRight,
+                top: 0,
+                bottom: 0,
+                child: Focus(
+                  onKeyEvent: (node, e) {
+                    if (e is KeyDownEvent &&
+                        e.logicalKey == LogicalKeyboardKey.escape) {
+                      c.finishTextEdit();
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  // Page text is part of the picture, not the interface: a
+                  // larger text size in the computer's settings must not
+                  // enlarge it here, or the field would show it bigger than
+                  // the page draws it and wrap its end out of sight.
+                  child: MediaQuery.withNoTextScaling(
+                    child: TextField(
+                      controller: _text,
+                      focusNode: _focus,
+                      key: const ValueKey('text-editor'),
+                      maxLines: null,
+                      style: textStyleFor(t),
+                      textAlign: t.align,
+                      cursorColor: kAccent,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(TextObject.pad),
+                      ),
+                      onChanged: c.updateEditingText,
+                    ),
+                  ),
                 ),
-                onChanged: c.updateEditingText,
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -527,6 +562,77 @@ class _SelectionActions extends StatelessWidget {
                 ),
                 KeyCap(merge ? 'M' : 'U', compact: true),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The layer's name in the selection's name tag: a click lists the layers
+/// to move the selection to, the way "Move to layer" in the right-click menu
+/// does.
+class _TagLayer extends StatelessWidget {
+  const _TagLayer({required this.c, required this.rect, required this.refocus});
+  final EditorController c;
+  final Rect rect;
+  final VoidCallback refocus;
+
+  Future<void> _pick(BuildContext context) async {
+    final ids = [for (final o in c.selectedObjects) o.id];
+    if (ids.isEmpty) return;
+    final here = c.doc.layerOf(ids.first)?.id;
+    final box = context.findRenderObject()! as RenderBox;
+    final at = box.localToGlobal(box.size.bottomLeft(const Offset(0, 4)));
+    const w = 200.0;
+    const fresh = '';
+    final id = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
+      items: [
+        menuLabel('Move to layer', width: w),
+        menuItem(value: fresh, label: 'New layer', icon: Icons.add, width: w),
+        menuDivider(),
+        // Front first, as in the Layers panel.
+        for (final l in c.doc.layers.reversed)
+          menuItem(
+            value: l.id,
+            label: l.name,
+            checked: l.id == here,
+            // Moving onto one of these takes it out of sight or out of reach.
+            shortcut: !l.visible
+                ? 'Hidden'
+                : l.locked
+                ? 'Locked'
+                : null,
+            width: w,
+          ),
+      ],
+    );
+    if (id == fresh) {
+      c.moveObjectsToNewLayer(ids);
+    } else if (id != null && id != here) {
+      c.moveObjectsToLayer(ids, id);
+    }
+    refocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fromRect(
+      rect: rect,
+      child: Tooltip(
+        message: 'Move to another layer',
+        child: Material(
+          type: MaterialType.transparency,
+          child: Builder(
+            builder: (context) => InkWell(
+              key: const ValueKey('tag-layer'),
+              canRequestFocus: false,
+              hoverColor: kOnAccentHover,
+              onTap: () => _pick(context),
+              child: const SizedBox.expand(),
             ),
           ),
         ),
