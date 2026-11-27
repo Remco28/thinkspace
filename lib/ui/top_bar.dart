@@ -250,23 +250,18 @@ class TopBar extends StatelessWidget {
                         ),
                         menuDivider(),
                         menuNote(
-                          'Thinkspace $appVersion',
+                          'Version $appVersion',
                           key: const ValueKey('menu-version'),
                         ),
                       ],
                     ),
                     const SizedBox(width: kSpace4),
-                    const Tooltip(
-                      message: 'Thinkspace $appVersion',
-                      waitDuration: kTooltipWait,
-                      child: Text(
-                        'Thinkspace',
-                        key: ValueKey('app-name'),
-                        style: TextStyle(
-                          fontWeight: kWeightHeading,
-                          fontSize: kTextTitle,
-                          letterSpacing: -0.2,
-                        ),
+                    const Text(
+                      'Thinkspace',
+                      style: TextStyle(
+                        fontWeight: kWeightHeading,
+                        fontSize: kTextTitle,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     const SizedBox(width: kSpace12),

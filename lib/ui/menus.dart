@@ -96,15 +96,17 @@ PopupMenuEntry<T> menuLabel<T>(String text, {double width = 210}) =>
       ),
     );
 
-/// A line of quiet small print at the foot of a menu, not a choice.
+/// A line of faint small print centred at the foot of a menu, not a choice.
 PopupMenuEntry<T> menuNote<T>(String text, {Key? key}) => PopupMenuItem<T>(
   key: key,
   enabled: false,
-  height: 26,
+  height: 24,
   padding: const EdgeInsets.symmetric(horizontal: kSpace12),
-  child: Text(
-    text,
-    style: const TextStyle(fontSize: kTextCaption, color: kInkSoft),
+  child: Center(
+    child: Text(
+      text,
+      style: const TextStyle(fontSize: kTextCaption, color: kInkFaint),
+    ),
   ),
 );
 
